@@ -405,15 +405,21 @@
     while(shuffled.length < v.slots) shuffled.push('BYE');
     const groups = {};
     groupLetters.forEach(g => groups[g] = []);
-    const sequence = [];
-    let order = 1;
-    shuffled.forEach(team => {
-      const group = groupLetters[sequence.length % groupLetters.length];
-      const slot = groups[group].length + 1;
+    // Assign teams to groups round-robin
+    shuffled.forEach((team, idx) => {
+      const group = groupLetters[idx % groupLetters.length];
       groups[group].push(team);
-      sequence.push({ order, group, slot, team, text:`สาย ${group} · ลำดับ ${slot} · ${team}` });
-      order++;
     });
+    // Build all slot items then SHUFFLE the reveal order (true random, not A→B→C→D)
+    const items = [];
+    groupLetters.forEach(g => {
+      groups[g].forEach((team, i) => items.push({ group:g, slot:i+1, team }));
+    });
+    const revealOrder = shuffle(items);
+    const sequence = revealOrder.map((item, idx) => ({
+      order: idx+1, group: item.group, slot: item.slot, team: item.team,
+      text: `สาย ${item.group} · ลำดับ ${item.slot} · ${item.team}`
+    }));
     return { groups, sequence, byes:v.byes };
   }
 
@@ -650,10 +656,118 @@
   function modeVisual(mode, waiting, item, phase, idle=false){
     const safeTeam = item?.team || 'READY';
     const letterChips = ['P','E','P','S','L','I','V','E'];
-    if(mode === 'slot') return `<div class="slot-visual"><div class="slot-top">LUCKY DRAW</div><div class="slot-frame">${Array.from({length:4},(_,i)=>`<div class="slot-reel"><div class="slot-reel-track">${['★','9','7','6','3','8'].map((t,j)=>`<div class="slot-chip" style="--chip1:${['#14d955','#ff2f7e','#08c3ff','#ffd400'][ (i+j)%4 ]};--chip2:${['#0d8d38','#8a3dff','#ff8c00','#e43d30'][ (i+j)%4 ]}">${(waiting || idle) ? t : safeTeam.slice((i+j)%Math.max(1,safeTeam.length), ((i+j)%Math.max(1,safeTeam.length))+1)}</div>`).join('')}</div></div>`).join('')}</div></div>`;
-    if(mode === 'card') return `<div class="card-visual"><div class="card-fan"><span class="card-rank">10</span><span class="card-center">♠</span><span class="card-suit">♠</span></div><div class="card-fan"><span class="card-rank">Q</span><span class="card-center">♥</span><span class="card-suit">♥</span></div><div class="card-fan"><span class="card-rank">A</span><span class="card-center">♣</span><span class="card-suit">♣</span></div></div>`;
-    if(mode === 'lottery') return `<div class="lottery-visual"><div class="lottery-cage"></div><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">08</div><div class="ball-mini red">03</div><div class="ball-mini blue">17</div><div class="ball-mini red">22</div><div class="ball-mini blue">05</div></div><div class="lottery-stand"></div><div class="lottery-base"></div></div>`;
-    return `<div class="wheel-pointer"></div><div class="wheel-visual"><div class="wheel-rotor"><div class="wheel-dots">${letterChips.map((c,i)=>`<i style="--i:${i}">${c}</i>`).join('')}</div></div></div>`;
+    const reelSymbols = ['★','7','♠','9','6','3','8','♥','A','K','Q','J'];
+
+    // ── WHEEL ────────────────────────────────────────────
+    if(mode === 'wheel') return [
+      `<div class="wheel-pulse-ring"></div>`,
+      `<div class="wheel-pointer"></div>`,
+      `<div class="wheel-visual"><div class="wheel-rotor">`,
+      `<div class="wheel-dots">${letterChips.map((c,i)=>`<i style="--i:${i}">${c}</i>`).join('')}</div>`,
+      `</div></div>`
+    ].join('');
+
+    // ── SLOT ─────────────────────────────────────────────
+    if(mode === 'slot') return [
+      `<div class="slot-visual">`,
+      `<div class="slot-top"><span class="slot-badge">LUCKY</span> DRAW</div>`,
+      `<div class="slot-frame">${Array.from({length:4},(_,col)=>{
+        const chips = reelSymbols.map((sym,j)=>{
+          const c1=['#ff5a00','#ff2f7e','#08c3ff','#ffd400'][(col+j)%4];
+          const c2=['#c23d00','#8a3dff','#0086b3','#c4a300'][(col+j)%4];
+          return `<div class="slot-chip" style="--chip1:${c1};--chip2:${c2}">${sym}</div>`;
+        }).join('');
+        return `<div class="slot-reel" style="--col:${col}"><div class="slot-reel-track">${chips}</div></div>`;
+      }).join('')}</div>`,
+      `<div class="slot-shine"></div>`,
+      `</div>`
+    ].join('');
+
+    // ── CARD ─────────────────────────────────────────────
+    if(mode === 'card') return [
+      `<div class="card-visual">`,
+      `<div class="card-fan card-back"><span class="card-pattern">◆◆◆</span></div>`,
+      `<div class="card-fan"><span class="card-rank">A</span><span class="card-center">♠</span><span class="card-suit">♠</span></div>`,
+      `<div class="card-fan"><span class="card-rank">K</span><span class="card-center">♥</span><span class="card-suit">♥</span></div>`,
+      `<div class="card-shine"></div>`,
+      `</div>`
+    ].join('');
+
+    // ── LOTTERY ───────────────────────────────────────────
+    if(mode === 'lottery') return [
+      `<div class="lottery-visual">`,
+      `<div class="lottery-cage"></div>`,
+      `<div class="ball-cloud">`,
+      [['12','red'],['08','blue'],['03','orange'],['17','red'],['22','blue'],['05','orange'],['34','red'],['11','blue']]
+        .map(([n,cls],i)=>`<div class="ball-mini ${cls}" style="--bi:${i}">${n}</div>`).join(''),
+      `</div>`,
+      `<div class="lottery-stand"></div><div class="lottery-base"></div>`,
+      `</div>`
+    ].join('');
+
+    // ── GLITCH CYBER ─────────────────────────────────────
+    if(mode === 'glitch') return [
+      `<div class="glitch-visual">`,
+      `<div class="glitch-scanlines"></div>`,
+      `<div class="glitch-lines">${Array.from({length:5},(_,i)=>`<div class="glitch-hline" style="--gi:${i}"></div>`).join('')}</div>`,
+      `<div class="glitch-text" data-text="DRAW">DRAW</div>`,
+      `<div class="glitch-corner tl"></div><div class="glitch-corner tr"></div>`,
+      `<div class="glitch-corner bl"></div><div class="glitch-corner br"></div>`,
+      `</div>`
+    ].join('');
+
+    // ── GALAXY SPIRAL ────────────────────────────────────
+    if(mode === 'galaxy') return [
+      `<div class="galaxy-visual">`,
+      `<div class="galaxy-disk"></div>`,
+      `<div class="galaxy-arm arm1"></div>`,
+      `<div class="galaxy-arm arm2"></div>`,
+      `<div class="galaxy-core"></div>`,
+      Array.from({length:14},(_,i)=>`<div class="galaxy-star" style="--gi:${i};--gr:${50+i*9}px;--gd:${(i*26)%360}deg"></div>`).join(''),
+      `</div>`
+    ].join('');
+
+    // ── CRYSTAL ORACLE ───────────────────────────────────
+    if(mode === 'crystal') return [
+      `<div class="crystal-visual">`,
+      `<div class="crystal-glow-bg"></div>`,
+      `<div class="crystal-orb">`,
+      `<div class="crystal-inner"></div>`,
+      `<div class="crystal-shine"></div>`,
+      Array.from({length:8},(_,i)=>`<div class="crystal-spark" style="--ci:${i}"></div>`).join(''),
+      `</div>`,
+      `<div class="crystal-stand"></div>`,
+      `<div class="crystal-base"></div>`,
+      `</div>`
+    ].join('');
+
+    // ── PLASMA ARC ───────────────────────────────────────
+    if(mode === 'plasma') return [
+      `<div class="plasma-visual">`,
+      `<div class="plasma-field"></div>`,
+      Array.from({length:6},(_,i)=>`<div class="plasma-arc" style="--pi:${i};--pa:${i*60}deg"></div>`).join(''),
+      `<div class="plasma-core"><div class="plasma-core-inner"></div></div>`,
+      Array.from({length:10},(_,i)=>`<div class="plasma-particle" style="--ppi:${i};--ppd:${i*36}deg"></div>`).join(''),
+      `</div>`
+    ].join('');
+
+    // ── VORTEX PORTAL ────────────────────────────────────
+    if(mode === 'vortex') return [
+      `<div class="vortex-visual">`,
+      Array.from({length:7},(_,i)=>`<div class="vortex-ring" style="--vi:${i}"></div>`).join(''),
+      Array.from({length:12},(_,i)=>`<div class="vortex-particle" style="--vpi:${i};--vpd:${i*30}deg"></div>`).join(''),
+      `<div class="vortex-center"></div>`,
+      `</div>`
+    ].join('');
+
+    // ── FALLBACK (wheel) ─────────────────────────────────
+    return [
+      `<div class="wheel-pulse-ring"></div>`,
+      `<div class="wheel-pointer"></div>`,
+      `<div class="wheel-visual"><div class="wheel-rotor">`,
+      `<div class="wheel-dots">${letterChips.map((c,i)=>`<i style="--i:${i}">${c}</i>`).join('')}</div>`,
+      `</div></div>`
+    ].join('');
   }
 
   function renderRevealFeed(){
