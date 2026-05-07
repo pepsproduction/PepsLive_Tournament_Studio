@@ -1,0 +1,23 @@
+PepsLive Tournament Studio
+
+ชื่อโปรเจกต์ที่แนะนำ: PepsLive Tournament Studio
+ชื่อ repo ที่แนะนำ: pepslive-tournament-studio
+
+วิธีอัปขึ้น GitHub Pages แบบเร็ว:
+1) แตกไฟล์ zip
+2) อัปไฟล์ทั้งหมดในโฟลเดอร์นี้ขึ้น repo
+3) ให้ index.html อยู่ที่ root ของ repo
+4) ไปที่ Settings > Pages
+5) Source: Deploy from a branch
+6) Branch: main / root
+7) เปิดลิงก์ GitHub Pages ที่ระบบให้มา
+
+ไฟล์สำคัญ:
+- index.html
+- assets/style.css
+- assets/app.js
+- apps-script-webhook.gs
+- README.md
+
+หมายเหตุ:
+ระบบนี้เป็น Static Web ใช้กับ GitHub Pages ได้ ไม่ต้องมี server เพิ่ม

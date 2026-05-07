@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Prompt:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <title>PepsLive Tournament Studio</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div id="sourceRoot" class="hidden"></div>
+
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">PL</div>
+        <div>
+          <h1>PepsLive Tournament Studio</h1>
+          <p>Dock-style sport production tool · Draw · Schedule · Scores · Google Sheet · OBS Sources</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="pill" id="autosavePill">Auto Save: Ready</span>
+        <span class="pill" id="sheetPill">Google Sheet: Not set</span>
+        <button class="btn small" id="btnSaveProject">Save JSON</button>
+        <label class="btn small file-btn">Load JSON<input id="loadProjectInput" type="file" accept=".json,application/json" /></label>
+      </div>
+    </header>
+
+    <section class="stepper" id="stepper"></section>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <div class="nav-title">Control Center</div>
+        <nav id="nav"></nav>
+        <div class="side-card">
+          <b>Safe Live Mode</b>
+          <p>ผลสุ่มจะไม่ขึ้นเป็นผลจริงจนกว่าจะกด Confirm</p>
+          <label class="switch-row"><input type="checkbox" id="safeLiveToggle" checked /> เปิดใช้งาน</label>
+        </div>
+      </aside>
+
+      <section class="content">
+        <section class="panel active" data-panel="dashboard">
+          <div class="panel-head">
+            <div><h2>Dashboard</h2><p>ดูสถานะรายการทั้งหมดและขั้นตอนถัดไป</p></div>
+            <button class="btn primary" id="goNext">ไปขั้นตอนถัดไป</button>
+          </div>
+          <div class="statgrid" id="dashboardStats"></div>
+          <div class="grid two">
+            <div class="card">
+              <h3>Next Action</h3>
+              <div id="nextAction" class="notice"></div>
+            </div>
+            <div class="card">
+              <h3>System Guard</h3>
+              <div id="guardList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="setup">
+          <div class="panel-head"><div><h2>Setup Event</h2><p>ตั้งค่าพื้นฐานก่อนสุ่มและจัดตาราง</p></div></div>
+          <div class="grid three">
+            <div class="field"><label>ชื่อรายการ</label><input id="eventName" placeholder="เช่น บาส 3X3 ศรีสะเกษ" /></div>
+            <div class="field"><label>ประเภทกีฬา</label><select id="sportType"><option>Basketball 3x3</option><option>Football</option><option>Volleyball</option><option>Esport</option><option>Custom</option></select></div>
+            <div class="field"><label>Preset</label><select id="preset"><option value="custom">Custom</option><option value="basket3x3">บาส 3x3</option><option value="football">ฟุตบอล</option><option value="esport">อีสปอร์ต</option></select></div>
+            <div class="field"><label>จำนวนสาย / กลุ่ม</label><input id="groupCount" type="number" min="1" value="4" /></div>
+            <div class="field"><label>จำนวนสนาม</label><input id="courtCount" type="number" min="1" value="1" /></div>
+            <div class="field"><label>เวลาเริ่มแข่ง</label><input id="startTime" type="time" value="09:00" /></div>
+            <div class="field"><label>ระยะห่างแต่ละคู่ (นาที)</label><input id="matchInterval" type="number" min="1" value="15" /></div>
+            <div class="field"><label>พักทุกกี่รอบเวลา</label><input id="breakEverySlots" type="number" min="0" value="0" /></div>
+            <div class="field"><label>เวลาพัก (นาที)</label><input id="breakMinutes" type="number" min="0" value="0" /></div>
+          </div>
+          <div class="card compact">
+            <h3>กติกาคะแนนรอบแบ่งกลุ่ม</h3>
+            <div class="grid four">
+              <div class="field"><label>ชนะได้กี่แต้ม</label><input id="pointsWin" type="number" value="3" /></div>
+              <div class="field"><label>เสมอได้กี่แต้ม</label><input id="pointsDraw" type="number" value="1" /></div>
+              <div class="field"><label>แพ้ได้กี่แต้ม</label><input id="pointsLoss" type="number" value="0" /></div>
+              <div class="field"><label>เข้ารอบต่อสาย</label><input id="qualifiersPerGroup" type="number" min="1" value="2" /></div>
+            </div>
+            <p class="hint">ลำดับจัดอันดับ Final: PTS → GD → GF → ชนะมากกว่า → ชื่อทีม A-Z</p>
+          </div>
+          <div class="row"><button class="btn primary" id="saveSetup">บันทึก Setup</button><button class="btn" id="resetAll">Reset โปรเจกต์</button></div>
+        </section>
+
+        <section class="panel" data-panel="teams">
+          <div class="panel-head"><div><h2>Teams</h2><p>ใส่รายชื่อทีม ตรวจซ้ำ และเตรียมสุ่ม</p></div></div>
+          <div class="grid two">
+            <div class="card">
+              <h3>รายชื่อทีม</h3>
+              <textarea id="teamText" placeholder="วางรายชื่อทีม ทีละบรรทัด"></textarea>
+              <div class="row"><button class="btn primary" id="saveTeams">บันทึกรายชื่อ</button><button class="btn" id="dedupeTeams">ลบชื่อซ้ำ</button><button class="btn" id="sampleTeams">ใส่ตัวอย่าง 16 ทีม</button></div>
+            </div>
+            <div class="card">
+              <h3>ผลตรวจข้อมูล</h3>
+              <div id="teamValidation"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="draw">
+          <div class="panel-head"><div><h2>Draw</h2><p>สุ่มสายแบบใหม่ เลือกได้ทั้งกดทีเดียวสุ่มทั้งหมด หรือเปิดผลทีละทีม พร้อมกราฟิกบอกสาย · ลำดับ · ทีม</p></div></div>
+          <div class="grid two">
+            <div class="card">
+              <h3>Draw Control</h3>
+              <div class="grid three">
+                <div class="field"><label>Animation Style</label><select id="drawAnimation"><option value="wheel">Wheel Spin</option><option value="slot">Slot Reveal</option><option value="card">Card Draw</option><option value="lottery">Lottery Ball</option></select></div>
+                <div class="field"><label>Draw Method</label><select id="drawMethod"><option value="auto-sequence">Auto Reveal ทีละทีม</option><option value="manual-step">Manual Reveal ทีละทีม</option><option value="instant-all">กดทีเดียวสุ่มทั้งหมด</option></select></div>
+                <div class="field"><label>Result Delay</label><div class="inline-range"><input id="drawDuration" type="range" min="1" max="20" value="5" /><div class="range-pill"><span id="drawDurationValue">5</span> วินาที</div></div></div>
+              </div>
+              <div class="field"><label>Seed / Note</label><input id="drawNote" placeholder="ใส่หมายเหตุได้ เช่น รอบจับสายบ่าย" /></div>
+              <div class="draw-stage cinematic" id="drawStage"><div><div class="draw-big">READY</div><div class="muted">เลือกวิธีสุ่ม แล้วกด Start Draw</div></div></div>
+              <div class="row"><button class="btn primary" id="startDraw">Start Draw</button><button class="btn" id="nextReveal">Next Reveal</button><button class="btn good" id="confirmDraw">Confirm Result</button><button class="btn warn" id="redraw">Reset Prepared</button><button class="btn" id="undoDraw">Undo</button><button class="btn" id="toggleDrawExpand">Expand Draw</button></div>
+              <div id="pendingBox" class="notice">ยังไม่มีผล pending</div>
+            </div>
+            <div class="card">
+              <h3>ผลแบ่งสาย / Reveal Feed</h3>
+              <div id="groupResult"></div>
+              <div id="revealFeed"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="schedule">
+          <div class="panel-head"><div><h2>Schedule</h2><p>สร้างตารางแข่งรอบแบ่งกลุ่ม พร้อมสุ่มลำดับสาย/คู่ และหน่วงเวลาเปิดผลให้ลุ้นขึ้น</p></div></div>
+          <div class="card compact">
+            <h3>Schedule Reveal Control</h3>
+            <div class="grid three">
+              <div class="field"><label>Schedule Reveal Delay</label><div class="inline-range"><input id="scheduleDuration" type="range" min="1" max="15" value="5" /><div class="range-pill"><span id="scheduleDurationValue">5</span> วินาที</div></div></div>
+              <div class="field"><label>Randomize</label><label class="switch-row"><input type="checkbox" id="randomizeSchedule" checked /> สุ่มลำดับสายและคู่แข่ง</label></div>
+              <div class="field"><label>Schedule Style</label><select id="scheduleRevealStyle"><option value="shuffle">Shuffle Board</option><option value="scanner">Match Scanner</option><option value="cards">Match Cards</option></select></div>
+            </div>
+          </div>
+          <div class="row"><button class="btn primary" id="generateSchedule">Generate Schedule</button><button class="btn" id="rebalanceSchedule">Rebuild Random</button><button class="btn" id="copyScheduleBtn">Copy Schedule</button></div>
+          <div id="restWarnings"></div>
+          <div id="scheduleBox"></div>
+        </section>
+
+        <section class="panel" data-panel="scores">
+          <div class="panel-head"><div><h2>Scores & Standings</h2><p>กรอกผลการแข่งขัน ระบบคำนวณอันดับให้ทันที</p></div></div>
+          <div class="row"><button class="btn primary" id="saveScores">บันทึกคะแนน</button><button class="btn" id="markAllPending">ตั้งทุกคู่เป็น Pending</button><button class="btn" id="copyStandingsBtn">Copy Standings</button></div>
+          <div class="grid two wide-left">
+            <div class="card"><h3>Match Scores</h3><div id="scoresBox"></div></div>
+            <div class="card"><h3>Standings</h3><div id="standingsBox"></div></div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="knockout">
+          <div class="panel-head"><div><h2>Knockout</h2><p>ดึงอันดับจากสายมาเข้ารอบต่อไป และคำนวณผู้ชนะต่อเนื่อง</p></div></div>
+          <div class="grid two">
+            <div class="card">
+              <h3>Qualifier Override</h3>
+              <p class="hint">ใช้กรณีหน้างานมีทีมสละสิทธิ์ แพ้บาย หรือกรรมการตัดสินพิเศษ</p>
+              <div id="overrideBox"></div>
+              <div class="row"><button class="btn" id="clearOverrides">ล้าง Override</button></div>
+            </div>
+            <div class="card">
+              <h3>Knockout Builder</h3>
+              <label class="switch-row"><input type="checkbox" id="enableThird" checked /> มีรอบชิงที่ 3</label>
+              <label class="switch-row"><input type="checkbox" id="enableFinal" checked /> มีรอบชิงชนะเลิศ</label>
+              <div class="row"><button class="btn primary" id="generateKnockout">Generate / Refresh Knockout</button><button class="btn" id="copyKnockoutBtn">Copy Knockout</button></div>
+              <div class="notice">Final รองรับ 4 หรือ 8 ทีมเข้ารอบแบบเต็มสุด ถ้ามากกว่านั้นจะสร้างรอบเบื้องต้นแบบ sequential ให้ก่อน</div>
+            </div>
+          </div>
+          <div id="knockoutBox"></div>
+        </section>
+
+        <section class="panel" data-panel="sources">
+          <div class="panel-head"><div><h2>Live Sources</h2><p>ใช้ URL เหล่านี้เป็น OBS Browser Source ได้เลย</p></div></div>
+          <div class="grid three" id="sourceCards"></div>
+        </section>
+
+        <section class="panel" data-panel="export">
+          <div class="panel-head"><div><h2>Export</h2><p>รอบนี้ตัด Excel ออก เหลือ Copy + Google Sheet</p></div></div>
+          <div class="grid two">
+            <div class="card">
+              <h3>Copy Export</h3>
+              <div class="grid two">
+                <button class="btn" data-copy="draw">Copy Draw Result</button>
+                <button class="btn" data-copy="schedule">Copy Schedule</button>
+                <button class="btn" data-copy="scores">Copy Scores</button>
+                <button class="btn" data-copy="standings">Copy Standings</button>
+                <button class="btn" data-copy="knockout">Copy Knockout</button>
+                <button class="btn" data-copy="caption">Copy Facebook Caption</button>
+                <button class="btn primary" data-copy="all">Copy All</button>
+                <button class="btn" data-copy="script">Copy Presenter Script</button>
+              </div>
+              <div id="copyStatus" class="notice">พร้อมคัดลอก</div>
+            </div>
+            <div class="card">
+              <h3>Google Sheet Webhook</h3>
+              <div class="field"><label>Apps Script Webhook URL</label><input id="webhookUrl" placeholder="https://script.google.com/macros/s/.../exec" /></div>
+              <div class="field"><label>Secret Token</label><input id="webhookToken" placeholder="ตั้งรหัสเอง เช่น pepslive123" /></div>
+              <div class="field"><label>Google Sheet ID (เว้นว่างได้ ถ้าให้ Apps Script สร้างใหม่)</label><input id="sheetId" /></div>
+              <div class="row"><button class="btn" id="saveWebhook">Save</button><button class="btn" id="testWebhook">Test</button><button class="btn primary" id="sendWebhook">Export to Google Sheet</button></div>
+              <div id="sheetStatus" class="notice">ยังไม่ได้ส่งข้อมูล</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="settings">
+          <div class="panel-head"><div><h2>Settings</h2><p>ตั้งค่าหน้าตาเว็บ, ขนาดแผงควบคุม, ขนาดพื้นที่ทำงาน และ Source สำหรับ OBS</p></div></div>
+          <div class="grid two">
+            <div class="card">
+              <h3>Layout Resize</h3>
+              <div class="field"><label>ความกว้าง Control Center</label><div class="inline-range"><input id="sidebarWidth" type="range" min="220" max="430" step="10" value="284" /><div class="range-pill"><span id="sidebarWidthValue">284</span> px</div></div></div>
+              <div class="field"><label>ความกว้างหน้าเว็บทั้งหมด</label><div class="inline-range"><input id="appMaxWidth" type="range" min="1100" max="1900" step="20" value="1280" /><div class="range-pill"><span id="appMaxWidthValue">1280</span> px</div></div></div>
+              <div class="field"><label>ความสูงหน้าต่าง Draw</label><div class="inline-range"><input id="drawStageHeight" type="range" min="300" max="760" step="20" value="420" /><div class="range-pill"><span id="drawStageHeightValue">420</span> px</div></div></div>
+              <div class="field"><label>รูปแบบหน้า Draw</label><select id="drawPanelMode"><option value="normal">Normal</option><option value="wide">Wide Draw</option><option value="full">Full Draw</option></select></div>
+              <div class="field"><label>ความหนาแน่น UI</label><select id="uiDensity"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div>
+              <div class="row"><button class="btn primary" id="saveLayoutSettings">บันทึก Layout</button><button class="btn" id="resetLayoutSettings">Reset Layout</button></div>
+            </div>
+            <div class="card">
+              <h3>Source Display</h3>
+              <div class="field"><label>พื้นหลัง Source</label><select id="sourceBg"><option value="dark">Dark</option><option value="transparent">Transparent</option><option value="green">Green Screen</option></select></div>
+              <div class="field"><label>ขนาดตัวอักษร OBS Source</label><input id="fontScale" type="range" min="0.7" max="1.6" step="0.05" value="1" /></div>
+              <button class="btn primary" id="saveDisplaySettings">บันทึก Display Settings</button>
+            </div>
+            <div class="card">
+              <h3>Final QA Status</h3>
+              <div class="notice good">ผ่านการตรวจ syntax app.js และโครงสร้างไฟล์สำหรับ GitHub Pages</div>
+              <div class="notice">ชื่อโปรเจกต์ที่แนะนำ: <b>PepsLive Tournament Studio</b></div>
+            </div>
+            <div class="card">
+              <h3>Debug State</h3>
+              <pre id="debugState" class="codebox"></pre>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="sourceModal">
+    <div class="modalbox">
+      <div class="modal-head"><div><h3 id="modalTitle">Source</h3><p id="modalDesc"></p></div><button class="iconbtn" id="closeModal">×</button></div>
+      <div class="field"><label>OBS Browser Source URL</label><div class="codebox" id="modalUrl"></div></div>
+      <div class="row"><button class="btn primary" id="copyModalUrl">Copy URL</button><button class="btn" id="openModalUrl">Open Preview</button></div>
+    </div>
+  </div>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
