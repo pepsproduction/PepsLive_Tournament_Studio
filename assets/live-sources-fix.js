@@ -1,1 +1,23 @@
-(()=>{const v='20260508-safe-v3',u='20260508-ui-b2',p='20260508-page-c1';function css(id,href){if(document.getElementById(id))return;const l=document.createElement('link');l.id=id;l.rel='stylesheet';l.href=href;document.head.appendChild(l)}function js(id,src){if(document.getElementById(id))return;const s=document.createElement('script');s.id=id;s.src=src;document.body.appendChild(s)}function boot(){css('plsSafeV2Css','assets/live-source-safe-v2.css?v='+v);js('plsSafeV2Js','assets/live-source-safe-v2.js?v='+v);css('plsUiScoreBasicCss','assets/ui-score-basic-fix.css?v='+u);js('plsUiScoreBasicJs','assets/ui-score-basic-fix.js?v='+u);css('plsPageLayoutCss','assets/page-layout-settings.css?v='+p);js('plsPageLayoutJs','assets/page-layout-settings.js?v='+p)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();})();
+(()=>{
+  const stamp='20260508-ui-groups-score-v4';
+  function css(id,href){
+    if(document.getElementById(id))return;
+    const l=document.createElement('link');
+    l.id=id;l.rel='stylesheet';l.href=href;document.head.appendChild(l);
+  }
+  function js(id,src){
+    if(document.getElementById(id))return;
+    const s=document.createElement('script');
+    s.id=id;s.src=src;s.defer=true;document.body.appendChild(s);
+  }
+  function boot(){
+    css('plsSafeV2Css','assets/live-source-safe-v2.css?v='+stamp);
+    js('plsSafeV2Js','assets/live-source-safe-v2.js?v='+stamp);
+    css('plsUiScoreBasicCss','assets/ui-score-basic-fix.css?v='+stamp);
+    js('plsUiScoreBasicJs','assets/ui-score-basic-fix.js?v='+stamp);
+    css('plsPageLayoutCss','assets/page-layout-settings.css?v='+stamp);
+    js('plsPageLayoutJs','assets/page-layout-settings.js?v='+stamp);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
