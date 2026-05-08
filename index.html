@@ -218,6 +218,14 @@
       .peps-source-card-clean .source-url {
         margin-top: 12px;
       }
+      #sourceCards.peps-source-holder-clean > *:not(.peps-source-section-clean) {
+        display: none !important;
+      }
+      #sourceCards.peps-source-holder-clean .source-card:not(.peps-source-card-clean),
+      #sourceCards.peps-source-holder-clean [data-source]:not(.peps-source-card-clean) {
+        display: none !important;
+      }
+
       .peps-source-section-clean {
         grid-column: 1 / -1;
         border: 1px solid var(--line);
@@ -876,18 +884,19 @@
 
     const html = drawCard + liveCards;
     const currentOk =
-      holder.dataset.cleanCardsVersion === 'v2' &&
+      holder.dataset.cleanCardsVersion === 'v3' &&
       holder.querySelectorAll('[data-clean-section="draw"]').length === 1 &&
       holder.querySelectorAll('[data-clean-section="live"]').length === 1 &&
       holder.querySelectorAll('[data-clean-copy-url]').length === 8 &&
-      !DRAW_MODES.some(mode => holder.textContent.toLowerCase().includes(`${mode} spin`) || holder.textContent.toLowerCase().includes(`${mode} source`));
+      !['wheel spin','slot reveal','card draw','lottery ball','glitch cyber','galaxy spiral','crystal oracle','plasma arc','vortex portal','winner graphic']
+        .some(title => holder.textContent.toLowerCase().includes(title));
 
     if (currentOk && holder.dataset.cleanCardsHash === String(html.length)) return;
 
     sourceCardsRenderLock = true;
     if (sourceCardsObserver) sourceCardsObserver.disconnect();
 
-    holder.dataset.cleanCardsVersion = 'v2';
+    holder.dataset.cleanCardsVersion = 'v3';
     holder.dataset.cleanCardsHash = String(html.length);
     holder.className = 'grid three peps-source-holder-clean';
     holder.innerHTML = html;
@@ -936,6 +945,72 @@
     });
 
     sourceCardsObserver.observe(holder, { childList: true, subtree: true });
+  }
+
+  function sourceCardsHealth() {
+    const holder = $('#sourceCards');
+    if (!holder) return { ok: true, reason: 'no-holder' };
+
+    const drawSections = holder.querySelectorAll('[data-clean-section="draw"]').length;
+    const liveSections = holder.querySelectorAll('[data-clean-section="live"]').length;
+    const copyButtons = holder.querySelectorAll('[data-clean-copy-url]').length;
+    const previewButtons = holder.querySelectorAll('[data-clean-preview-url]').length;
+    const lowerText = (holder.textContent || '').toLowerCase();
+
+    const oldSourceTitles = [
+      'wheel spin',
+      'slot reveal',
+      'card draw',
+      'lottery ball',
+      'glitch cyber',
+      'galaxy spiral',
+      'crystal oracle',
+      'plasma arc',
+      'vortex portal',
+      'winner graphic'
+    ];
+    const oldHits = oldSourceTitles.filter(t => lowerText.includes(t)).length;
+
+    const ok =
+      holder.dataset.cleanCardsVersion === 'v3' &&
+      drawSections === 1 &&
+      liveSections === 1 &&
+      copyButtons === 8 &&
+      previewButtons === 8 &&
+      oldHits === 0;
+
+    return {
+      ok,
+      reason: ok ? 'ok' : `draw=${drawSections}, live=${liveSections}, copy=${copyButtons}, preview=${previewButtons}, old=${oldHits}`
+    };
+  }
+
+  function forceCleanSourceCards(reason = 'force') {
+    const holder = $('#sourceCards');
+    if (!holder) return;
+    renderCleanSourceCards(reason);
+    holder.classList.add('peps-source-holder-clean');
+
+    const health = sourceCardsHealth();
+    if (!health.ok) {
+      // One more microtask pass catches app.js renderAll() that runs immediately after saveState().
+      setTimeout(() => renderCleanSourceCards(`${reason}-retry`), 0);
+    }
+  }
+
+  let sourceWatchdogTimer = 0;
+  function startSourceCardsWatchdog() {
+    if (sourceWatchdogTimer) return;
+    sourceWatchdogTimer = setInterval(() => {
+      const sourcePanelActive = !!$('[data-panel="sources"].active') || location.hash.includes('sources');
+      const holder = $('#sourceCards');
+      if (!holder) return;
+
+      const health = sourceCardsHealth();
+      if (!health.ok || sourcePanelActive) {
+        if (!health.ok) forceCleanSourceCards(`watchdog:${health.reason}`);
+      }
+    }, 140);
   }
 
   function sourceCardHtml  function sourceCardHtml(id, title, desc) {
@@ -1182,7 +1257,7 @@
       copyButtons !== 8 ||
       previewButtons !== 8 ||
       oldDrawCards > 2 ||
-      holder.dataset.cleanCardsVersion !== 'v2'
+      holder.dataset.cleanCardsVersion !== 'v3'
     ) {
       renderCleanSourceCards('legacy-cleanup');
     }
@@ -1193,11 +1268,13 @@
     applyTypography();
     injectDrawSizeButton();
     attachDrawTicker();
-    renderCleanSourceCards('boot');
+    forceCleanSourceCards('boot');
     installSourceCardsObserver();
+    startSourceCardsWatchdog();
 
     const refreshAfterCoreRender = () => {
-      [0, 40, 120, 280, 650, 1200].forEach(ms => setTimeout(() => {
+      [0, 20, 60, 120, 240, 420, 700, 1100, 1600].forEach(ms => setTimeout(() => {
+        forceCleanSourceCards(`after-core-${ms}`);
         removeLegacySourceDupes();
         injectDrawSizeButton();
         applyTypography();
@@ -1205,6 +1282,11 @@
     };
 
     document.addEventListener('click', (e) => {
+      if (e.target.closest('#saveTeams')) {
+        // app.js calls saveState() then renderAll(false). These delayed passes win back #sourceCards.
+        [10, 80, 180, 360, 720, 1300, 2100].forEach(ms => setTimeout(() => forceCleanSourceCards(`saveTeams-hard-${ms}`), ms));
+      }
+
       if (
         e.target.closest('[data-panel-target="sources"]') ||
         e.target.closest('#saveTeams') ||
