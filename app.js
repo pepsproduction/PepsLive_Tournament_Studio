@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V6
+/* PepsLive Tournament Studio - Clean Core V7
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -8,7 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const APP_VERSION = 'Clean-Core-6.0.0';
+  const APP_VERSION = 'Clean-Core-7.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -1091,7 +1091,7 @@
         <div class="draw-fx">${drawFx(mode)}</div>
         <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
         <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
-        <div class="draw-team-name">${esc(item.team || 'READY')}</div>
+        <div class="draw-team-name"><span>${esc(item.team || 'READY')}</span></div>
         <div class="draw-team-sub">${waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
         <div class="draw-progress">
           <div class="draw-progress-bar" style="width:${progress}%"></div>
@@ -1291,12 +1291,18 @@
 
     document.documentElement.classList.add('source-mode');
     document.body.classList.add('source-mode-body');
+    document.documentElement.style.background = 'transparent';
+    document.documentElement.style.backgroundImage = 'none';
+    document.body.style.background = 'transparent';
+    document.body.style.backgroundImage = 'none';
     $('#app')?.classList.add('hidden');
 
     const root = $('#sourceRoot') || document.body.appendChild(document.createElement('div'));
     root.id = 'sourceRoot';
     root.classList.remove('hidden');
     root.className = `source-root source-view-${view}`;
+    root.style.background = 'transparent';
+    root.style.backgroundImage = 'none';
 
     let lastHash = '';
 
@@ -1376,7 +1382,7 @@
           <div class="pl-anim-fx">${drawFx(mode)}</div>
           <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
           <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
-          <div class="pl-anim-name">${esc(item.team || 'READY')}</div>
+          <div class="pl-anim-name"><span>${esc(item.team || 'READY')}</span></div>
           <div class="pl-anim-meta">${live.waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
         </div>
       </div>
@@ -1696,6 +1702,176 @@
         background:rgba(0,0,0,.24);
       }
 
+
+      /* V7: hard-lock Draw card geometry. 1-line and 2-line team names must not change UI height. */
+      .draw-stage{
+        min-height:var(--draw-stage-h,420px)!important;
+        overflow:visible!important;
+      }
+      .draw-stage .draw-graphic{
+        width:min(760px,96%)!important;
+        height:var(--draw-stage-h,420px)!important;
+        min-height:var(--draw-stage-h,420px)!important;
+        max-height:var(--draw-stage-h,420px)!important;
+        display:grid!important;
+        grid-template-rows:150px 34px 58px 116px 28px 10px 18px!important;
+        align-content:center!important;
+        justify-items:center!important;
+        gap:8px!important;
+        overflow:hidden!important;
+        contain:layout paint!important;
+      }
+      .draw-stage .draw-fx{
+        grid-row:1!important;
+        height:150px!important;
+        min-height:150px!important;
+        max-height:150px!important;
+        display:grid!important;
+        place-items:center!important;
+        overflow:hidden!important;
+      }
+      .draw-stage .draw-chip{
+        grid-row:2!important;
+        height:34px!important;
+        min-height:34px!important;
+        max-height:34px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        white-space:nowrap!important;
+        overflow:hidden!important;
+      }
+      .draw-stage .draw-group-badge{
+        grid-row:3!important;
+        min-height:58px!important;
+        height:58px!important;
+        max-height:58px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        white-space:nowrap!important;
+      }
+      .draw-stage .draw-team-name{
+        grid-row:4!important;
+        width:min(680px,96%)!important;
+        min-height:116px!important;
+        height:116px!important;
+        max-height:116px!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        overflow:hidden!important;
+        text-align:center!important;
+        line-height:1!important;
+        padding:0 8px!important;
+      }
+      .draw-stage .draw-team-name > span{
+        display:-webkit-box!important;
+        -webkit-box-orient:vertical!important;
+        -webkit-line-clamp:2!important;
+        overflow:hidden!important;
+        text-overflow:ellipsis!important;
+        overflow-wrap:anywhere!important;
+        word-break:break-word!important;
+        line-height:1!important;
+        max-height:2em!important;
+      }
+      .draw-stage .draw-team-sub{
+        grid-row:5!important;
+        height:28px!important;
+        min-height:28px!important;
+        max-height:28px!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        overflow:hidden!important;
+        white-space:nowrap!important;
+        text-overflow:ellipsis!important;
+        width:min(680px,96%)!important;
+      }
+      .draw-stage .draw-progress{
+        grid-row:6!important;
+        height:10px!important;
+        min-height:10px!important;
+        max-height:10px!important;
+        margin:0!important;
+      }
+      .draw-stage .draw-progress-text{
+        grid-row:7!important;
+        height:18px!important;
+        min-height:18px!important;
+        max-height:18px!important;
+        margin:0!important;
+        align-items:center!important;
+      }
+      .draw-stage .pl-wheel{width:132px!important;height:132px!important}
+      .draw-stage .pl-slot i{height:70px!important}
+      .draw-stage .pl-card{width:96px!important;height:126px!important}
+      .draw-stage .pl-ball{width:118px!important;height:118px!important}
+
+      /* V7: expanded draw is opaque and above every UI element. */
+      body.draw-expanded-active{overflow:hidden!important}
+      .draw-stage.expanded{
+        position:fixed!important;
+        inset:0!important;
+        width:100vw!important;
+        height:100vh!important;
+        min-height:100vh!important;
+        max-height:100vh!important;
+        margin:0!important;
+        padding:26px!important;
+        z-index:2147483646!important;
+        display:grid!important;
+        place-items:center!important;
+        background:#07111f!important;
+        background-image:
+          radial-gradient(circle at 16% 0%,rgba(91,231,255,.17),transparent 34%),
+          radial-gradient(circle at 94% 10%,rgba(255,91,189,.14),transparent 30%)!important;
+        border:0!important;
+        border-radius:0!important;
+        box-shadow:none!important;
+        overflow:hidden!important;
+        isolation:isolate!important;
+      }
+      .draw-stage.expanded + .row,
+      .draw-stage.expanded ~ .row,
+      body.draw-expanded-active .content .panel[data-panel="draw"] .card > .row{
+        visibility:hidden!important;
+        pointer-events:none!important;
+      }
+      .draw-stage.expanded .draw-graphic{
+        width:min(980px,94vw)!important;
+        height:min(760px,calc(100vh - 80px))!important;
+        min-height:min(760px,calc(100vh - 80px))!important;
+        max-height:min(760px,calc(100vh - 80px))!important;
+        grid-template-rows:190px 36px 66px 132px 32px 12px 20px!important;
+        position:relative!important;
+        z-index:2147483647!important;
+      }
+      .draw-stage.expanded .draw-fx{height:190px!important;min-height:190px!important;max-height:190px!important}
+      .draw-stage.expanded .draw-team-name{
+        width:min(860px,94vw)!important;
+        height:132px!important;
+        min-height:132px!important;
+        max-height:132px!important;
+      }
+      .draw-stage.expanded .pl-wheel{width:168px!important;height:168px!important}
+      .draw-stage.expanded .pl-card{width:116px!important;height:154px!important}
+      .draw-stage.expanded .pl-ball{width:138px!important;height:138px!important}
+      .draw-stage.expanded::after{
+        content:'ESC เพื่อปิด Expand';
+        position:absolute;
+        top:16px;
+        right:20px;
+        z-index:2147483647;
+        font-size:12px;
+        color:rgba(237,245,255,.78);
+        border:1px solid rgba(255,255,255,.16);
+        border-radius:999px;
+        padding:7px 10px;
+        background:rgba(0,0,0,.32);
+      }
+
       @media(max-width:900px){.score-row{grid-template-columns:1fr 60px auto 60px 1fr}.score-row b,.score-row select{grid-column:1/-1}}
     `;
     document.head.appendChild(style);
@@ -1707,7 +1883,9 @@
     const style = document.createElement('style');
     style.id = 'peps-source-css';
     style.textContent = `
-      html.source-mode,html.source-mode body{
+      html.source-mode,
+      html.source-mode body,
+      html.source-mode #sourceRoot{
         margin:0!important;
         width:100%!important;
         min-height:100%!important;
@@ -1716,100 +1894,144 @@
         overflow:hidden!important;
       }
       html.source-mode body::before,
-      html.source-mode body::after{display:none!important;content:none!important}
+      html.source-mode body::after,
+      html.source-mode #sourceRoot::before,
+      html.source-mode #sourceRoot::after{
+        display:none!important;
+        content:none!important;
+        background:none!important;
+      }
       .source-mode #app{display:none!important}
       #sourceRoot{
         min-height:100vh!important;
         width:100vw!important;
         background:transparent!important;
+        background-image:none!important;
         overflow:hidden!important;
       }
 
       .pl-anim-source{
-        min-height:100vh;
-        display:grid;
-        place-items:center;
+        min-height:100vh!important;
+        width:100vw!important;
+        display:grid!important;
+        place-items:center!important;
         background:transparent!important;
+        background-image:none!important;
         color:#edf5ff;
         font-family:Prompt,"IBM Plex Sans Thai",system-ui,sans-serif;
+        padding:0!important;
       }
       .pl-anim-core{
         text-align:center;
         width:min(620px,94vw);
+        height:520px;
         min-height:520px;
+        max-height:520px;
         padding:22px 24px;
-        display:grid;
-        grid-template-rows:220px 34px 64px 132px 32px;
-        align-content:center;
-        justify-items:center;
-        gap:10px;
-        background:
-          radial-gradient(circle at 18% 0%,rgba(91,231,255,.15),transparent 34%),
-          radial-gradient(circle at 92% 12%,rgba(255,91,189,.12),transparent 30%),
-          rgba(7,17,31,.84);
-        border:1px solid rgba(91,231,255,.26);
-        border-radius:28px;
-        box-shadow:0 24px 70px rgba(0,0,0,.38);
-        overflow:hidden;
+        display:grid!important;
+        grid-template-rows:190px 34px 64px 132px 32px!important;
+        align-content:center!important;
+        justify-items:center!important;
+        gap:10px!important;
+        background:rgba(7,17,31,.82)!important;
+        border:1px solid rgba(91,231,255,.26)!important;
+        border-radius:28px!important;
+        box-shadow:0 24px 70px rgba(0,0,0,.38)!important;
+        overflow:hidden!important;
       }
-      .pl-anim-fx{height:220px!important;min-height:220px!important;display:grid;place-items:center}
-      .pl-anim-core .draw-chip{height:34px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
-      .pl-anim-core .draw-group-badge{min-height:64px;display:inline-flex;align-items:center;justify-content:center}
+      .pl-anim-fx{
+        height:190px!important;
+        min-height:190px!important;
+        max-height:190px!important;
+        display:grid!important;
+        place-items:center!important;
+        overflow:hidden!important;
+      }
+      .pl-anim-core .draw-chip{
+        height:34px!important;
+        min-height:34px!important;
+        max-height:34px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        white-space:nowrap!important;
+      }
+      .pl-anim-core .draw-group-badge{
+        height:64px!important;
+        min-height:64px!important;
+        max-height:64px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        white-space:nowrap!important;
+      }
       .pl-anim-name{
+        height:132px!important;
         min-height:132px!important;
         max-height:132px!important;
-        width:min(560px,92vw);
-        display:-webkit-box!important;
-        -webkit-line-clamp:2;
-        -webkit-box-orient:vertical;
+        width:min(560px,92vw)!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        text-align:center!important;
         overflow:hidden!important;
-        text-overflow:ellipsis;
-        overflow-wrap:anywhere;
-        word-break:break-word;
-        align-content:center;
+        padding:0 8px!important;
         font-size:clamp(42px,7vw,88px);
         font-weight:950;
-        line-height:1.02;
+        line-height:1!important;
         text-shadow:0 8px 32px rgba(0,0,0,.42);
       }
+      .pl-anim-name > span{
+        display:-webkit-box!important;
+        -webkit-box-orient:vertical!important;
+        -webkit-line-clamp:2!important;
+        overflow:hidden!important;
+        text-overflow:ellipsis!important;
+        overflow-wrap:anywhere!important;
+        word-break:break-word!important;
+        line-height:1!important;
+        max-height:2em!important;
+      }
       .pl-anim-meta{
-        min-height:32px;
-        max-height:32px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        margin:0;
+        height:32px!important;
+        min-height:32px!important;
+        max-height:32px!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        margin:0!important;
         color:#c8d7ea;
         font-size:clamp(16px,2vw,26px);
         font-weight:800;
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
+        white-space:nowrap!important;
+        overflow:hidden!important;
+        text-overflow:ellipsis!important;
         max-width:100%;
       }
+      .pl-anim-source .pl-wheel{width:160px!important;height:160px!important}
+      .pl-anim-source .pl-card{width:116px!important;height:154px!important}
+      .pl-anim-source .pl-ball{width:138px!important;height:138px!important}
 
       .pl-groups-source{
-        min-height:100vh;
-        width:100vw;
-        display:grid;
-        place-items:center;
-        padding:24px;
+        min-height:100vh!important;
+        width:100vw!important;
+        display:grid!important;
+        place-items:center!important;
+        padding:24px!important;
         color:#edf5ff;
         font-family:"IBM Plex Sans Thai",Prompt,system-ui,sans-serif;
-        background:
-          radial-gradient(circle at 10% 0%,rgba(91,231,255,.12),transparent 30%),
-          radial-gradient(circle at 96% 4%,rgba(255,91,189,.10),transparent 30%),
-          rgba(7,17,31,.74)!important;
+        background:transparent!important;
+        background-image:none!important;
       }
       .pl-groups-board{
         width:min(1500px,96vw);
         max-height:calc(100vh - 48px);
-        overflow:hidden;
-        border:1px solid rgba(91,231,255,.24);
-        border-radius:28px;
-        background:linear-gradient(180deg,rgba(14,29,49,.92),rgba(7,17,31,.88));
-        box-shadow:0 24px 70px rgba(0,0,0,.38);
-        padding:24px;
+        overflow:hidden!important;
+        border:1px solid rgba(91,231,255,.24)!important;
+        border-radius:28px!important;
+        background:rgba(7,17,31,.86)!important;
+        box-shadow:0 24px 70px rgba(0,0,0,.38)!important;
+        padding:24px!important;
       }
       .pl-groups-head{
         display:flex;
@@ -1825,20 +2047,21 @@
       .pl-groups-source .pl-groups-grid{
         display:grid!important;
         gap:12px!important;
-        align-items:start;
+        align-items:start!important;
+        overflow:hidden!important;
       }
       .pl-groups-source .pl-group-card{
-        border:1px solid rgba(91,231,255,.18);
-        border-radius:18px;
-        background:rgba(255,255,255,.045);
-        overflow:hidden;
+        border:1px solid rgba(91,231,255,.18)!important;
+        border-radius:18px!important;
+        background:rgba(255,255,255,.045)!important;
+        overflow:hidden!important;
       }
       .pl-groups-source .pl-group-title{
         display:flex;
         justify-content:space-between;
         gap:12px;
         padding:12px 14px;
-        background:linear-gradient(135deg,rgba(91,231,255,.12),rgba(255,91,189,.08));
+        background:linear-gradient(135deg,rgba(91,231,255,.12),rgba(255,91,189,.08))!important;
         font-weight:950;
       }
       .pl-groups-source .pl-group-row{
