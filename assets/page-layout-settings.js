@@ -1,1 +1,112 @@
-(()=>{const KEY='pepslivePageLayoutSettingsV2';const defaults={width:'default',density:'comfortable',font:'normal',card:'soft',scroll:'normal',scale:'100'};function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return{}}}function save(v){localStorage.setItem(KEY,JSON.stringify(v))}function idOf(p){return p?.dataset?.panel||'dashboard'}function val(id){const all=load();return Object.assign({},defaults,all[id]||{})}function apply(p,override){if(!p)return;const v=override||val(idOf(p));p.dataset.layoutWidth=v.width;p.dataset.layoutDensity=v.density;p.dataset.layoutFont=v.font;p.dataset.layoutCard=v.card;p.dataset.layoutScroll=v.scroll;p.style.setProperty('--page-scale',(Number(v.scale||100)/100).toFixed(2));p.style.fontSize=`calc(1rem * var(--page-scale))`}function applyAll(){document.querySelectorAll('.panel[data-panel]').forEach(p=>apply(p))}function addButtons(){document.querySelectorAll('.panel[data-panel]').forEach(p=>{const h=p.querySelector('.panel-head');if(!h||h.querySelector('.page-layout-btn'))return;const b=document.createElement('button');b.className='btn small page-layout-btn';b.type='button';b.textContent='ตั้งค่าหน้านี้';b.onclick=()=>openModal(idOf(p));h.appendChild(b)})}function currentFromModal(m){const o={};m.querySelectorAll('[data-k]').forEach(x=>o[x.dataset.k]=x.value);return Object.assign({},defaults,o)}function modal(){let m=document.getElementById('plsPageLayoutModal');if(m)return m;m=document.createElement('div');m.id='plsPageLayoutModal';m.className='pls-page-modal';m.innerHTML=`<div class="pls-page-box"><div class="pls-page-head"><div><h3 id="plsPageTitle">ตั้งค่าหน้านี้</h3><p>เลื่อน/ปรับแล้วเห็นผลทันที กดบันทึกเมื่อพอใจ</p></div><button class="pls-page-close" type="button">×</button></div><div class="pls-page-body"><div class="pls-page-grid"><div class="pls-setting"><label>ความกว้างหน้า</label><select data-k="width"><option value="default">Default</option><option value="narrow">Narrow</option><option value="wide">Wide</option><option value="full">Full</option></select></div><div class="pls-setting"><label>ความหนาแน่น UI</label><select data-k="density"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div><div class="pls-setting"><label>ขนาดตัวอักษร preset</label><select data-k="font"><option value="normal">Normal</option><option value="small">Small</option><option value="large">Large</option><option value="xlarge">XLarge</option></select></div><div class="pls-setting"><label>ทรง Card</label><select data-k="card"><option value="soft">Soft</option><option value="flat">Flat</option><option value="sharp">Sharp</option></select></div><div class="pls-setting"><label>ความสูงตาราง/กล่องเลื่อน</label><select data-k="scroll"><option value="normal">Normal</option><option value="short">Short</option><option value="tall">Tall</option></select></div><div class="pls-setting"><label>สเกลหน้านี้ <b id="plsScaleText">100%</b></label><input data-k="scale" type="range" min="85" max="120" step="1" value="100"></div></div></div><div class="pls-page-actions"><button class="pls-save" type="button">บันทึก</button><button class="pls-reset" type="button">Reset หน้านี้</button><button class="pls-cancel" type="button">ยกเลิก</button></div></div>`;document.body.appendChild(m);const closeBtn=m.querySelector('.pls-page-close'),cancelBtn=m.querySelector('.pls-cancel');closeBtn.onclick=()=>{restore(m);close()};cancelBtn.onclick=()=>{restore(m);close()};m.addEventListener('click',e=>{if(e.target===m){restore(m);close()}});m.querySelectorAll('[data-k]').forEach(x=>x.addEventListener('input',()=>preview(m)));m.querySelectorAll('select[data-k]').forEach(x=>x.addEventListener('change',()=>preview(m)));m.querySelector('.pls-save').onclick=()=>{const id=m.dataset.panel,all=load();all[id]=currentFromModal(m);save(all);apply(document.querySelector(`.panel[data-panel="${id}"]`));close()};m.querySelector('.pls-reset').onclick=()=>{const id=m.dataset.panel,all=load();delete all[id];save(all);apply(document.querySelector(`.panel[data-panel="${id}"]`));fill(m,defaults);close()};return m}function fill(m,v){m.querySelectorAll('[data-k]').forEach(x=>x.value=v[x.dataset.k]||defaults[x.dataset.k]);const t=m.querySelector('#plsScaleText');if(t)t.textContent=(v.scale||100)+'%'}function preview(m){const id=m.dataset.panel,v=currentFromModal(m);const t=m.querySelector('#plsScaleText');if(t)t.textContent=(v.scale||100)+'%';apply(document.querySelector(`.panel[data-panel="${id}"]`),v)}function restore(m){const id=m.dataset.panel;if(id)apply(document.querySelector(`.panel[data-panel="${id}"]`))}function openModal(id){const m=modal(),v=val(id);m.dataset.panel=id;m.querySelector('#plsPageTitle').textContent='ตั้งค่าหน้า: '+id;fill(m,v);m.classList.add('open')}function close(){const m=document.getElementById('plsPageLayoutModal');if(m)m.classList.remove('open')}function boot(){addButtons();applyAll();new MutationObserver(()=>{addButtons();applyAll()}).observe(document.body,{childList:true,subtree:true});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const m=document.getElementById('plsPageLayoutModal');if(m?.classList.contains('open')){restore(m);close()}}})}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot):boot();})();
+(()=>{
+  const KEY='pepslivePageLayoutSettingsV2';
+  const defaults={width:'default',density:'comfortable',font:'normal',card:'soft',scroll:'normal',scale:'100'};
+  const map={
+    width:['default','narrow','wide','full'],
+    font:['small','normal','large','xlarge'],
+    scroll:['short','normal','tall'],
+    density:['compact','comfortable'],
+    card:['soft','flat','sharp']
+  };
+  const label={
+    width:{default:'Default',narrow:'Narrow',wide:'Wide',full:'Full'},
+    font:{small:'Small',normal:'Normal',large:'Large',xlarge:'XLarge'},
+    scroll:{short:'Short',normal:'Normal',tall:'Tall'},
+    density:{compact:'Compact',comfortable:'Comfortable'},
+    card:{soft:'Soft',flat:'Flat',sharp:'Sharp'}
+  };
+  function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return{}}}
+  function save(v){localStorage.setItem(KEY,JSON.stringify(v))}
+  function idOf(p){return p?.dataset?.panel||'dashboard'}
+  function val(id){const all=load();return Object.assign({},defaults,all[id]||{})}
+  function toIndex(k,v){const a=map[k]||[];return Math.max(0,a.indexOf(v))}
+  function fromIndex(k,i){const a=map[k]||[];return a[Math.max(0,Math.min(a.length-1,Number(i)||0))]||defaults[k]}
+  function apply(p,override){
+    if(!p)return;
+    const v=override||val(idOf(p));
+    p.dataset.layoutWidth=v.width;
+    p.dataset.layoutDensity=v.density;
+    p.dataset.layoutFont=v.font;
+    p.dataset.layoutCard=v.card;
+    p.dataset.layoutScroll=v.scroll;
+    p.style.setProperty('--page-scale',(Number(v.scale||100)/100).toFixed(2));
+    p.style.fontSize=`calc(1rem * var(--page-scale))`;
+  }
+  function applyAll(){document.querySelectorAll('.panel[data-panel]').forEach(p=>apply(p))}
+  function addButtons(){
+    document.querySelectorAll('.panel[data-panel]').forEach(p=>{
+      const h=p.querySelector('.panel-head');
+      if(!h||h.querySelector('.page-layout-btn'))return;
+      const b=document.createElement('button');
+      b.className='btn small page-layout-btn';
+      b.type='button';
+      b.textContent='ตั้งค่าหน้านี้';
+      b.onclick=()=>openModal(idOf(p));
+      h.appendChild(b);
+    });
+  }
+  function sliderRow(k,title,min,max,unit=''){
+    return `<div class="pls-setting pls-range-setting"><label><span>${title}</span><b data-label="${k}"></b></label><input data-range-k="${k}" type="range" min="${min}" max="${max}" step="1"><div class="pls-range-track-labels"><span>${unit||''}</span><span></span></div></div>`;
+  }
+  function currentFromModal(m){
+    return Object.assign({},defaults,{
+      width:fromIndex('width',m.querySelector('[data-range-k="width"]').value),
+      font:fromIndex('font',m.querySelector('[data-range-k="font"]').value),
+      scroll:fromIndex('scroll',m.querySelector('[data-range-k="scroll"]').value),
+      density:fromIndex('density',m.querySelector('[data-range-k="density"]').value),
+      card:fromIndex('card',m.querySelector('[data-range-k="card"]').value),
+      scale:m.querySelector('[data-range-k="scale"]').value
+    });
+  }
+  function modal(){
+    let m=document.getElementById('plsPageLayoutModal');
+    if(m)return m;
+    m=document.createElement('div');
+    m.id='plsPageLayoutModal';
+    m.className='pls-page-modal';
+    m.innerHTML=`<div class="pls-page-box"><div class="pls-page-head"><div><h3 id="plsPageTitle">ตั้งค่าหน้านี้</h3><p>เลื่อนแล้วเห็นผลทันที กดบันทึกเพื่อใช้จริง ถ้ายกเลิกจะกลับค่าล่าสุด</p></div><button class="pls-page-close" type="button">×</button></div><div class="pls-page-body"><div class="pls-page-grid slider-only">${sliderRow('width','ความกว้างหน้า',0,3)}${sliderRow('font','ขนาดตัวอักษร preset',0,3)}${sliderRow('scroll','ความสูงตาราง/กล่องเลื่อน',0,2)}${sliderRow('density','ความหนาแน่น UI',0,1)}${sliderRow('scale','สเกลหน้านี้',85,120,'%')}<div class="pls-setting pls-range-setting"><label><span>ทรง Card</span><b data-label="card"></b></label><input data-range-k="card" type="range" min="0" max="2" step="1"></div></div></div><div class="pls-page-actions"><button class="pls-save" type="button">บันทึก</button><button class="pls-reset" type="button">Reset หน้านี้</button><button class="pls-cancel" type="button">ยกเลิก</button></div></div>`;
+    document.body.appendChild(m);
+    m.querySelector('.pls-page-close').onclick=()=>{restore(m);close()};
+    m.querySelector('.pls-cancel').onclick=()=>{restore(m);close()};
+    m.addEventListener('click',e=>{if(e.target===m){restore(m);close()}});
+    m.querySelectorAll('[data-range-k]').forEach(x=>x.addEventListener('input',()=>preview(m)));
+    m.querySelector('.pls-save').onclick=()=>{const id=m.dataset.panel,all=load();all[id]=currentFromModal(m);save(all);apply(document.querySelector(`.panel[data-panel="${id}"]`));close()};
+    m.querySelector('.pls-reset').onclick=()=>{const id=m.dataset.panel,all=load();delete all[id];save(all);apply(document.querySelector(`.panel[data-panel="${id}"]`));fill(m,defaults);close()};
+    return m;
+  }
+  function updateLabels(m,v){
+    ['width','font','scroll','density','card'].forEach(k=>{const el=m.querySelector(`[data-label="${k}"]`);if(el)el.textContent=label[k][v[k]]||v[k]});
+    const scale=m.querySelector('[data-label="scale"]');if(scale)scale.textContent=(v.scale||100)+'%';
+  }
+  function fill(m,v){
+    m.querySelector('[data-range-k="width"]').value=toIndex('width',v.width);
+    m.querySelector('[data-range-k="font"]').value=toIndex('font',v.font);
+    m.querySelector('[data-range-k="scroll"]').value=toIndex('scroll',v.scroll);
+    m.querySelector('[data-range-k="density"]').value=toIndex('density',v.density);
+    m.querySelector('[data-range-k="card"]').value=toIndex('card',v.card);
+    m.querySelector('[data-range-k="scale"]').value=v.scale||100;
+    updateLabels(m,v);
+  }
+  function preview(m){
+    const id=m.dataset.panel,v=currentFromModal(m);
+    updateLabels(m,v);
+    apply(document.querySelector(`.panel[data-panel="${id}"]`),v);
+  }
+  function restore(m){const id=m.dataset.panel;if(id)apply(document.querySelector(`.panel[data-panel="${id}"]`))}
+  function openModal(id){
+    const m=modal(),v=val(id);
+    m.dataset.panel=id;
+    m.querySelector('#plsPageTitle').textContent='ตั้งค่าหน้า: '+id;
+    fill(m,v);
+    m.classList.add('open');
+  }
+  function close(){const m=document.getElementById('plsPageLayoutModal');if(m)m.classList.remove('open')}
+  function boot(){
+    addButtons();
+    applyAll();
+    const shortTimer=setInterval(()=>{addButtons();applyAll()},1000);
+    setTimeout(()=>clearInterval(shortTimer),5000);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){const m=document.getElementById('plsPageLayoutModal');if(m?.classList.contains('open')){restore(m);close()}}});
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot,{once:true}):boot();
+})();
