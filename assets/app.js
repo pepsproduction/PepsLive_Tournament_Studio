@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V7
+/* PepsLive Tournament Studio - Clean Core V8
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -8,7 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const APP_VERSION = 'Clean-Core-7.0.0';
+  const APP_VERSION = 'Clean-Core-8.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -384,11 +384,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      const stage = $('#drawStage.expanded');
-      if (stage) {
-        stage.classList.remove('expanded');
-        document.body.classList.remove('draw-expanded-active');
-      }
+      closeDrawOverlay();
     });
   }
 
@@ -1080,14 +1076,22 @@
   function renderDrawStage() {
     const stage = $('#drawStage');
     if (!stage) return;
+    const html = drawVisualHtml('control');
+    stage.innerHTML = html;
+
+    const overlayStage = $('#drawExpandOverlay .draw-overlay-stage');
+    if (overlayStage) overlayStage.innerHTML = drawVisualHtml('overlay');
+  }
+
+  function drawVisualHtml(context = 'control') {
     const live = state.drawLive || {};
     const waiting = !!live.waiting;
     const item = waiting ? tickerItem() : (live.current || live.pendingItem || { team: 'READY', group: '-', slot: '-' });
     const mode = state.settings.drawAnimation || 'wheel';
     const progress = live.total ? Math.round(((live.progress || 0) / live.total) * 100) : 0;
 
-    stage.innerHTML = `
-      <div class="draw-graphic ${waiting ? 'waiting' : ''}">
+    return `
+      <div class="draw-graphic ${waiting ? 'waiting' : ''} draw-context-${esc(context)}">
         <div class="draw-fx">${drawFx(mode)}</div>
         <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
         <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
@@ -1291,10 +1295,11 @@
 
     document.documentElement.classList.add('source-mode');
     document.body.classList.add('source-mode-body');
-    document.documentElement.style.background = 'transparent';
-    document.documentElement.style.backgroundImage = 'none';
-    document.body.style.background = 'transparent';
-    document.body.style.backgroundImage = 'none';
+    document.documentElement.style.setProperty('background', 'transparent', 'important');
+    document.documentElement.style.setProperty('background-image', 'none', 'important');
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-image', 'none', 'important');
+    document.body.style.setProperty('overflow', 'hidden', 'important');
     $('#app')?.classList.add('hidden');
 
     const root = $('#sourceRoot') || document.body.appendChild(document.createElement('div'));
@@ -1458,10 +1463,32 @@
   }
 
   function toggleDrawExpand() {
-    const stage = $('#drawStage');
-    if (!stage) return;
-    const expanded = stage.classList.toggle('expanded');
-    document.body.classList.toggle('draw-expanded-active', expanded);
+    let overlay = $('#drawExpandOverlay');
+    if (overlay) {
+      closeDrawOverlay();
+      return;
+    }
+
+    overlay = document.createElement('div');
+    overlay.id = 'drawExpandOverlay';
+    overlay.className = 'draw-expand-overlay';
+    overlay.innerHTML = `
+      <div class="draw-overlay-stage">${drawVisualHtml('overlay')}</div>
+      <button type="button" class="draw-overlay-close" aria-label="Close expanded draw">ESC / ปิด</button>
+    `;
+    document.body.appendChild(overlay);
+    document.body.classList.add('draw-expanded-active');
+
+    on($('.draw-overlay-close', overlay), 'click', closeDrawOverlay);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeDrawOverlay();
+    });
+  }
+
+  function closeDrawOverlay() {
+    $('#drawExpandOverlay')?.remove();
+    document.body.classList.remove('draw-expanded-active');
+    $('#drawStage')?.classList.remove('expanded');
   }
 
   function resetLayoutSettings() {
@@ -1872,6 +1899,169 @@
         background:rgba(0,0,0,.32);
       }
 
+
+      /* V8: stable Draw card + full wheel visibility. Total row height is below card height. */
+      .draw-stage{
+        min-height:520px!important;
+        overflow:visible!important;
+      }
+      .draw-stage .draw-graphic{
+        width:min(760px,96%)!important;
+        height:500px!important;
+        min-height:500px!important;
+        max-height:500px!important;
+        display:grid!important;
+        grid-template-rows:170px 32px 56px 118px 28px 10px 18px!important;
+        align-content:center!important;
+        justify-items:center!important;
+        gap:8px!important;
+        overflow:hidden!important;
+        contain:layout paint!important;
+        box-sizing:border-box!important;
+      }
+      .draw-stage .draw-fx{
+        grid-row:1!important;
+        height:170px!important;
+        min-height:170px!important;
+        max-height:170px!important;
+        width:100%!important;
+        display:grid!important;
+        place-items:center!important;
+        overflow:visible!important;
+      }
+      .draw-stage .draw-chip{
+        grid-row:2!important;
+        height:32px!important;
+        min-height:32px!important;
+        max-height:32px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        white-space:nowrap!important;
+        overflow:hidden!important;
+      }
+      .draw-stage .draw-group-badge{
+        grid-row:3!important;
+        height:56px!important;
+        min-height:56px!important;
+        max-height:56px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        white-space:nowrap!important;
+      }
+      .draw-stage .draw-team-name{
+        grid-row:4!important;
+        width:min(680px,96%)!important;
+        height:118px!important;
+        min-height:118px!important;
+        max-height:118px!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        overflow:hidden!important;
+        text-align:center!important;
+        line-height:1!important;
+        padding:0 8px!important;
+      }
+      .draw-stage .draw-team-name > span{
+        display:-webkit-box!important;
+        -webkit-box-orient:vertical!important;
+        -webkit-line-clamp:2!important;
+        overflow:hidden!important;
+        text-overflow:ellipsis!important;
+        overflow-wrap:anywhere!important;
+        word-break:break-word!important;
+        line-height:1!important;
+        max-height:2em!important;
+      }
+      .draw-stage .draw-team-sub{
+        grid-row:5!important;
+        height:28px!important;
+        min-height:28px!important;
+        max-height:28px!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        overflow:hidden!important;
+        white-space:nowrap!important;
+        text-overflow:ellipsis!important;
+        width:min(680px,96%)!important;
+      }
+      .draw-stage .draw-progress{
+        grid-row:6!important;
+        height:10px!important;
+        min-height:10px!important;
+        max-height:10px!important;
+        margin:0!important;
+      }
+      .draw-stage .draw-progress-text{
+        grid-row:7!important;
+        height:18px!important;
+        min-height:18px!important;
+        max-height:18px!important;
+        margin:0!important;
+        align-items:center!important;
+      }
+      .draw-stage .pl-wheel{width:150px!important;height:150px!important}
+      .draw-stage .pl-slot{grid-template-columns:repeat(4,38px)!important}
+      .draw-stage .pl-slot i{height:78px!important}
+      .draw-stage .pl-card{width:106px!important;height:140px!important}
+      .draw-stage .pl-ball{width:128px!important;height:128px!important}
+      .draw-stage .pl-ring{width:142px!important;height:142px!important}
+
+      /* V8: Expand Draw is a separate body-level overlay, never inside grid/cards. */
+      body.draw-expanded-active{overflow:hidden!important}
+      .draw-expand-overlay{
+        position:fixed!important;
+        inset:0!important;
+        z-index:2147483647!important;
+        display:grid!important;
+        place-items:center!important;
+        padding:26px!important;
+        background:#07111f!important;
+        background-image:
+          radial-gradient(circle at 16% 0%,rgba(91,231,255,.17),transparent 34%),
+          radial-gradient(circle at 94% 10%,rgba(255,91,189,.14),transparent 30%)!important;
+        isolation:isolate!important;
+      }
+      .draw-overlay-stage{
+        width:min(1040px,94vw)!important;
+        height:min(780px,calc(100vh - 72px))!important;
+        display:grid!important;
+        place-items:center!important;
+        overflow:hidden!important;
+        position:relative!important;
+        z-index:2!important;
+      }
+      .draw-overlay-stage .draw-graphic{
+        width:min(980px,94vw)!important;
+        height:min(740px,calc(100vh - 100px))!important;
+        min-height:min(740px,calc(100vh - 100px))!important;
+        max-height:min(740px,calc(100vh - 100px))!important;
+        grid-template-rows:210px 36px 66px 136px 32px 12px 20px!important;
+        overflow:hidden!important;
+      }
+      .draw-overlay-stage .draw-fx{height:210px!important;min-height:210px!important;max-height:210px!important}
+      .draw-overlay-stage .draw-team-name{height:136px!important;min-height:136px!important;max-height:136px!important;width:min(860px,94vw)!important}
+      .draw-overlay-stage .pl-wheel{width:190px!important;height:190px!important}
+      .draw-overlay-stage .pl-card{width:128px!important;height:170px!important}
+      .draw-overlay-stage .pl-ball{width:158px!important;height:158px!important}
+      .draw-overlay-stage .pl-ring{width:180px!important;height:180px!important}
+      .draw-overlay-close{
+        position:absolute!important;
+        right:20px!important;
+        top:16px!important;
+        z-index:3!important;
+        font-size:12px!important;
+        color:rgba(237,245,255,.82)!important;
+        border:1px solid rgba(255,255,255,.16)!important;
+        border-radius:999px!important;
+        padding:8px 12px!important;
+        background:rgba(0,0,0,.35)!important;
+      }
+      .draw-stage.expanded{position:relative!important;inset:auto!important;width:auto!important;height:auto!important;z-index:auto!important}
+
       @media(max-width:900px){.score-row{grid-template-columns:1fr 60px auto 60px 1fr}.score-row b,.score-row select{grid-column:1/-1}}
     `;
     document.head.appendChild(style);
@@ -1891,6 +2081,7 @@
         min-height:100%!important;
         background:transparent!important;
         background-image:none!important;
+        background-color:transparent!important;
         overflow:hidden!important;
       }
       html.source-mode body::before,
@@ -1900,6 +2091,7 @@
         display:none!important;
         content:none!important;
         background:none!important;
+        background-image:none!important;
       }
       .source-mode #app{display:none!important}
       #sourceRoot{
@@ -1907,6 +2099,7 @@
         width:100vw!important;
         background:transparent!important;
         background-image:none!important;
+        background-color:transparent!important;
         overflow:hidden!important;
       }
 
@@ -1917,6 +2110,7 @@
         place-items:center!important;
         background:transparent!important;
         background-image:none!important;
+        background-color:transparent!important;
         color:#edf5ff;
         font-family:Prompt,"IBM Plex Sans Thai",system-ui,sans-serif;
         padding:0!important;
@@ -1924,12 +2118,12 @@
       .pl-anim-core{
         text-align:center;
         width:min(620px,94vw);
-        height:520px;
-        min-height:520px;
-        max-height:520px;
+        height:560px;
+        min-height:560px;
+        max-height:560px;
         padding:22px 24px;
         display:grid!important;
-        grid-template-rows:190px 34px 64px 132px 32px!important;
+        grid-template-rows:210px 34px 64px 132px 32px!important;
         align-content:center!important;
         justify-items:center!important;
         gap:10px!important;
@@ -1940,12 +2134,12 @@
         overflow:hidden!important;
       }
       .pl-anim-fx{
-        height:190px!important;
-        min-height:190px!important;
-        max-height:190px!important;
+        height:210px!important;
+        min-height:210px!important;
+        max-height:210px!important;
         display:grid!important;
         place-items:center!important;
-        overflow:hidden!important;
+        overflow:visible!important;
       }
       .pl-anim-core .draw-chip{
         height:34px!important;
@@ -2008,9 +2202,10 @@
         text-overflow:ellipsis!important;
         max-width:100%;
       }
-      .pl-anim-source .pl-wheel{width:160px!important;height:160px!important}
-      .pl-anim-source .pl-card{width:116px!important;height:154px!important}
-      .pl-anim-source .pl-ball{width:138px!important;height:138px!important}
+      .pl-anim-source .pl-wheel{width:190px!important;height:190px!important}
+      .pl-anim-source .pl-card{width:128px!important;height:170px!important}
+      .pl-anim-source .pl-ball{width:158px!important;height:158px!important}
+      .pl-anim-source .pl-ring{width:180px!important;height:180px!important}
 
       .pl-groups-source{
         min-height:100vh!important;
@@ -2022,6 +2217,7 @@
         font-family:"IBM Plex Sans Thai",Prompt,system-ui,sans-serif;
         background:transparent!important;
         background-image:none!important;
+        background-color:transparent!important;
       }
       .pl-groups-board{
         width:min(1500px,96vw);
