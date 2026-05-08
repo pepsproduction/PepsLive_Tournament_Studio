@@ -96,204 +96,263 @@
   'use strict';
 
   const KEY = 'pepsliveTournamentControlV2';
-  const PAGE_KEY = 'pepslivePageSettingsCoreV3';
-  const DRAW_SIZE_DEFAULT = {
-    drawChipFontSize: 12,
-    drawGroupFontSize: 17,
-    drawGroupValueFontSize: 30,
-    drawNameFontSize: 72,
-    drawSubFontSize: 22,
-    drawStatusFontSize: 13
-  };
-  const PAGE_DEFAULT = { widthPx: 1280, fontScale: 1, cardPadding: 16, tableHeight: 620 };
+  const DRAW_SIZE_KEY = 'pepsliveDrawTextSizesV4';
+  const PAGE_KEY = 'pepslivePageSettingsV4';
+  const DRAW_MODES = ['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex'];
   const DATA_SOURCES = [
-    ['groups', 'Groups Table'],
-    ['schedule', 'Schedule Table'],
-    ['standings', 'Standings Table'],
-    ['knockout', 'Knockout Bracket'],
-    ['lower-third', 'Lower Third'],
-    ['next-match', 'Next Match'],
-    ['latest-result', 'Latest Result']
+    ['groups', 'Groups Table', 'แสดงตารางแบ่งสายตาม Reveal Feed / ผลที่ยืนยันแล้ว'],
+    ['schedule', 'Schedule Table', 'แสดงตารางแข่งพร้อมเวลาและสนาม'],
+    ['standings', 'Standings Table', 'แสดงตารางคะแนนอัตโนมัติ'],
+    ['knockout', 'Knockout Bracket', 'แสดงสายรอบต่อไป'],
+    ['lower-third', 'Lower Third', 'แถบล่างสำหรับผลล่าสุด'],
+    ['next-match', 'Next Match', 'แสดงคู่ถัดไป'],
+    ['latest-result', 'Latest Result', 'แสดงผลการแข่งขันล่าสุด']
   ];
-  const DRAW_SOURCE_VIEW = 'draw-animation';
+  const DEFAULT_SIZE = {
+    chip: 12,
+    groupLabel: 18,
+    groupValue: 32,
+    name: 64,
+    sub: 20,
+    status: 13
+  };
+  const DEFAULT_PAGE = { width: 1280, font: 1, padding: 16, tableHeight: 620, gap: 14 };
+
   const qs = new URLSearchParams(location.search);
   const VIEW = (qs.get('view') || '').trim();
   const IS_SOURCE = !!VIEW && VIEW !== 'control';
-
+  const IS_DRAW_SOURCE = VIEW === 'draw-animation' || VIEW === 'winner' || DRAW_MODES.includes(VIEW);
   const $ = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
   const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const num = (v, d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
-  const clamp = (v, a, b, d=a) => Math.max(a, Math.min(b, num(v, d)));
-  const sourceUrl = id => location.href.split('?')[0].split('#')[0] + '?view=' + encodeURIComponent(id);
-  const letters = n => Array.from({length: Math.max(1, Number(n) || 4)}, (_, i) => String.fromCharCode(65 + i));
+  const n = (v, d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
+  const clamp = (v, min, max, d=min) => Math.max(min, Math.min(max, n(v, d)));
+  const pct = v => Math.max(0, Math.min(100, n(v, 0)));
+  const baseUrl = () => location.href.split('?')[0].split('#')[0];
+  const sourceUrl = id => baseUrl() + '?view=' + encodeURIComponent(id);
+  const letters = count => Array.from({length: Math.max(1, n(count, 4))}, (_,i) => String.fromCharCode(65+i));
+
+  let raf = 0;
+  let lastSourceCardsKey = '';
+  let sourceObserver = null;
+  let pageModal = null;
+  let pageSaved = null;
+  let pageDraft = null;
+  let pagePanelId = '';
 
   function readState(){
     try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
     catch { return {}; }
   }
-  function writeState(s){
-    s.updatedAt = new Date().toISOString();
-    localStorage.setItem(KEY, JSON.stringify(s));
-    // Manual-save guard in index.html intercepts KEY writes unless a built-in button was clicked.
-    // This flushes our intentional save immediately through the existing safe hook.
-    if(typeof window.pepsManualSaveNow === 'function') setTimeout(() => window.pepsManualSaveNow(), 0);
+  function readJson(key, def){
+    try { return Object.assign({}, def, JSON.parse(localStorage.getItem(key) || '{}') || {}); }
+    catch { return Object.assign({}, def); }
   }
-  function withSettings(){
-    const s = readState();
-    s.settings = s.settings || {};
-    return s;
-  }
-  function addAudit(action, data={}){
-    const s = withSettings();
-    s.audit = Array.isArray(s.audit) ? s.audit : [];
-    s.audit.unshift({ at: new Date().toISOString(), action, data });
-    s.audit = s.audit.slice(0, 120);
-    writeState(s);
-  }
-  function savedPageSettings(){
+  function saveJson(key, val){ localStorage.setItem(key, JSON.stringify(val || {})); }
+  function readDrawSize(){ return readJson(DRAW_SIZE_KEY, DEFAULT_SIZE); }
+  function readPageAll(){
     try { return JSON.parse(localStorage.getItem(PAGE_KEY) || '{}') || {}; }
     catch { return {}; }
   }
-  function savePageSettings(all){ localStorage.setItem(PAGE_KEY, JSON.stringify(all || {})); }
+  function savePageAll(v){ localStorage.setItem(PAGE_KEY, JSON.stringify(v || {})); }
+  function hasGroups(g){ return Object.values(g || {}).some(arr => Array.isArray(arr) && arr.some(x => x && x !== 'BYE')); }
 
   function injectCss(){
-    if($('#pl-hotfix-v3-css')) return;
+    if($('#pl-hotfix-v4-css')) return;
     const st = document.createElement('style');
-    st.id = 'pl-hotfix-v3-css';
+    st.id = 'pl-hotfix-v4-css';
     st.textContent = `
-      /* V3 smooth animation fixes */
-      .pl-sync-stage,.pl-sync-shell,.pl-sync-fx,.pl-wheel-stage,.pl-slot-machine,.pl-card-stack,.pl-lottery,.pl-energy-ring{
-        transform:translateZ(0)!important; backface-visibility:hidden!important; will-change:transform,opacity!important;
+      :root{
+        --plv4-chip:${DEFAULT_SIZE.chip}px;--plv4-group-label:${DEFAULT_SIZE.groupLabel}px;--plv4-group-value:${DEFAULT_SIZE.groupValue}px;--plv4-name:${DEFAULT_SIZE.name}px;--plv4-sub:${DEFAULT_SIZE.sub}px;--plv4-status:${DEFAULT_SIZE.status}px;
       }
-      .pl-wheel-core{
-        animation:plWheelSpinFix 1.05s linear infinite!important;
-        animation-play-state:running!important; transform-origin:50% 50%!important;
-        will-change:transform!important; backface-visibility:hidden!important; contain:paint;
+
+      /* Keep only the V4 source cards; old V2/V3/source cards are hidden immediately to stop duplicate UI. */
+      #sourceCards[data-plv4-clean="1"] > *:not([data-plv4-section]){display:none!important;}
+      [data-pl-hidden-draw-source="1"], [data-plv3-source], #plV3DrawSourceCard, #plSingleDrawSourceCard{display:none!important;}
+      #sourceCards .source-card.src-locked{opacity:1!important;pointer-events:auto!important;}
+      #sourceCards .source-card button[disabled]{opacity:1!important;pointer-events:auto!important;cursor:pointer!important;}
+
+      /* Hide obsolete setting cards/modals so there is only one active UI. */
+      #plDrawTextSizeCard,#plDrawTextSizeCardV3,.pl-draw-size-card,.pl-draw-size-card-v3{display:none!important;}
+      .pl-page-modal,.pl-page-modal-v3{display:none!important;}
+
+      /* Smooth animation fixes. Transform-only keyframes prevent the wheel from freezing. */
+      .pl-wheel-core,.plv4-wheel,.pl-energy-ring,.plv4-ring,.pl-slot-track,.plv4-slot-track,.pl-card-one,.plv4-card-one,.pl-ball-mini,.plv4-ball{
+        will-change:transform!important;backface-visibility:hidden!important;transform:translate3d(0,0,0);contain:layout paint style;
       }
-      .pl-wheel-core:before,.pl-wheel-core:after{ transform:translateZ(0); backface-visibility:hidden; }
-      .pl-energy-ring{ animation:plWheelSpinFix 1.12s linear infinite!important; animation-play-state:running!important; transform-origin:50% 50%!important; }
-      .pl-slot-track{ animation:plSlotRollFix .54s linear infinite!important; animation-play-state:running!important; will-change:transform!important; }
-      .pl-card-one,.pl-ball-mini{ animation-play-state:running!important; will-change:transform!important; backface-visibility:hidden!important; }
-      .pl-sync-bar{ transition:none!important; will-change:transform!important; }
-      @keyframes plWheelSpinFix{ from{transform:translate3d(0,0,0) rotate(0deg)} to{transform:translate3d(0,0,0) rotate(360deg)} }
-      @keyframes plSlotRollFix{ from{transform:translate3d(0,-46px,0)} to{transform:translate3d(0,0,0)} }
+      .pl-wheel-core,.plv4-wheel{animation:plv4WheelSpin 1.02s linear infinite!important;animation-play-state:running!important;transform-origin:50% 50%!important;}
+      .pl-energy-ring,.plv4-ring{animation:plv4WheelSpin 1.18s linear infinite!important;animation-play-state:running!important;transform-origin:50% 50%!important;}
+      .pl-slot-track,.plv4-slot-track{animation:plv4SlotRoll .48s linear infinite!important;animation-play-state:running!important;}
+      @keyframes plv4WheelSpin{0%{transform:translate3d(0,0,0) rotate(0deg)}100%{transform:translate3d(0,0,0) rotate(360deg)}}
+      @keyframes plv4SlotRoll{0%{transform:translate3d(0,-52px,0)}100%{transform:translate3d(0,0,0)}}
+      @keyframes plv4Float{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(0,-14px,0)}}
+      @keyframes plv4Pulse{0%{transform:scale(.96);opacity:.78}100%{transform:scale(1.03);opacity:1}}
 
-      /* V3 Draw text sizing */
-      .pl-draw-size-card-v3{margin-top:16px;border-color:rgba(91,231,255,.28)!important;}
-      .pl-v3-range{display:grid;gap:8px;margin:0 0 12px;}
-      .pl-v3-range label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-weight:800;font-size:12px;}
-      .pl-v3-range b{color:var(--text);font-family:'Chakra Petch',sans-serif;min-width:66px;text-align:right;}
-      .pl-v3-range input[type=range]{width:100%;height:7px;padding:0;border-radius:999px;accent-color:var(--accent);}
-      .pl-v3-range input[type=number]{padding:8px 10px;border-radius:12px;}
-      .pl-v3-mini{display:grid;grid-template-columns:1fr 92px;gap:10px;align-items:center;}
-      .pl-v3-status{font-size:12px;color:#bfffe0;margin-top:6px;min-height:18px;}
+      /* No blur while drawing. */
+      .pl-sync-shell.waiting .pl-sync-name,.pl-sync-shell.waiting .pl-sync-group,.draw-graphic.waiting .draw-team-name{filter:none!important;opacity:1!important;}
 
-      /* V3 page modal: scrollable + live preview */
-      .pl-page-modal-v3{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.62);backdrop-filter:blur(10px)}
-      .pl-page-modal-v3.open{display:flex;}
-      .pl-page-box-v3{width:min(860px,96vw);max-height:88vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);border-radius:24px;background:var(--panel,#0e1d31);box-shadow:var(--shadow);padding:20px;color:var(--text);scrollbar-width:thin;scrollbar-color:var(--accent) rgba(255,255,255,.14);}
-      .pl-page-box-v3::-webkit-scrollbar{width:10px}.pl-page-box-v3::-webkit-scrollbar-track{background:rgba(255,255,255,.14);border-radius:999px}.pl-page-box-v3::-webkit-scrollbar-thumb{background:var(--accent);border-radius:999px}
-      .pl-page-head-v3{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px;}
-      .pl-page-head-v3 h3{margin:0}.pl-page-head-v3 p{margin:6px 0 0;color:var(--muted);font-size:12px;}
-      .pl-page-close-v3{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.05);color:var(--text);font-size:24px;width:40px;height:40px;}
-      .pl-page-preview-v3{border:1px dashed rgba(91,231,255,.34);border-radius:18px;background:rgba(7,20,38,.48);padding:16px;margin:12px 0;}
-      .pl-page-preview-card-v3{border:1px solid rgba(255,255,255,.14);border-radius:16px;background:rgba(255,255,255,.05);padding:var(--pl-prev-pad,16px);font-size:var(--pl-prev-font,1rem);max-width:var(--pl-prev-width,640px);margin:auto;transition:max-width .12s linear,font-size .12s linear,padding .12s linear;}
-      .pl-page-actions-v3{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px;}
+      /* Text size variables apply to every known draw renderer. */
+      #drawStage .pl-sync-chip,#sourceRoot .pl-sync-chip,#drawStage .draw-chip,#sourceRoot .draw-chip,.plv4-chip{font-size:var(--plv4-chip)!important;}
+      #drawStage .pl-sync-group,#sourceRoot .pl-sync-group,#drawStage .draw-group-badge,#sourceRoot .draw-group-badge,.plv4-group-label{font-size:var(--plv4-group-label)!important;}
+      #drawStage .pl-sync-group b,#sourceRoot .pl-sync-group b,#drawStage .draw-group-badge b,#sourceRoot .draw-group-badge b,.plv4-group-value{font-size:var(--plv4-group-value)!important;}
+      #drawStage .pl-sync-name,#sourceRoot .pl-sync-name,#drawStage .draw-team-name,#sourceRoot .draw-team-name,.plv4-name{font-size:var(--plv4-name)!important;}
+      #drawStage .pl-sync-sub,#sourceRoot .pl-sync-sub,#drawStage .draw-team-sub,#sourceRoot .draw-team-sub,.plv4-sub{font-size:var(--plv4-sub)!important;}
+      #drawStage .pl-sync-status,#sourceRoot .pl-sync-status,.plv4-status{font-size:var(--plv4-status)!important;}
+
+      /* V4 Draw Text Size card. */
+      #plv4DrawTextSizeCard{display:block!important;margin-top:16px;border-color:rgba(255,132,49,.34)!important;}
+      .plv4-range{display:grid;gap:8px;margin-bottom:12px;}
+      .plv4-range label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-weight:800;font-size:12px;}
+      .plv4-range b{color:var(--text);font-family:'Chakra Petch',sans-serif;min-width:72px;text-align:right;}
+      .plv4-range .plv4-row{display:grid;grid-template-columns:1fr 94px;gap:10px;align-items:center;}
+      .plv4-range input[type=range]{width:100%;height:7px;padding:0;border-radius:999px;accent-color:var(--accent);}
+      .plv4-range input[type=number]{padding:8px 10px;border-radius:12px;}
+      .plv4-save-note{min-height:18px;font-size:12px;color:#bfffe0;}
+
+      /* Scrollable popup with live preview. */
+      .plv4-page-modal{position:fixed;inset:0;z-index:12000;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.64);backdrop-filter:blur(10px);}
+      .plv4-page-modal.open{display:flex;}
+      .plv4-page-box{width:min(900px,96vw);max-height:88vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);border-radius:24px;background:var(--panel,#0e1d31);box-shadow:var(--shadow);padding:20px;color:var(--text);scrollbar-width:thin;scrollbar-color:var(--accent) rgba(255,255,255,.15);}
+      .plv4-page-box::-webkit-scrollbar{width:10px}.plv4-page-box::-webkit-scrollbar-track{background:rgba(255,255,255,.15);border-radius:999px}.plv4-page-box::-webkit-scrollbar-thumb{background:var(--accent);border-radius:999px;}
+      .plv4-page-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px;}
+      .plv4-page-head h3{margin:0}.plv4-page-head p{margin:6px 0 0;color:var(--muted);font-size:12px;}
+      .plv4-page-close{width:42px;height:42px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.05);font-size:26px;color:var(--text);}
+      .plv4-preview{border:1px dashed rgba(91,231,255,.35);border-radius:18px;background:rgba(7,20,38,.52);padding:16px;margin:14px 0;}
+      .plv4-preview-card{max-width:var(--plv4-preview-width,640px);font-size:var(--plv4-preview-font,1rem);padding:var(--plv4-preview-pad,16px);display:grid;gap:var(--plv4-preview-gap,14px);margin:auto;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.05);transition:max-width .08s linear,font-size .08s linear,padding .08s linear,gap .08s linear;}
+      .plv4-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px;}
       .pl-page-btn{margin-left:auto;}
 
-      /* V3 no horizontal scrollbar in Draw result / Reveal Feed */
+      /* Draw / Reveal feed must wrap instead of creating a horizontal scrollbar. */
       #groupResult,#revealFeed{overflow-x:hidden!important;max-width:100%!important;}
-      #groupResult .groupgrid,#groupResult .pl-groups-grid,.pl-groups-grid{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))!important;max-width:100%!important;overflow-x:hidden!important;}
+      #groupResult *{max-width:100%;}
+      #groupResult .groupgrid,#groupResult .pl-groups-grid,.pl-groups-grid{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))!important;overflow-x:hidden!important;}
       #groupResult table,#revealFeed table{min-width:0!important;width:100%!important;table-layout:auto!important;}
       #groupResult .groupcard,#groupResult .pl-group-card,.pl-group-card{min-width:0!important;}
-      .pl-group-row .team,.teamrow{min-width:0!important;overflow:hidden;text-overflow:ellipsis;}
-      .pl-groups-board{max-width:96vw!important;overflow-x:hidden!important;}
+      .pl-group-row .team,.teamrow{min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;}
 
-      /* V3 source cards: never appear locked/waiting */
-      .source-card.src-locked{opacity:1!important;pointer-events:auto!important;}
-      .source-card.src-locked button{opacity:1!important;cursor:pointer!important;}
-      .pl-v3-url-actions{margin-top:10px;}
+      /* V4 source renderer. Compact, OBS-friendly. */
+      html.plv4-source,html.plv4-source body{margin:0!important;background:transparent!important;background-image:none!important;overflow:hidden!important;}
+      .plv4-source-wrap{min-height:100vh;display:grid;place-items:center;background:transparent;padding:16px;color:var(--text);font-family:'Prompt','IBM Plex Sans Thai',system-ui,sans-serif;}
+      .plv4-draw-card{width:min(500px,96vw);border:1px solid rgba(255,132,49,.36);border-radius:24px;background:linear-gradient(145deg,rgba(18,19,21,.92),rgba(28,24,20,.82));box-shadow:0 18px 46px rgba(0,0,0,.28);padding:16px 18px 20px;text-align:center;overflow:hidden;transform:translateZ(0);}
+      .plv4-fx{height:210px;display:grid;place-items:center;margin-bottom:8px;}
+      .plv4-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+      .plv4-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,132,49,.35);background:rgba(255,132,49,.08);border-radius:999px;padding:7px 10px;color:#ffd7bd;font-weight:900;font-family:'Chakra Petch','Prompt',sans-serif;letter-spacing:.06em;}
+      .plv4-chip b{color:#fff;}
+      .plv4-group-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,132,49,.44);background:rgba(255,132,49,.10);border-radius:999px;padding:10px 18px;margin:0 auto 8px;color:#ffd7bd;font-family:'Chakra Petch','Prompt',sans-serif;font-weight:900;letter-spacing:.16em;}
+      .plv4-group-pill b{color:#fff;}
+      .plv4-name{font-family:'Prompt','IBM Plex Sans Thai',sans-serif;font-weight:950;line-height:.95;color:#fff;text-shadow:0 7px 26px rgba(0,0,0,.48);overflow-wrap:anywhere;}
+      .plv4-sub{margin-top:12px;color:#d7d7d7;font-weight:800;}
+      .plv4-status{margin-top:14px;color:#ffd7bd;font-weight:800;text-align:left;}
+      .plv4-track{height:11px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid rgba(255,132,49,.22);overflow:hidden;margin-top:10px;}
+      .plv4-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#ff8131,#ffbe57);transform-origin:left center;will-change:transform;}
+      .plv4-wheel-box{position:relative;display:grid;place-items:center;}
+      .plv4-pointer{width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-top:40px solid #ffb45b;margin-bottom:-16px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.28));z-index:2;}
+      .plv4-wheel{position:relative;width:190px;height:190px;border-radius:50%;background:conic-gradient(#ffd51f 0 45deg,#5be7ff 45deg 90deg,#ff4081 90deg 135deg,#7d4dff 135deg 180deg,#ff9500 180deg 225deg,#ff4b3f 225deg 270deg,#b928ff 270deg 315deg,#48e662 315deg 360deg);box-shadow:0 0 0 9px #18305a,0 0 0 14px rgba(255,255,255,.07),0 18px 38px rgba(0,0,0,.34);}
+      .plv4-wheel:before{content:'';position:absolute;inset:20px;border-radius:50%;background:radial-gradient(circle at 38% 34%,rgba(255,255,255,.18),transparent 28%),#15100b;}
+      .plv4-wheel:after{content:'SPIN';position:absolute;inset:70px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;border:3px solid rgba(255,132,49,.28);font:950 18px/1 'Chakra Petch',sans-serif;letter-spacing:.12em;}
+      .plv4-slot{width:min(420px,94%);border:1px solid rgba(255,132,49,.34);border-radius:20px;padding:14px;background:linear-gradient(135deg,#35161c,#111522 48%,#2b1d0d);display:grid;grid-template-columns:repeat(4,1fr);gap:9px;overflow:hidden;}
+      .plv4-reel{height:88px;border-radius:14px;background:#0b1020;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.10);}
+      .plv4-slot-track{position:absolute;inset:auto 0 0 0;display:grid;gap:8px;padding:8px;}
+      .plv4-slot-chip{height:25px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:900;background:linear-gradient(135deg,#ff8131,#5be7ff);}
+      .plv4-card-stack{position:relative;width:230px;height:160px;margin:auto;}
+      .plv4-card-one{position:absolute;width:120px;height:158px;border-radius:18px;background:#fff;color:#111;box-shadow:0 18px 36px rgba(0,0,0,.28);display:grid;place-items:center;font-weight:950;font-size:32px;animation:plv4Float .9s ease-in-out infinite alternate;}
+      .plv4-card-one:nth-child(1){left:0;transform:rotate(-18deg)}.plv4-card-one:nth-child(2){left:55px;animation-delay:.12s}.plv4-card-one:nth-child(3){right:0;transform:rotate(18deg);animation-delay:.24s}
+      .plv4-ball{width:165px;height:165px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 32% 28%,#fff,#ffbe57 38%,#b95513);box-shadow:0 18px 42px rgba(0,0,0,.3);font:950 34px/1 'Chakra Petch',sans-serif;color:#111;animation:plv4Float .75s ease-in-out infinite alternate;}
+      .plv4-ring{width:190px;height:190px;border-radius:50%;border:10px solid rgba(255,255,255,.10);border-top-color:#ff8131;border-right-color:#5be7ff;filter:drop-shadow(0 0 18px rgba(255,132,49,.28));}
+      .plv4-orb{width:170px;height:170px;border-radius:50%;background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.34),rgba(255,132,49,.22) 18%,rgba(99,40,168,.30) 62%,rgba(0,0,0,.22));box-shadow:inset 0 0 42px rgba(255,255,255,.08),0 0 36px rgba(255,132,49,.28);animation:plv4Pulse 1.05s ease-in-out infinite alternate;}
+      .plv4-groups-wrap{min-height:100vh;display:grid;place-items:center;background:transparent;padding:24px;color:var(--text);font-family:'IBM Plex Sans Thai','Prompt',system-ui,sans-serif;}
+      .plv4-groups-board{width:min(1500px,96vw);border:1px solid rgba(255,132,49,.30);border-radius:26px;background:rgba(14,17,22,.88);box-shadow:0 20px 50px rgba(0,0,0,.28);padding:22px;overflow:hidden;}
+      .plv4-groups-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.12);}
+      .plv4-groups-head h1{margin:0;font-size:clamp(26px,3vw,48px);}.plv4-groups-head p{margin:6px 0 0;color:#b8bec8;}
+      .plv4-groups-grid{display:grid;grid-template-columns:repeat(var(--plv4-groups-cols,3),minmax(0,1fr));gap:12px;overflow:hidden;}
+      @media(max-width:1000px){.plv4-groups-grid{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))!important;}}
+      .plv4-group-card{min-width:0;border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(255,255,255,.055);overflow:hidden;}
+      .plv4-group-title{display:flex;justify-content:space-between;gap:8px;padding:11px 13px;background:rgba(255,132,49,.12);font-weight:950;}
+      .plv4-group-row{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;padding:9px 12px;border-top:1px solid rgba(255,255,255,.1);}
+      .plv4-group-row .no{color:#ffb45b;font-weight:950}.plv4-group-row .team{font-weight:850;overflow-wrap:anywhere;}.plv4-group-row.empty .team{opacity:.48;}
     `;
     document.head.appendChild(st);
   }
 
-  function applyDrawVars(values){
-    const v = Object.assign({}, DRAW_SIZE_DEFAULT, values || {});
-    document.documentElement.style.setProperty('--pl-chip-size', clamp(v.drawChipFontSize, 7, 40, 12) + 'px');
-    document.documentElement.style.setProperty('--pl-group-size', clamp(v.drawGroupFontSize, 8, 60, 17) + 'px');
-    document.documentElement.style.setProperty('--pl-group-value-size', clamp(v.drawGroupValueFontSize, 12, 110, 30) + 'px');
-    document.documentElement.style.setProperty('--pl-name-size', clamp(v.drawNameFontSize, 18, 180, 72) + 'px');
-    document.documentElement.style.setProperty('--pl-sub-size', clamp(v.drawSubFontSize, 8, 80, 22) + 'px');
-    document.documentElement.style.setProperty('--pl-status-size', clamp(v.drawStatusFontSize, 8, 48, 13) + 'px');
+  function applyDrawSizeVars(values){
+    const v = Object.assign({}, DEFAULT_SIZE, values || {});
+    document.documentElement.style.setProperty('--plv4-chip', clamp(v.chip, 6, 44, DEFAULT_SIZE.chip) + 'px');
+    document.documentElement.style.setProperty('--plv4-group-label', clamp(v.groupLabel, 8, 70, DEFAULT_SIZE.groupLabel) + 'px');
+    document.documentElement.style.setProperty('--plv4-group-value', clamp(v.groupValue, 10, 120, DEFAULT_SIZE.groupValue) + 'px');
+    document.documentElement.style.setProperty('--plv4-name', clamp(v.name, 16, 180, DEFAULT_SIZE.name) + 'px');
+    document.documentElement.style.setProperty('--plv4-sub', clamp(v.sub, 8, 90, DEFAULT_SIZE.sub) + 'px');
+    document.documentElement.style.setProperty('--plv4-status', clamp(v.status, 8, 54, DEFAULT_SIZE.status) + 'px');
   }
-  function currentDrawSize(){ return Object.assign({}, DRAW_SIZE_DEFAULT, (readState().settings || {})); }
-  function rangeRow(id, label, val, min, max, step=1){
-    return `<div class="pl-v3-range"><label>${esc(label)} <b><span id="${id}Val">${esc(val)}</span>px</b></label><div class="pl-v3-mini"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(val)}"></div></div>`;
+
+  function formRange(id, label, value, min, max, step=1){
+    return `<div class="plv4-range"><label>${esc(label)} <b><span id="${id}Out">${esc(value)}</span>px</b></label><div class="plv4-row"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(value)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(value)}"></div></div>`;
   }
-  function getDrawForm(){
+  function getDrawSizeForm(){
     return {
-      drawChipFontSize: clamp($('#plV3Chip')?.value, 7, 40, 12),
-      drawGroupFontSize: clamp($('#plV3Group')?.value, 8, 60, 17),
-      drawGroupValueFontSize: clamp($('#plV3GroupValue')?.value, 12, 110, 30),
-      drawNameFontSize: clamp($('#plV3Name')?.value, 18, 180, 72),
-      drawSubFontSize: clamp($('#plV3Sub')?.value, 8, 80, 22),
-      drawStatusFontSize: clamp($('#plV3Status')?.value, 8, 48, 13)
+      chip: clamp($('#plv4SizeChip')?.value, 6, 44, DEFAULT_SIZE.chip),
+      groupLabel: clamp($('#plv4SizeGroupLabel')?.value, 8, 70, DEFAULT_SIZE.groupLabel),
+      groupValue: clamp($('#plv4SizeGroupValue')?.value, 10, 120, DEFAULT_SIZE.groupValue),
+      name: clamp($('#plv4SizeName')?.value, 16, 180, DEFAULT_SIZE.name),
+      sub: clamp($('#plv4SizeSub')?.value, 8, 90, DEFAULT_SIZE.sub),
+      status: clamp($('#plv4SizeStatus')?.value, 8, 54, DEFAULT_SIZE.status)
     };
   }
-  function bindDual(id, preview){
-    const r = $('#'+id), n = $('#'+id+'Num'), out = $('#'+id+'Val');
-    if(!r || !n || !out) return;
-    const sync = (from) => {
-      const val = from.value;
-      r.value = val; n.value = val; out.textContent = val;
-      preview();
+  function bindPair(id, onChange){
+    const r = $('#'+id), num = $('#'+id+'Num'), out = $('#'+id+'Out');
+    if(!r || !num || !out) return;
+    const sync = from => {
+      r.value = from.value;
+      num.value = from.value;
+      out.textContent = from.value;
+      onChange();
     };
     r.addEventListener('input', () => sync(r));
-    n.addEventListener('input', () => sync(n));
+    num.addEventListener('input', () => sync(num));
   }
-  function installDrawSizeSettings(){
+  function installDrawTextSizeCard(){
     if(IS_SOURCE) return;
     const drawPanel = $('[data-panel="draw"]');
     const firstCard = drawPanel && $('.card', drawPanel);
-    if(!firstCard) return;
-    const old = $('#plDrawTextSizeCard');
-    if(old) old.remove();
-    if($('#plDrawTextSizeCardV3')) return;
-    const set = currentDrawSize();
-    applyDrawVars(set);
+    if(!firstCard || $('#plv4DrawTextSizeCard')) return;
+    const saved = readDrawSize();
     const card = document.createElement('div');
-    card.className = 'card compact pl-draw-size-card-v3';
-    card.id = 'plDrawTextSizeCardV3';
-    card.innerHTML = `<h3>Draw Text Size Settings V3</h3><p class="hint">ปรับขนาดตัวหนังสือในหน้าสุ่มและ Draw Animation Source แบบแยกส่วน ใช้จริงทันทีตอนเลื่อน</p>
+    card.className = 'card compact';
+    card.id = 'plv4DrawTextSizeCard';
+    card.innerHTML = `<h3>Draw Text Size Settings</h3><p class="hint">ปรับขนาดตัวหนังสือในหน้าสุ่มและ Draw Animation Source แบบละเอียด ใช้จริงทันทีตอนเลื่อน</p>
       <div class="grid two">
-        ${rangeRow('plV3Chip','ป้าย STYLE / MODE',set.drawChipFontSize,7,40,1)}
-        ${rangeRow('plV3Group','คำว่า GROUP',set.drawGroupFontSize,8,60,1)}
-        ${rangeRow('plV3GroupValue','ตัวอักษรสาย A/B/C',set.drawGroupValueFontSize,12,110,1)}
-        ${rangeRow('plV3Name','ชื่อทีมหลัก',set.drawNameFontSize,18,180,1)}
-        ${rangeRow('plV3Sub','บรรทัดสาย / ลำดับ',set.drawSubFontSize,8,80,1)}
-        ${rangeRow('plV3Status','ข้อความสถานะ',set.drawStatusFontSize,8,48,1)}
+        ${formRange('plv4SizeChip','ป้าย STYLE / MODE',saved.chip,6,44,1)}
+        ${formRange('plv4SizeGroupLabel','คำว่า GROUP',saved.groupLabel,8,70,1)}
+        ${formRange('plv4SizeGroupValue','ตัวอักษรสาย A/B/C',saved.groupValue,10,120,1)}
+        ${formRange('plv4SizeName','ชื่อทีมหลัก',saved.name,16,180,1)}
+        ${formRange('plv4SizeSub','บรรทัดสาย / ลำดับ',saved.sub,8,90,1)}
+        ${formRange('plv4SizeStatus','ข้อความสถานะ',saved.status,8,54,1)}
       </div>
-      <div class="row"><button class="btn primary" id="plV3SaveDrawSize" type="button">บันทึกขนาดตัวหนังสือ</button><button class="btn" id="plV3ResetDrawSize" type="button">Reset Size</button></div>
-      <div class="pl-v3-status" id="plV3DrawSizeStatus"></div>`;
+      <div class="row"><button class="btn primary" id="plv4SaveDrawSize" type="button">บันทึกขนาดตัวหนังสือ</button><button class="btn" id="plv4CancelDrawSize" type="button">ย้อนกลับค่าล่าสุด</button><button class="btn" id="plv4ResetDrawSize" type="button">Reset</button></div>
+      <div class="plv4-save-note" id="plv4DrawSizeNote"></div>`;
     firstCard.appendChild(card);
-    const preview = () => { applyDrawVars(getDrawForm()); const x=$('#plV3DrawSizeStatus'); if(x) x.textContent='Preview อยู่ ยังไม่บันทึก'; };
-    ['plV3Chip','plV3Group','plV3GroupValue','plV3Name','plV3Sub','plV3Status'].forEach(id => bindDual(id, preview));
-    $('#plV3SaveDrawSize')?.addEventListener('click', () => {
-      const s = withSettings();
-      Object.assign(s.settings, getDrawForm());
-      writeState(s);
-      applyDrawVars(s.settings);
-      addAudit('save-draw-text-size-v3', getDrawForm());
-      const x=$('#plV3DrawSizeStatus'); if(x) x.textContent='บันทึกแล้ว';
+    const preview = () => {
+      applyDrawSizeVars(getDrawSizeForm());
+      const note = $('#plv4DrawSizeNote');
+      if(note) note.textContent = 'Preview อยู่ ยังไม่บันทึก';
+    };
+    ['plv4SizeChip','plv4SizeGroupLabel','plv4SizeGroupValue','plv4SizeName','plv4SizeSub','plv4SizeStatus'].forEach(id => bindPair(id, preview));
+    $('#plv4SaveDrawSize')?.addEventListener('click', () => {
+      const val = getDrawSizeForm();
+      saveJson(DRAW_SIZE_KEY, val);
+      applyDrawSizeVars(val);
+      const note = $('#plv4DrawSizeNote');
+      if(note) note.textContent = 'บันทึกแล้ว ใช้กับ Draw Control และ Draw Animation Source แล้ว';
     });
-    $('#plV3ResetDrawSize')?.addEventListener('click', () => {
-      const s = withSettings();
-      Object.assign(s.settings, DRAW_SIZE_DEFAULT);
-      writeState(s);
-      $('#plDrawTextSizeCardV3')?.remove();
-      installDrawSizeSettings();
-      addAudit('reset-draw-text-size-v3');
+    $('#plv4CancelDrawSize')?.addEventListener('click', () => {
+      $('#plv4DrawTextSizeCard')?.remove();
+      applyDrawSizeVars(readDrawSize());
+      installDrawTextSizeCard();
+    });
+    $('#plv4ResetDrawSize')?.addEventListener('click', () => {
+      saveJson(DRAW_SIZE_KEY, DEFAULT_SIZE);
+      $('#plv4DrawTextSizeCard')?.remove();
+      applyDrawSizeVars(DEFAULT_SIZE);
+      installDrawTextSizeCard();
     });
   }
 
@@ -310,123 +369,176 @@
         head.appendChild(btn);
       }
       btn.textContent = 'UI ตั้งค่าหน้านี้';
-      btn.dataset.panelId = panel.dataset.panel || 'dashboard';
+      btn.dataset.plv4Panel = panel.dataset.panel || 'dashboard';
     });
   }
   function applyPage(panelId, cfg){
     const panel = document.querySelector(`.panel[data-panel="${CSS.escape(panelId)}"]`);
     if(!panel) return;
-    const c = Object.assign({}, PAGE_DEFAULT, cfg || {});
-    panel.style.maxWidth = clamp(c.widthPx, 620, 2200, 1280) + 'px';
+    const c = Object.assign({}, DEFAULT_PAGE, cfg || {});
+    panel.style.maxWidth = clamp(c.width, 620, 2400, DEFAULT_PAGE.width) + 'px';
     panel.style.marginInline = 'auto';
-    panel.style.fontSize = clamp(c.fontScale, .65, 1.8, 1) + 'rem';
-    panel.style.setProperty('--pl-page-card-pad-v3', clamp(c.cardPadding, 6, 42, 16) + 'px');
-    panel.querySelectorAll('.card').forEach(card => card.style.padding = 'var(--pl-page-card-pad-v3)');
-    ['scoresBox','standingsBox','scheduleBox','groupResult','revealFeed'].forEach(id => {
+    panel.style.fontSize = clamp(c.font, .55, 2, DEFAULT_PAGE.font) + 'rem';
+    panel.style.setProperty('--plv4-panel-gap', clamp(c.gap, 4, 50, DEFAULT_PAGE.gap) + 'px');
+    panel.querySelectorAll('.grid').forEach(el => el.style.gap = 'var(--plv4-panel-gap)');
+    panel.querySelectorAll('.card').forEach(el => el.style.padding = clamp(c.padding, 4, 54, DEFAULT_PAGE.padding) + 'px');
+    ['groupResult','revealFeed','scoresBox','standingsBox','scheduleBox'].forEach(id => {
       const el = panel.querySelector('#'+id);
-      if(el){ el.style.maxHeight = clamp(c.tableHeight, 180, 1200, 620) + 'px'; el.style.overflowY = 'auto'; el.style.overflowX = 'hidden'; }
+      if(el){ el.style.maxHeight = clamp(c.tableHeight, 160, 1400, DEFAULT_PAGE.tableHeight) + 'px'; el.style.overflowY = 'auto'; el.style.overflowX = 'hidden'; }
     });
   }
   function applyAllPages(){
-    const all = savedPageSettings();
-    Object.entries(all).forEach(([panelId, cfg]) => applyPage(panelId, cfg));
+    const all = readPageAll();
+    Object.entries(all).forEach(([id, cfg]) => applyPage(id, cfg));
   }
-  function rangeModal(id, label, val, min, max, step, unit){
-    return `<div class="pl-v3-range"><label>${esc(label)} <b><span id="${id}Val">${esc(val)}</span>${esc(unit||'')}</b></label><div class="pl-v3-mini"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(val)}"></div></div>`;
+  function modalRange(id, label, value, min, max, step, unit){
+    return `<div class="plv4-range"><label>${esc(label)} <b><span id="${id}Out">${esc(value)}</span>${esc(unit || '')}</b></label><div class="plv4-row"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(value)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(value)}"></div></div>`;
   }
-  let pageModal, pageDraft, pageSaved, pagePanelId;
-  function openPageModalV3(panelId){
+  function modalValues(){
+    return {
+      width: clamp($('#plv4PageWidth')?.value, 620, 2400, DEFAULT_PAGE.width),
+      font: clamp($('#plv4PageFont')?.value, .55, 2, DEFAULT_PAGE.font),
+      padding: clamp($('#plv4PagePad')?.value, 4, 54, DEFAULT_PAGE.padding),
+      tableHeight: clamp($('#plv4PageTable')?.value, 160, 1400, DEFAULT_PAGE.tableHeight),
+      gap: clamp($('#plv4PageGap')?.value, 4, 50, DEFAULT_PAGE.gap)
+    };
+  }
+  function openPageModal(panelId){
     pagePanelId = panelId || 'dashboard';
-    const all = savedPageSettings();
-    pageSaved = Object.assign({}, PAGE_DEFAULT, all[pagePanelId] || {});
+    const all = readPageAll();
+    pageSaved = Object.assign({}, DEFAULT_PAGE, all[pagePanelId] || {});
     pageDraft = Object.assign({}, pageSaved);
     if(!pageModal){
       pageModal = document.createElement('div');
-      pageModal.className = 'pl-page-modal-v3';
-      pageModal.innerHTML = `<div class="pl-page-box-v3"><div class="pl-page-head-v3"><div><h3>UI Settings</h3><p>เลื่อนปรับแบบละเอียด พร้อม Preview ถ้าไม่บันทึกจะย้อนกลับค่าล่าสุด</p></div><button class="pl-page-close-v3" type="button">×</button></div><div id="plPageModalBodyV3"></div></div>`;
+      pageModal.className = 'plv4-page-modal';
+      pageModal.innerHTML = `<div class="plv4-page-box"><div class="plv4-page-head"><div><h3>UI Settings</h3><p>เลื่อนปรับแบบละเอียด พร้อม Preview ถ้าไม่บันทึกจะกลับค่าล่าสุด</p></div><button class="plv4-page-close" type="button">×</button></div><div id="plv4PageBody"></div></div>`;
       document.body.appendChild(pageModal);
-      pageModal.addEventListener('click', e => { if(e.target === pageModal || e.target.closest('.pl-page-close-v3')) closePageModalV3(false); });
+      pageModal.addEventListener('click', e => { if(e.target === pageModal || e.target.closest('.plv4-page-close')) closePageModal(false); });
     }
     renderPageModalBody();
     pageModal.classList.add('open');
     applyPage(pagePanelId, pageDraft);
   }
-  function modalValues(){
-    return {
-      widthPx: clamp($('#plV3PageWidth')?.value, 620, 2200, 1280),
-      fontScale: clamp($('#plV3PageFont')?.value, .65, 1.8, 1),
-      cardPadding: clamp($('#plV3PagePad')?.value, 6, 42, 16),
-      tableHeight: clamp($('#plV3PageTable')?.value, 180, 1200, 620)
-    };
-  }
   function renderPageModalBody(){
-    const body = $('#plPageModalBodyV3', pageModal);
-    body.innerHTML = `${rangeModal('plV3PageWidth','ความกว้างหน้าหมวด',pageDraft.widthPx,620,2200,1,'px')}${rangeModal('plV3PageFont','ขนาดตัวหนังสือรวม',pageDraft.fontScale,.65,1.8,.01,'x')}${rangeModal('plV3PagePad','ความโปร่ง/ระยะห่างการ์ด',pageDraft.cardPadding,6,42,1,'px')}${rangeModal('plV3PageTable','ความสูงตาราง/ฟีด',pageDraft.tableHeight,180,1200,1,'px')}<div class="pl-page-preview-v3"><div class="pl-page-preview-card-v3"><b>Preview</b><p>ตัวอย่างขนาดการ์ดและตัวอักษรของหน้าหมวดนี้</p><div class="notice">ตาราง/ฟีดจะสูงตามค่าที่เลื่อน และไม่เกิดแถบเลื่อนแนวนอน</div></div></div><div class="pl-page-actions-v3"><button class="btn" id="plV3CancelPage" type="button">ยกเลิก</button><button class="btn primary" id="plV3SavePage" type="button">บันทึก UI หน้านี้</button></div>`;
+    const body = $('#plv4PageBody', pageModal);
+    body.innerHTML = `${modalRange('plv4PageWidth','ความกว้างหน้าหมวด',pageDraft.width,620,2400,1,'px')}${modalRange('plv4PageFont','ขนาดตัวหนังสือรวม',pageDraft.font,.55,2,.01,'x')}${modalRange('plv4PagePad','ระยะขอบการ์ด',pageDraft.padding,4,54,1,'px')}${modalRange('plv4PageGap','ระยะห่างช่อง/การ์ด',pageDraft.gap,4,50,1,'px')}${modalRange('plv4PageTable','ความสูงตาราง/ฟีด',pageDraft.tableHeight,160,1400,1,'px')}<div class="plv4-preview"><div class="plv4-preview-card"><b>Preview</b><p>ตัวอย่างตัวอักษร ขนาดการ์ด และระยะห่างของหมวดนี้</p><div class="notice">ถ้ากดปิดหรือยกเลิก ระบบจะย้อนกลับค่าที่บันทึกไว้ล่าสุด</div></div></div><div class="plv4-actions"><button class="btn" id="plv4PageCancel" type="button">ยกเลิก</button><button class="btn primary" id="plv4PageSave" type="button">บันทึก UI หน้านี้</button></div>`;
     const preview = () => {
       pageDraft = modalValues();
       applyPage(pagePanelId, pageDraft);
-      document.documentElement.style.setProperty('--pl-prev-width', Math.min(640, pageDraft.widthPx) + 'px');
-      document.documentElement.style.setProperty('--pl-prev-font', pageDraft.fontScale + 'rem');
-      document.documentElement.style.setProperty('--pl-prev-pad', pageDraft.cardPadding + 'px');
-      ['plV3PageWidth','plV3PageFont','plV3PagePad','plV3PageTable'].forEach(id => {
-        const r=$('#'+id), n=$('#'+id+'Num'), out=$('#'+id+'Val');
-        if(r&&n&&out){ n.value=r.value; out.textContent=r.value; }
+      document.documentElement.style.setProperty('--plv4-preview-width', Math.min(680, pageDraft.width) + 'px');
+      document.documentElement.style.setProperty('--plv4-preview-font', pageDraft.font + 'rem');
+      document.documentElement.style.setProperty('--plv4-preview-pad', pageDraft.padding + 'px');
+      document.documentElement.style.setProperty('--plv4-preview-gap', pageDraft.gap + 'px');
+      ['plv4PageWidth','plv4PageFont','plv4PagePad','plv4PageGap','plv4PageTable'].forEach(id => {
+        const r = $('#'+id), num = $('#'+id+'Num'), out = $('#'+id+'Out');
+        if(r && num && out){ num.value = r.value; out.textContent = r.value; }
       });
     };
-    ['plV3PageWidth','plV3PageFont','plV3PagePad','plV3PageTable'].forEach(id => {
-      const r=$('#'+id), n=$('#'+id+'Num');
+    ['plv4PageWidth','plv4PageFont','plv4PagePad','plv4PageGap','plv4PageTable'].forEach(id => {
+      const r = $('#'+id), num = $('#'+id+'Num');
       if(r) r.addEventListener('input', preview);
-      if(n) n.addEventListener('input', () => { if(r) r.value=n.value; preview(); });
+      if(num) num.addEventListener('input', () => { if(r) r.value = num.value; preview(); });
     });
-    $('#plV3CancelPage')?.addEventListener('click', () => closePageModalV3(false));
-    $('#plV3SavePage')?.addEventListener('click', () => closePageModalV3(true));
+    $('#plv4PageCancel')?.addEventListener('click', () => closePageModal(false));
+    $('#plv4PageSave')?.addEventListener('click', () => closePageModal(true));
     preview();
   }
-  function closePageModalV3(save){
-    if(!pageModal) return;
+  function closePageModal(save){
     if(save){
-      const all = savedPageSettings();
+      const all = readPageAll();
       all[pagePanelId] = pageDraft;
-      savePageSettings(all);
+      savePageAll(all);
       applyPage(pagePanelId, pageDraft);
     }else{
       applyPage(pagePanelId, pageSaved);
     }
-    pageModal.classList.remove('open');
+    pageModal?.classList.remove('open');
   }
 
-  function enhanceSourceCards(){
-    if(IS_SOURCE) return;
-    const box = $('#sourceCards');
-    if(!box) return;
-    box.querySelectorAll('.source-card').forEach(card => {
-      card.classList.remove('src-locked');
-      card.style.pointerEvents = '';
-      card.style.opacity = '';
-      card.querySelectorAll('button').forEach(b => { b.disabled = false; b.removeAttribute('disabled'); });
-      card.innerHTML = card.innerHTML.replace(/⚠\s*Wait/gi, 'Ready');
-    });
-
-    // Single Draw Animation Source card / URL
-    if(!$('#plV3DrawSourceCard')){
-      const card = document.createElement('div');
-      card.className = 'source-card';
-      card.id = 'plV3DrawSourceCard';
-      const url = sourceUrl(DRAW_SOURCE_VIEW);
-      card.innerHTML = `<h3>Draw Animation Source</h3><p>ลิงก์เดียวสำหรับ OBS เปลี่ยน Animation Style ตามหน้า Draw Control</p><div class="source-url">${esc(url)}</div><div class="row pl-v3-url-actions"><button class="btn primary" type="button" data-pl-v3-copy="${esc(url)}">Copy URL</button><button class="btn" type="button" data-pl-v3-preview="${esc(url)}">Preview URL</button></div>`;
-      box.prepend(card);
+  function modeLabel(s){
+    const method = s.settings?.drawMethod || 'auto-sequence';
+    return method === 'instant-all' ? 'Instant All' : method === 'manual-step' ? 'Manual Step' : 'Auto Sequence';
+  }
+  function finalItem(s){
+    const live = s.drawLive || {};
+    return live.pendingItem || live.current || (Array.isArray(live.feed) && live.feed[0]) || { team:'READY', group:'-', slot:'-' };
+  }
+  function rollingItem(s){
+    const live = s.drawLive || {};
+    const f = finalItem(s);
+    if(!live.waiting) return Object.assign({}, f, {_progress:null});
+    const duration = Math.max(1000, n(s.settings?.drawDuration, 5) * 1000);
+    const end = n(live.revealEndsAt, Date.now() + duration);
+    const remain = Math.max(0, end - Date.now());
+    const p = Math.max(0, Math.min(1, 1 - remain / duration));
+    if(p > .91) return Object.assign({}, f, {_progress:p});
+    const teams = (Array.isArray(s.teams) && s.teams.length ? s.teams : (Array.isArray(s.pendingSequence) ? s.pendingSequence.map(x => x.team) : [])).filter(x => x && x !== 'BYE');
+    const groupKeys = Object.keys(s.pendingGroups || s.groups || {});
+    const groups = groupKeys.length ? groupKeys : letters(s.event?.groupCount || 4);
+    const slow = 48 + Math.pow(p, 2.8) * 430;
+    const idx = Math.floor(Date.now() / slow);
+    return {
+      team: teams.length ? teams[idx % teams.length] : 'กำลังสุ่ม...',
+      group: groups.length ? groups[(idx + 1) % groups.length] : '-',
+      slot: (idx % 8) + 1,
+      _ticker:true,
+      _progress:p
+    };
+  }
+  function fxHtml(mode){
+    if(mode === 'wheel') return `<div class="plv4-wheel-box"><div class="plv4-pointer"></div><div class="plv4-wheel"></div></div>`;
+    if(mode === 'slot') return `<div class="plv4-slot">${Array.from({length:4},(_,i)=>`<div class="plv4-reel"><div class="plv4-slot-track"><div class="plv4-slot-chip">${i+1}</div><div class="plv4-slot-chip">A</div><div class="plv4-slot-chip">B</div><div class="plv4-slot-chip">C</div></div></div>`).join('')}</div>`;
+    if(mode === 'card') return `<div class="plv4-card-stack"><div class="plv4-card-one">A</div><div class="plv4-card-one">B</div><div class="plv4-card-one">C</div></div>`;
+    if(mode === 'lottery') return `<div class="plv4-ball">LOT</div>`;
+    if(mode === 'crystal') return `<div class="plv4-orb"></div>`;
+    return `<div class="plv4-ring"></div>`;
+  }
+  function drawCardHtml(s){
+    const mode = s.settings?.drawAnimation || 'wheel';
+    return `<div class="plv4-source-wrap"><div class="plv4-draw-card" data-plv4-draw="1"><div class="plv4-fx">${fxHtml(mode)}</div><div class="plv4-meta"><span class="plv4-chip">STYLE <b data-plv4-style>${esc(String(mode).toUpperCase())}</b></span><span class="plv4-chip">REVEAL <b data-plv4-reveal>0/0</b></span><span class="plv4-chip">MODE <b data-plv4-method>${esc(modeLabel(s))}</b></span></div><div class="plv4-group-pill plv4-group-label">GROUP <b class="plv4-group-value" data-plv4-group>-</b></div><div class="plv4-name" data-plv4-name>READY</div><div class="plv4-sub" data-plv4-sub>สาย - · ลำดับ -</div><div class="plv4-status" data-plv4-status>เลือกวิธีสุ่ม แล้วกด Start Draw</div><div class="plv4-track"><div class="plv4-bar" data-plv4-bar></div></div></div></div>`;
+  }
+  function updateDrawText(root, s){
+    const item = rollingItem(s);
+    const live = s.drawLive || {};
+    const total = n(live.total || (Array.isArray(s.pendingSequence) ? s.pendingSequence.length : 0), 0);
+    const done = n(s.pendingRevealIndex || live.progress, 0);
+    const progress = live.waiting ? pct((item._progress || 0) * 100) : pct(total ? (done / Math.max(1,total) * 100) : 0);
+    const status = live.waiting ? 'กำลังรันรายชื่อ / สาย / ลำดับ จนกว่าจะล็อกผล' : ((item.team === 'READY') ? 'เลือกวิธีสุ่ม แล้วกด Start Draw' : 'ผลล่าสุดล็อกแล้ว');
+    const pairs = [
+      ['[data-plv4-group],.pl-live-group', item.group ?? '-'],
+      ['[data-plv4-name],.pl-live-name', item.team ?? 'READY'],
+      ['[data-plv4-sub],.pl-live-sub', `สาย ${item.group ?? '-'} · ลำดับ ${item.slot ?? '-'}`],
+      ['[data-plv4-status],.pl-live-status', status],
+      ['[data-plv4-reveal],.pl-live-reveal', `${done}/${total}`],
+      ['[data-plv4-style],.pl-live-style', String(s.settings?.drawAnimation || 'wheel').toUpperCase()],
+      ['[data-plv4-method],.pl-live-method', modeLabel(s)]
+    ];
+    pairs.forEach(([sel, val]) => $$(sel, root).forEach(el => { if(el.textContent !== String(val)) el.textContent = String(val); }));
+    $$('[data-plv4-bar],.pl-live-bar', root).forEach(el => { el.style.transform = `scaleX(${progress/100})`; el.style.width = progress + '%'; });
+  }
+  function renderDrawSource(){
+    if(!IS_DRAW_SOURCE) return;
+    document.documentElement.classList.add('plv4-source');
+    const app = $('#app'); if(app) app.style.display = 'none';
+    const root = $('#sourceRoot') || document.body;
+    root.classList.remove('hidden');
+    const s = readState(); s.settings = s.settings || {}; s.event = s.event || {};
+    const mode = s.settings.drawAnimation || 'wheel';
+    const current = root.querySelector('[data-plv4-draw="1"]');
+    if(!current || current.dataset.mode !== mode){
+      root.innerHTML = drawCardHtml(s);
+      const card = root.querySelector('[data-plv4-draw="1"]');
+      if(card) card.dataset.mode = mode;
     }
-
-    DATA_SOURCES.forEach(([id, title]) => {
-      const url = sourceUrl(id);
-      const card = Array.from(box.querySelectorAll('.source-card')).find(c => (c.querySelector('h3')?.textContent || c.textContent || '').toLowerCase().includes(title.toLowerCase()));
-      if(card && !card.querySelector(`[data-pl-v3-source="${id}"]`)){
-        card.insertAdjacentHTML('beforeend', `<div class="source-url" data-pl-v3-source="${id}">${esc(url)}</div><div class="row pl-v3-url-actions" data-pl-v3-source="${id}"><button class="btn primary" type="button" data-pl-v3-copy="${esc(url)}">Copy URL</button><button class="btn" type="button" data-pl-v3-preview="${esc(url)}">Preview URL</button></div>`);
-      }
-    });
+    updateDrawText(root, s);
+  }
+  function enhanceControlDraw(){
+    if(IS_SOURCE) return;
+    const stage = $('#drawStage');
+    if(!stage) return;
+    updateDrawText(stage, readState());
   }
 
-  function hasGroups(groups){ return Object.values(groups || {}).some(x => Array.isArray(x) && x.some(Boolean)); }
   function emptyGroups(s){ const out = {}; letters(s.event?.groupCount || 4).forEach(k => out[k] = []); return out; }
   function revealedGroups(s){
     const out = emptyGroups(s);
@@ -438,77 +550,117 @@
       if(seen.has(key)) return;
       seen.add(key);
       if(!out[item.group]) out[item.group] = [];
-      const pos = Math.max(0, Number(item.slot || out[item.group].length + 1) - 1);
+      const pos = Math.max(0, n(item.slot, out[item.group].length + 1) - 1);
       out[item.group][pos] = item.team;
     });
     return out;
   }
-  function sourceGroupsData(s){
-    const method = s.settings?.drawMethod || 'auto-sequence';
-    const feedHasData = Array.isArray(s.drawLive?.feed) && s.drawLive.feed.length > 0;
-    if(method !== 'instant-all' && Array.isArray(s.pendingSequence) && s.pendingSequence.length && !s.pendingComplete) return revealedGroups(s);
-    if(method !== 'instant-all' && feedHasData && !hasGroups(s.groups)) return revealedGroups(s);
-    if(method === 'instant-all' && hasGroups(s.pendingGroups)) return s.pendingGroups;
+  function groupsForSource(s){
+    // Never reveal pendingGroups directly. Source follows Reveal Feed first; confirmed groups only after Confirm.
+    const feedData = revealedGroups(s);
+    if(Object.values(feedData).some(arr => Array.isArray(arr) && arr.some(Boolean))) return feedData;
     if(hasGroups(s.groups)) return s.groups;
-    if(hasGroups(s.pendingGroups) && s.pendingComplete) return s.pendingGroups;
     return emptyGroups(s);
   }
-  function renderGroupsSourceV3(){
+  function renderGroupsSource(){
     if(VIEW !== 'groups') return;
-    const root = $('#sourceRoot') || document.body;
+    document.documentElement.classList.add('plv4-source');
     const app = $('#app'); if(app) app.style.display = 'none';
+    const root = $('#sourceRoot') || document.body;
     root.classList.remove('hidden');
-    const s = readState(); s.settings = s.settings || {}; s.event = s.event || {};
-    const groups = sourceGroupsData(s);
-    const cols = clamp(s.settings.groupTableColumns, 1, 10, 3);
-    document.documentElement.style.setProperty('--pl-groups-cols', cols);
-    const cards = Object.entries(groups).map(([g, teams]) => {
-      const clean = Array.isArray(teams) ? teams : [];
-      const rows = clean.length ? clean : [''];
-      return `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(g)}</span><span>${esc(clean.filter(x => x && x !== 'BYE').length)} ทีม</span></div>${rows.map((t,i)=>`<div class="pl-group-row ${(!t)?'empty':''}"><span class="no">${i+1}</span><span class="team">${esc(t || 'รอผลสุ่ม')}</span></div>`).join('')}</div>`;
+    const s = readState(); s.event = s.event || {}; s.settings = s.settings || {};
+    const groups = groupsForSource(s);
+    const cols = clamp(s.settings.groupTableColumns || 3, 1, 10, 3);
+    document.documentElement.style.setProperty('--plv4-groups-cols', cols);
+    const html = Object.entries(groups).map(([g, teams]) => {
+      const rows = Array.isArray(teams) && teams.length ? teams : [''];
+      const count = rows.filter(x => x && x !== 'BYE').length;
+      return `<div class="plv4-group-card"><div class="plv4-group-title"><span>สาย ${esc(g)}</span><span>${count} ทีม</span></div>${rows.map((t,i)=>`<div class="plv4-group-row ${!t ? 'empty' : ''}"><span class="no">${i+1}</span><span class="team">${esc(t || 'รอผล Reveal')}</span></div>`).join('')}</div>`;
     }).join('');
-    root.innerHTML = `<div class="pl-groups-source"><div class="pl-groups-board"><div class="pl-groups-head"><div><h1>${esc(s.event.name || 'PepsLive Tournament')}</h1><p>Groups Table · แสดงตาม Reveal Feed · ไม่โชว์ผลทั้งหมดก่อนเวลา</p></div><div class="pl-sync-chip">LIVE <b>${new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</b></div></div><div class="pl-groups-grid">${cards}</div></div></div>`;
+    root.innerHTML = `<div class="plv4-groups-wrap"><div class="plv4-groups-board"><div class="plv4-groups-head"><div><h1>${esc(s.event.name || 'PepsLive Tournament')}</h1><p>Groups Table Source · ตามผลแบ่งสาย / Reveal Feed</p></div><span class="plv4-chip">LIVE <b>${new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</b></span></div><div class="plv4-groups-grid">${html}</div></div></div>`;
+  }
+
+  function sourceCardsHtml(){
+    const drawUrl = sourceUrl('draw-animation');
+    const drawCard = `<div class="source-section" data-plv4-section="draw"><h3>DRAW ANIMATION SOURCE</h3><p class="hint">ลิงก์เดียวสำหรับ OBS เปลี่ยน Animation Style ตามหน้า Draw Control</p><div class="source-grid-core single"><div class="source-card" data-plv4-card="draw-animation"><h3>Draw Animation Source</h3><p>แสดงผลสุ่มแบบเดียวกับหน้า Draw Control โดยไม่ต้องใช้ Wheel/Slot/Card แยกหลายลิงก์</p><div class="source-url">${esc(drawUrl)}</div><div class="row"><button class="btn primary" type="button" data-plv4-copy="${esc(drawUrl)}">Copy URL</button><button class="btn" type="button" data-plv4-preview="${esc(drawUrl)}">Preview URL</button></div></div></div></div>`;
+    const dataCards = DATA_SOURCES.map(([id, title, desc]) => {
+      const url = sourceUrl(id);
+      return `<div class="source-card" data-plv4-card="${esc(id)}"><h3>${esc(title)}</h3><p>${esc(desc)}</p><div class="source-url">${esc(url)}</div><div class="row"><button class="btn primary" type="button" data-plv4-copy="${esc(url)}">Copy URL</button><button class="btn" type="button" data-plv4-preview="${esc(url)}">Preview URL</button></div></div>`;
+    }).join('');
+    const liveSection = `<div class="source-section" data-plv4-section="live"><h3>LIVE DATA SOURCES</h3><p class="hint">แสดง URL ได้เลย ไม่ล็อก Wait และไม่แสดงผลสุ่มทั้งหมดก่อนเวลา</p><div class="source-grid-core">${dataCards}</div></div>`;
+    return drawCard + liveSection;
+  }
+  function renderSourceCards(){
+    if(IS_SOURCE) return;
+    const box = $('#sourceCards');
+    if(!box) return;
+    box.dataset.plv4Clean = '1';
+    const key = 'v4-source-cards';
+    if(lastSourceCardsKey !== key || !box.querySelector('[data-plv4-section="draw"]')){
+      lastSourceCardsKey = key;
+      box.innerHTML = sourceCardsHtml();
+    }
+  }
+  function watchSourceCards(){
+    if(IS_SOURCE || sourceObserver || !$('#sourceCards')) return;
+    sourceObserver = new MutationObserver(() => {
+      const box = $('#sourceCards');
+      if(!box || box.querySelector('[data-plv4-section="draw"]')) return;
+      queueMicrotask(renderSourceCards);
+    });
+    sourceObserver.observe($('#sourceCards'), {childList:true, subtree:false});
   }
 
   document.addEventListener('click', e => {
     const pageBtn = e.target.closest('.pl-page-btn');
     if(pageBtn){
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      openPageModalV3(pageBtn.dataset.panelId || pageBtn.closest('.panel')?.dataset.panel || 'dashboard');
+      openPageModal(pageBtn.dataset.plv4Panel || pageBtn.closest('.panel')?.dataset.panel || 'dashboard');
       return;
     }
-    const copy = e.target.closest('[data-pl-v3-copy]');
+    const copy = e.target.closest('[data-plv4-copy]');
     if(copy){
-      e.preventDefault();
-      navigator.clipboard?.writeText(copy.dataset.plV3Copy);
+      e.preventDefault(); e.stopPropagation();
+      navigator.clipboard?.writeText(copy.dataset.plv4Copy);
+      const old = copy.textContent;
       copy.textContent = 'Copied';
-      setTimeout(() => copy.textContent = 'Copy URL', 1200);
+      setTimeout(() => copy.textContent = old || 'Copy URL', 1200);
       return;
     }
-    const prev = e.target.closest('[data-pl-v3-preview]');
-    if(prev){ e.preventDefault(); window.open(prev.dataset.plV3Preview, '_blank'); }
+    const preview = e.target.closest('[data-plv4-preview]');
+    if(preview){ e.preventDefault(); e.stopPropagation(); window.open(preview.dataset.plv4Preview, '_blank'); }
   }, true);
 
-  function tick(){
+  function bootStatic(){
     injectCss();
-    applyDrawVars(currentDrawSize());
-    if(!IS_SOURCE){
-      installDrawSizeSettings();
+    applyDrawSizeVars(readDrawSize());
+    if(IS_DRAW_SOURCE) renderDrawSource();
+    else if(VIEW === 'groups') renderGroupsSource();
+    else if(!IS_SOURCE){
+      installDrawTextSizeCard();
       ensurePageButtons();
       applyAllPages();
-      enhanceSourceCards();
-    }else if(VIEW === 'groups'){
-      renderGroupsSourceV3();
+      renderSourceCards();
+      watchSourceCards();
     }
   }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    tick();
-    setInterval(tick, IS_SOURCE ? 700 : 1000);
-  }, { once:true });
-  if(document.readyState !== 'loading'){
-    setTimeout(() => { tick(); setInterval(tick, IS_SOURCE ? 700 : 1000); }, 80);
+  function loop(){
+    applyDrawSizeVars(readDrawSize());
+    if(IS_DRAW_SOURCE) renderDrawSource();
+    else if(VIEW === 'groups') renderGroupsSource();
+    else if(!IS_SOURCE){
+      enhanceControlDraw();
+      renderSourceCards();
+    }
+    raf = requestAnimationFrame(loop);
   }
+  function start(){
+    bootStatic();
+    if(!raf) raf = requestAnimationFrame(loop);
+    setInterval(bootStatic, IS_SOURCE ? 900 : 1500);
+  }
+  document.addEventListener('DOMContentLoaded', start, {once:true});
+  if(document.readyState !== 'loading') setTimeout(start, 40);
 })();
 </script>
 </body>
