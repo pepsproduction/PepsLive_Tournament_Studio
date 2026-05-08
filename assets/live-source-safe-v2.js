@@ -2,8 +2,13 @@
   const K='pepsliveTournamentControlV2';
   const DRAW='wheel slot card lottery glitch galaxy crystal plasma vortex'.split(' ');
   const LIVE='winner groups schedule standings knockout lower-third next-match latest-result'.split(' ');
-  const ALL=[...DRAW,...LIVE];
-  const TITLE={wheel:'Wheel Spin',slot:'Slot Reveal',card:'Card Draw',lottery:'Lottery Ball',glitch:'Glitch Cyber',galaxy:'Galaxy Spiral',crystal:'Crystal Oracle',plasma:'Plasma Arc',vortex:'Vortex Portal',winner:'Winner Graphic',groups:'Groups Table',schedule:'Schedule Table',standings:'Standings Table',knockout:'Knockout Bracket','lower-third':'Lower Third','next-match':'Next Match','latest-result':'Latest Result'};
+  const DRAW_SOURCE='draw-animation';
+  const ALL=[DRAW_SOURCE,...DRAW,...LIVE];
+  const TITLE={
+    [DRAW_SOURCE]:'Draw Animation Source',
+    wheel:'Wheel Spin',slot:'Slot Reveal',card:'Card Draw',lottery:'Lottery Ball',glitch:'Glitch Cyber',galaxy:'Galaxy Spiral',crystal:'Crystal Oracle',plasma:'Plasma Arc',vortex:'Vortex Portal',
+    winner:'Winner Graphic',groups:'Groups Table',schedule:'Schedule Table',standings:'Standings Table',knockout:'Knockout Bracket','lower-third':'Lower Third','next-match':'Next Match','latest-result':'Latest Result'
+  };
   const PARAMS=new URLSearchParams(location.search);
   const VIEW=(PARAMS.get('view')||'').trim();
   const IS_SOURCE=VIEW&&VIEW!=='control'&&ALL.includes(VIEW);
@@ -28,10 +33,11 @@
     try{return merge(base,JSON.parse(localStorage.getItem(K)||'{}'))}catch{return base}
   }
 
-  function url(id){return location.href.split('?')[0].split('#')[0]+'?view='+encodeURIComponent(id)+(DRAW.includes(id)?'&bg=transparent':'')}
+  function isDrawSourceView(id){return id===DRAW_SOURCE||DRAW.includes(id)||id==='winner'}
+  function url(id){return location.href.split('?')[0].split('#')[0]+'?view='+encodeURIComponent(id)+(id===DRAW_SOURCE?'&bg=transparent':DRAW.includes(id)?'&bg=transparent':'')}
 
   function sourceShell(s){
-    const bg=PARAMS.get('bg')||(DRAW.includes(VIEW)?'transparent':s.settings?.sourceBg||'transparent');
+    const bg=PARAMS.get('bg')||(isDrawSourceView(VIEW)?'transparent':s.settings?.sourceBg||'transparent');
     document.documentElement.classList.add('pls-live');
     document.documentElement.style.setProperty('--pls-source-bg',bg==='green'?'#00b140':bg==='dark'?'#050816':'transparent');
     document.documentElement.style.setProperty('--pls-font-scale',String(+s.settings?.fontScale||1));
@@ -59,13 +65,19 @@
     return {wheel:'<div class="wheel-pointer"></div><div class="wheel"></div><div class="ring r2"></div>',slot:'<div class="reels"><i></i><i></i><i></i><i></i><i></i></div>',card:'<div class="cards"><i></i><i></i><i></i><i></i><i></i></div>',lottery:'<div class="balls"><i></i><i></i><i></i><i></i><i></i></div>',glitch:'<div class="gridfx"></div><div class="ring r1"></div>',galaxy:'<div class="spiral"></div><div class="ring r3"></div>',crystal:'<div class="diamond"></div><div class="ring r2"></div>',plasma:'<div class="arc"></div><div class="ring r1"></div>',vortex:'<div class="portal"></div><div class="ring r2"></div>'}[mode]||'<div class="ring r1"></div>';
   }
 
-  function drawHtml(s){
-    let mode=VIEW==='winner'?(s.settings?.drawAnimation||'wheel'):VIEW;
+  function activeDrawMode(s){
+    let mode=(VIEW===DRAW_SOURCE||VIEW==='winner')?(s.settings?.drawAnimation||'wheel'):VIEW;
     if(!DRAW.includes(mode))mode='wheel';
+    return mode;
+  }
+
+  function drawHtml(s){
+    const mode=activeDrawMode(s);
     const [item,waiting]=currentDraw(s);
     const name=item?.team||(waiting?'DRAWING...':'READY');
-    const meta=item?`สาย ${item.group} · ลำดับ ${item.slot}`:s.event?.name;
-    return `<div class="cv"><section class="draw m-${esc(mode)}"><div class="fx">${fx(mode)}</div><div class="core glass"><div class="k">${esc(TITLE[VIEW]||TITLE[mode])}</div><div class="name">${esc(name)}</div><div class="meta">${esc(meta)}</div><div class="bar"><i style="width:${progress(s)}%"></i></div></div></section></div>`;
+    const meta=item?`สาย ${item.group} · ลำดับ ${item.slot}`:`${s.event?.name||'PepsLive Tournament'} · ${TITLE[mode]}`;
+    const label=VIEW===DRAW_SOURCE?'DRAW ANIMATION SOURCE':(TITLE[VIEW]||TITLE[mode]);
+    return `<div class="cv"><section class="draw m-${esc(mode)}"><div class="fx">${fx(mode)}</div><div class="core glass"><div class="k">${esc(label)}</div><div class="name">${esc(name)}</div><div class="meta">${esc(meta)}</div><div class="bar"><i style="width:${progress(s)}%"></i></div></div></section></div>`;
   }
 
   function revealedItems(s){
@@ -112,24 +124,25 @@
     let root=document.getElementById('sourceRoot');
     if(!root){root=document.createElement('div');root.id='sourceRoot';document.body.prepend(root)}
     root.className='v2';
-    const html=(DRAW.includes(VIEW)||VIEW==='winner')?drawHtml(s):VIEW==='groups'?groupsHtml(s):VIEW==='schedule'?scheduleHtml(s):simpleHtml(s);
+    const html=isDrawSourceView(VIEW)?drawHtml(s):VIEW==='groups'?groupsHtml(s):VIEW==='schedule'?scheduleHtml(s):simpleHtml(s);
     if(html!==LAST){root.innerHTML=html;LAST=html}
   }
 
-  function card(id){
+  function card(id,kind){
     const u=url(id);
-    return `<article class="source-card live-source-ready"><div class="source-kind">${DRAW.includes(id)?'Draw Animation Source':'Live Data Source'}</div><h3>${esc(TITLE[id]||id)}</h3><p>${DRAW.includes(id)?'พื้นหลังโปร่งใส ใช้กับ OBS ได้ทันที':'Live Source ใช้กับ OBS ได้ทันที'}</p><div class="source-url">${esc(u)}</div><div class="row source-actions"><button class="btn primary" data-open-source="${esc(u)}">Open Preview</button><button class="btn" data-copy-source="${esc(u)}">Copy URL</button></div></article>`;
+    const drawCard=id===DRAW_SOURCE;
+    return `<article class="source-card live-source-ready ${drawCard?'source-card-draw-main':''}"><div class="source-kind">${esc(kind||'Live Data Source')}</div><h3>${esc(TITLE[id]||id)}</h3><p>${drawCard?'Source เดียวสำหรับ OBS: เปลี่ยนรูปแบบตาม Animation Style ในหน้า Draw Control โดยตรง':'Live Source ใช้กับ OBS ได้ทันที'}</p><div class="source-url">${esc(u)}</div><div class="row source-actions"><button class="btn primary" data-open-source="${esc(u)}">Open Preview</button><button class="btn" data-copy-source="${esc(u)}">Copy URL</button></div></article>`;
   }
 
   function enhanceSourcesPanel(force=false){
     if(IS_SOURCE)return;
     const target=document.getElementById('sourceCards');
     if(!target)return;
-    if(enhanced&&!force&&target.dataset.pepsLiveSources==='stable-v5')return;
+    if(enhanced&&!force&&target.dataset.pepsLiveSources==='single-draw-v6')return;
     enhanced=true;
-    target.dataset.pepsLiveSources='stable-v5';
+    target.dataset.pepsLiveSources='single-draw-v6';
     target.className='source-panel-grid';
-    target.innerHTML=`<div class="source-section"><h3>Draw Animation Sources</h3><div class="source-grid">${DRAW.map(card).join('')}</div></div><div class="source-section"><h3>Live Data Sources</h3><div class="source-grid">${LIVE.map(card).join('')}</div></div>`;
+    target.innerHTML=`<div class="source-section"><h3>Draw Animation Source</h3><div class="source-grid source-grid-single">${card(DRAW_SOURCE,'Controlled by Draw Control')}</div></div><div class="source-section"><h3>Live Data Sources</h3><div class="source-grid">${LIVE.map(id=>card(id,'Live Data Source')).join('')}</div></div>`;
   }
 
   function boot(){
