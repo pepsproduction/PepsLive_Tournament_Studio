@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V10
+/* PepsLive Tournament Studio - Clean Core V11
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -8,7 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const APP_VERSION = 'Clean-Core-10.0.0';
+  const APP_VERSION = 'Clean-Core-11.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -66,21 +66,27 @@
   };
 
   function drawTextSizes(settings = state?.settings || {}) {
-    return { ...DEFAULT_DRAW_TEXT_SIZES, ...((settings && settings.drawTextSizes) || {}) };
+    const merged = { ...DEFAULT_DRAW_TEXT_SIZES, ...((settings && settings.drawTextSizes) || {}) };
+    // V11: OBS Draw Source must reference Draw Control text sizes.
+    // Keep old saved keys for backward compatibility, but ignore them at render time.
+    merged.sourceTeam = merged.team;
+    merged.sourceMeta = merged.meta;
+    return merged;
   }
 
   function setDrawTextSizeVars(values = drawTextSizes()) {
+    const normalized = { ...values, sourceTeam: values.team, sourceMeta: values.meta };
     const root = document.documentElement;
-    root.style.setProperty('--draw-chip-fs', `${values.chip}px`);
-    root.style.setProperty('--draw-group-label-fs', `${values.groupLabel}px`);
-    root.style.setProperty('--draw-group-letter-fs', `${values.groupLetter}px`);
-    root.style.setProperty('--draw-team-fs', `${values.team}px`);
-    root.style.setProperty('--draw-meta-fs', `${values.meta}px`);
-    root.style.setProperty('--draw-status-fs', `${values.status}px`);
-    root.style.setProperty('--source-team-fs', `${values.sourceTeam}px`);
-    root.style.setProperty('--source-meta-fs', `${values.sourceMeta}px`);
-    root.style.setProperty('--group-title-fs', `${values.groupTitle}px`);
-    root.style.setProperty('--group-team-fs', `${values.groupTeam}px`);
+    root.style.setProperty('--draw-chip-fs', `${normalized.chip}px`);
+    root.style.setProperty('--draw-group-label-fs', `${normalized.groupLabel}px`);
+    root.style.setProperty('--draw-group-letter-fs', `${normalized.groupLetter}px`);
+    root.style.setProperty('--draw-team-fs', `${normalized.team}px`);
+    root.style.setProperty('--draw-meta-fs', `${normalized.meta}px`);
+    root.style.setProperty('--draw-status-fs', `${normalized.status}px`);
+    root.style.setProperty('--source-team-fs', `${normalized.team}px`);
+    root.style.setProperty('--source-meta-fs', `${normalized.meta}px`);
+    root.style.setProperty('--group-title-fs', `${normalized.groupTitle}px`);
+    root.style.setProperty('--group-team-fs', `${normalized.groupTeam}px`);
   }
 
   function effectiveGroupColumns(requested, availableWidth = window.innerWidth) {
@@ -1129,11 +1135,9 @@
       ['chip', 'ป้าย Style / Reveal', 8, 26, 'Draw Control + OBS'],
       ['groupLabel', 'คำว่า GROUP', 10, 34, 'Draw Control + OBS'],
       ['groupLetter', 'ตัวอักษรสาย A/B/C', 18, 62, 'Draw Control + OBS'],
-      ['team', 'ชื่อทีมใน Draw Control', 34, 84, 'Draw Control'],
-      ['meta', 'บรรทัด สาย / ลำดับ', 10, 28, 'Draw Control'],
+      ['team', 'ชื่อทีม Draw Control / OBS Source', 34, 84, 'ใช้ร่วมกัน'],
+      ['meta', 'บรรทัดสาย/ลำดับ Draw / OBS Meta', 10, 28, 'ใช้ร่วมกัน'],
       ['status', 'Progress / Status', 9, 24, 'Draw Control'],
-      ['sourceTeam', 'ชื่อทีมใน OBS Source', 38, 96, 'OBS Source'],
-      ['sourceMeta', 'Meta ใน OBS Source', 12, 38, 'OBS Source'],
       ['groupTitle', 'หัวตาราง Groups', 11, 26, 'Groups Table'],
       ['groupTeam', 'ชื่อทีมใน Groups Table', 11, 24, 'Groups Table']
     ];
@@ -1146,7 +1150,7 @@
         <div class="peps-settings-head">
           <div>
             <h3>Draw Text Size Settings</h3>
-            <p>เลื่อนแล้วดู Preview แบบ real-time ครบทุกส่วน · Cancel จะคืนค่าล่าสุด</p>
+            <p>เลื่อนแล้วดู Preview แบบ real-time · OBS Source อ้างอิงขนาดจาก Draw Control · Cancel จะคืนค่าล่าสุด</p>
           </div>
           <button type="button" class="iconbtn" data-close-text-modal>×</button>
         </div>
@@ -1176,7 +1180,7 @@
               </div>
             </div>
 
-            <div class="preview-section-title">OBS Draw Animation Source Preview</div>
+            <div class="preview-section-title">OBS Draw Animation Source Preview · ใช้ขนาดจาก Draw Control</div>
             <div class="preview-source-card">
               <div class="pl-anim-core preview-anim-core">
                 <div class="pl-anim-fx"><div class="pl-ring"></div></div>
@@ -1207,19 +1211,22 @@
 
     const applyVarsTo = (el, values) => {
       if (!el) return;
-      el.style.setProperty('--draw-chip-fs', `${values.chip}px`);
-      el.style.setProperty('--draw-group-label-fs', `${values.groupLabel}px`);
-      el.style.setProperty('--draw-group-letter-fs', `${values.groupLetter}px`);
-      el.style.setProperty('--draw-team-fs', `${values.team}px`);
-      el.style.setProperty('--draw-meta-fs', `${values.meta}px`);
-      el.style.setProperty('--draw-status-fs', `${values.status}px`);
-      el.style.setProperty('--source-team-fs', `${values.sourceTeam}px`);
-      el.style.setProperty('--source-meta-fs', `${values.sourceMeta}px`);
-      el.style.setProperty('--group-title-fs', `${values.groupTitle}px`);
-      el.style.setProperty('--group-team-fs', `${values.groupTeam}px`);
+      const normalized = { ...values, sourceTeam: values.team, sourceMeta: values.meta };
+      el.style.setProperty('--draw-chip-fs', `${normalized.chip}px`);
+      el.style.setProperty('--draw-group-label-fs', `${normalized.groupLabel}px`);
+      el.style.setProperty('--draw-group-letter-fs', `${normalized.groupLetter}px`);
+      el.style.setProperty('--draw-team-fs', `${normalized.team}px`);
+      el.style.setProperty('--draw-meta-fs', `${normalized.meta}px`);
+      el.style.setProperty('--draw-status-fs', `${normalized.status}px`);
+      el.style.setProperty('--source-team-fs', `${normalized.team}px`);
+      el.style.setProperty('--source-meta-fs', `${normalized.meta}px`);
+      el.style.setProperty('--group-title-fs', `${normalized.groupTitle}px`);
+      el.style.setProperty('--group-team-fs', `${normalized.groupTeam}px`);
     };
 
     const updatePreview = () => {
+      temp.sourceTeam = temp.team;
+      temp.sourceMeta = temp.meta;
       setDrawTextSizeVars(temp);
       applyVarsTo(modal, temp);
       applyVarsTo($('.peps-settings-preview', modal), temp);
@@ -1261,6 +1268,8 @@
       updatePreview();
     });
     on($('[data-save-text-size]', modal), 'click', () => {
+      temp.sourceTeam = temp.team;
+      temp.sourceMeta = temp.meta;
       state.settings.drawTextSizes = { ...temp };
       applyLayoutSettings();
       saveState('draw-text-sizes');
