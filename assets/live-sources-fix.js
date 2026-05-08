@@ -1,5 +1,5 @@
 (()=>{
-  const stamp='20260508-stable-theme-v5';
+  const stamp='20260508-main-orange-1';
   function css(id,href){
     if(document.getElementById(id))return;
     const l=document.createElement('link');
@@ -11,7 +11,6 @@
     s.id=id;s.src=src;s.defer=true;document.body.appendChild(s);
   }
   function boot(){
-    css('pepsToolsThemeCss','assets/pepslive-tools-theme.css?v='+stamp);
     css('plsSafeV2Css','assets/live-source-safe-v2.css?v='+stamp);
     js('plsSafeV2Js','assets/live-source-safe-v2.js?v='+stamp);
     css('plsUiScoreBasicCss','assets/ui-score-basic-fix.css?v='+stamp);
