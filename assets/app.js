@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V8
+/* PepsLive Tournament Studio - Clean Core V9
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -8,7 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const APP_VERSION = 'Clean-Core-8.0.0';
+  const APP_VERSION = 'Clean-Core-9.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -51,6 +51,45 @@
   ];
 
   const SOURCE_META = Object.fromEntries(SOURCES.map(([id, title, desc]) => [id, { id, title, desc }]));
+
+  const DEFAULT_DRAW_TEXT_SIZES = {
+    chip: 12,
+    groupLabel: 16,
+    groupLetter: 30,
+    team: 56,
+    meta: 14,
+    status: 12,
+    sourceTeam: 72,
+    sourceMeta: 22,
+    groupTitle: 14,
+    groupTeam: 14
+  };
+
+  function drawTextSizes(settings = state?.settings || {}) {
+    return { ...DEFAULT_DRAW_TEXT_SIZES, ...((settings && settings.drawTextSizes) || {}) };
+  }
+
+  function setDrawTextSizeVars(values = drawTextSizes()) {
+    const root = document.documentElement;
+    root.style.setProperty('--draw-chip-fs', `${values.chip}px`);
+    root.style.setProperty('--draw-group-label-fs', `${values.groupLabel}px`);
+    root.style.setProperty('--draw-group-letter-fs', `${values.groupLetter}px`);
+    root.style.setProperty('--draw-team-fs', `${values.team}px`);
+    root.style.setProperty('--draw-meta-fs', `${values.meta}px`);
+    root.style.setProperty('--draw-status-fs', `${values.status}px`);
+    root.style.setProperty('--source-team-fs', `${values.sourceTeam}px`);
+    root.style.setProperty('--source-meta-fs', `${values.sourceMeta}px`);
+    root.style.setProperty('--group-title-fs', `${values.groupTitle}px`);
+    root.style.setProperty('--group-team-fs', `${values.groupTeam}px`);
+  }
+
+  function effectiveGroupColumns(requested, availableWidth = window.innerWidth) {
+    const requestedCols = intClamp(requested || state.settings.groupColumns || 4, 1, 10, 4);
+    const safeWidth = Math.max(240, Number(availableWidth) || 960);
+    const maxByWidth = Math.max(1, Math.floor(safeWidth / 220));
+    return Math.max(1, Math.min(requestedCols, maxByWidth));
+  }
+
 
   const sampleTeamList = [
     'Volcano A', 'Volcano B', 'Sisaket One', 'Sisaket Two',
@@ -129,7 +168,8 @@
         drawStageHeight: 420,
         drawPanelMode: 'normal',
         uiDensity: 'comfortable',
-        groupColumns: 4
+        groupColumns: 4,
+        drawTextSizes: { ...DEFAULT_DRAW_TEXT_SIZES }
       },
       webhook: { url: '', token: '', sheetId: '' },
       audit: []
@@ -1001,16 +1041,195 @@
 
     if (activePanel === 'dashboard') renderDashboard();
     if (activePanel === 'teams') renderTeamValidation();
-    if (activePanel === 'draw') { renderDrawStage(); renderGroups(); renderRevealFeed(); }
+    if (activePanel === 'draw') { renderDrawStage(); renderDrawTools(); renderGroups(); renderRevealFeed(); }
     if (activePanel === 'schedule') renderSchedule();
     if (activePanel === 'scores') { renderScores(); renderStandings(); }
     if (activePanel === 'knockout') { renderOverrides(); renderKnockout(); }
     if (activePanel === 'sources') renderSourceCards();
-    if (activePanel === 'settings') renderDebug();
+    if (activePanel === 'settings') { renderSettingsTools(); renderDebug(); }
 
     renderStepper();
   }
 
+  function renderDrawTools() {
+    const actionRow = $('#toggleDrawExpand')?.closest('.row');
+    if (!actionRow) return;
+
+    if (!$('#openDrawTextSettings')) {
+      const btn = document.createElement('button');
+      btn.id = 'openDrawTextSettings';
+      btn.className = 'btn';
+      btn.type = 'button';
+      btn.textContent = 'Text Size';
+      btn.addEventListener('click', openDrawTextSettingsModal);
+      actionRow.appendChild(btn);
+    }
+
+    if (!$('#drawGroupsColumnsTool')) {
+      const tool = document.createElement('div');
+      tool.id = 'drawGroupsColumnsTool';
+      tool.className = 'draw-inline-tool';
+      tool.innerHTML = `
+        <label>Groups Columns <b id="drawGroupColumnsValue">${esc(state.settings.groupColumns || 4)}</b></label>
+        <input id="drawGroupColumnsRange" type="range" min="1" max="10" step="1" value="${esc(state.settings.groupColumns || 4)}" />
+      `;
+      const pending = $('#pendingBox');
+      if (pending) pending.parentNode.insertBefore(tool, pending);
+      const range = $('#drawGroupColumnsRange');
+      on(range, 'input', (e) => {
+        state.settings.groupColumns = intClamp(e.target.value, 1, 10, 4);
+        setText($('#drawGroupColumnsValue'), state.settings.groupColumns);
+        applyLayoutSettings();
+        renderGroups();
+        saveState('group-columns', false);
+      });
+    } else {
+      setValue($('#drawGroupColumnsRange'), state.settings.groupColumns || 4);
+      setText($('#drawGroupColumnsValue'), state.settings.groupColumns || 4);
+    }
+  }
+
+  function renderSettingsTools() {
+    const sourceCard = $('#sourceBg')?.closest('.card');
+    if (!sourceCard || $('#settingsExtraControls')) return;
+
+    const box = document.createElement('div');
+    box.id = 'settingsExtraControls';
+    box.className = 'settings-extra-controls';
+    box.innerHTML = `
+      <div class="field">
+        <label>Groups Table Columns</label>
+        <div class="inline-range">
+          <input id="settingsGroupColumnsRange" type="range" min="1" max="10" step="1" value="${esc(state.settings.groupColumns || 4)}" />
+          <div class="range-pill"><span id="settingsGroupColumnsValue">${esc(state.settings.groupColumns || 4)}</span> คอลัมน์</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="settingsDrawTextBtn" type="button">Draw Text Size Settings</button>
+      </div>
+    `;
+    const saveBtn = $('#saveDisplaySettings');
+    sourceCard.insertBefore(box, saveBtn);
+
+    on($('#settingsGroupColumnsRange'), 'input', (e) => {
+      state.settings.groupColumns = intClamp(e.target.value, 1, 10, 4);
+      setText($('#settingsGroupColumnsValue'), state.settings.groupColumns);
+      applyLayoutSettings();
+      saveState('group-columns', false);
+    });
+    on($('#settingsDrawTextBtn'), 'click', openDrawTextSettingsModal);
+  }
+
+  function openDrawTextSettingsModal() {
+    const saved = drawTextSizes();
+    let temp = { ...saved };
+    $('#drawTextSettingsModal')?.remove();
+
+    const controls = [
+      ['chip', 'ป้าย Style / Reveal', 8, 26],
+      ['groupLabel', 'คำว่า GROUP', 10, 34],
+      ['groupLetter', 'ตัวอักษรสาย A/B/C', 18, 62],
+      ['team', 'ชื่อทีมใน Draw Control', 34, 84],
+      ['meta', 'บรรทัด สาย / ลำดับ', 10, 28],
+      ['status', 'Progress / Status', 9, 24],
+      ['sourceTeam', 'ชื่อทีมใน OBS Source', 38, 96],
+      ['sourceMeta', 'Meta ใน OBS Source', 12, 38],
+      ['groupTitle', 'หัวตาราง Groups', 11, 26],
+      ['groupTeam', 'ชื่อทีมใน Groups Table', 11, 24]
+    ];
+
+    const modal = document.createElement('div');
+    modal.id = 'drawTextSettingsModal';
+    modal.className = 'peps-settings-modal open';
+    modal.innerHTML = `
+      <div class="peps-settings-box">
+        <div class="peps-settings-head">
+          <div>
+            <h3>Draw Text Size Settings</h3>
+            <p>เลื่อนแล้วดู Preview ทันที ถ้าไม่กดบันทึกจะคืนค่าล่าสุด</p>
+          </div>
+          <button type="button" class="iconbtn" data-close-text-modal>×</button>
+        </div>
+        <div class="peps-settings-body">
+          <div class="peps-settings-sliders">
+            ${controls.map(([key, label, min, max]) => `
+              <div class="peps-slider">
+                <label>${esc(label)} <b data-size-value="${key}">${esc(temp[key])}px</b></label>
+                <input type="range" min="${min}" max="${max}" step="1" value="${esc(temp[key])}" data-size-key="${key}" />
+              </div>
+            `).join('')}
+          </div>
+          <div class="peps-settings-preview">
+            <div class="draw-graphic preview-graphic">
+              <div class="draw-fx"><div class="pl-wheel"></div></div>
+              <div class="draw-chip">Wheel Spin</div>
+              <div class="draw-group-badge">GROUP <b>B</b></div>
+              <div class="draw-team-name"><span>Golden Lion</span></div>
+              <div class="draw-team-sub">สาย B · ลำดับ 2</div>
+              <div class="draw-progress"><div class="draw-progress-bar" style="width:65%"></div></div>
+              <div class="draw-progress-text"><span>พร้อมแสดงผล</span><span>65%</span></div>
+            </div>
+            <div class="pl-group-card preview-group-card">
+              <div class="pl-group-title"><span>สาย B</span><span>4 ทีม</span></div>
+              <div class="pl-group-row"><span class="no">1</span><span class="team">Golden Lion</span></div>
+              <div class="pl-group-row"><span class="no">2</span><span class="team">Storm Rider</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="peps-settings-actions">
+          <button type="button" class="btn primary" data-save-text-size>บันทึก</button>
+          <button type="button" class="btn" data-reset-text-size>Reset</button>
+          <button type="button" class="btn" data-cancel-text-size>ยกเลิก</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const updatePreview = () => {
+      setDrawTextSizeVars(temp);
+      $$('[data-size-value]', modal).forEach(el => {
+        const key = el.dataset.sizeValue;
+        el.textContent = `${temp[key]}px`;
+      });
+    };
+
+    $$('[data-size-key]', modal).forEach(input => {
+      input.addEventListener('input', (e) => {
+        temp[e.target.dataset.sizeKey] = Number(e.target.value);
+        updatePreview();
+      });
+    });
+
+    const closeRestore = () => {
+      setDrawTextSizeVars(saved);
+      modal.remove();
+      renderAll(false);
+    };
+
+    on($('[data-close-text-modal]', modal), 'click', closeRestore);
+    on($('[data-cancel-text-size]', modal), 'click', closeRestore);
+    on($('[data-reset-text-size]', modal), 'click', () => {
+      temp = { ...DEFAULT_DRAW_TEXT_SIZES };
+      $$('[data-size-key]', modal).forEach(input => {
+        input.value = temp[input.dataset.sizeKey];
+      });
+      updatePreview();
+    });
+    on($('[data-save-text-size]', modal), 'click', () => {
+      state.settings.drawTextSizes = { ...temp };
+      applyLayoutSettings();
+      saveState('draw-text-sizes');
+      modal.remove();
+      toast('บันทึกขนาดตัวหนังสือแล้ว', 'good');
+    });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeRestore();
+    });
+
+    updatePreview();
+  }
+
+  
   function renderStepper() {
     const root = $('#stepper');
     if (!root) return;
@@ -1133,9 +1352,10 @@
     const groups = getDisplayGroups(false);
     const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event.groupCount);
     const maxRows = Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
+    const cols = effectiveGroupColumns(state.settings.groupColumns || 4, box.clientWidth || window.innerWidth);
 
     box.innerHTML = `
-      <div class="pl-groups-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+      <div class="pl-groups-grid" style="--group-cols:${cols};grid-template-columns:repeat(${cols},minmax(0,1fr));">
         ${keys.map(g => `
           <div class="pl-group-card">
             <div class="pl-group-title"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
@@ -1398,7 +1618,7 @@
     const groups = getDisplayGroups(false);
     const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event.groupCount);
     const maxRows = Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
-    const cols = intClamp(state.settings.groupColumns || 4, 1, 10, 4);
+    const cols = effectiveGroupColumns(state.settings.groupColumns || 4, Math.min(1500, window.innerWidth * 0.96));
     root.innerHTML = `
       <div class="pl-groups-source">
         <div class="pl-groups-board">
@@ -1458,6 +1678,8 @@
     document.documentElement.style.setProperty('--sidebar-w', `${state.settings.sidebarWidth || 284}px`);
     document.documentElement.style.setProperty('--app-max', `${state.settings.appMaxWidth || 1280}px`);
     document.documentElement.style.setProperty('--draw-stage-h', `${state.settings.drawStageHeight || 420}px`);
+    document.documentElement.style.setProperty('--group-cols', `${intClamp(state.settings.groupColumns || 4, 1, 10, 4)}`);
+    setDrawTextSizeVars(drawTextSizes());
     document.body.dataset.density = state.settings.uiDensity || 'comfortable';
     document.body.dataset.drawPanel = state.settings.drawPanelMode || 'normal';
   }
@@ -2061,6 +2283,119 @@
         background:rgba(0,0,0,.35)!important;
       }
       .draw-stage.expanded{position:relative!important;inset:auto!important;width:auto!important;height:auto!important;z-index:auto!important}
+
+
+      /* V9: real text-size variables + settings modal + adaptive group columns */
+      .draw-stage .draw-chip{font-size:var(--draw-chip-fs,12px)!important}
+      .draw-stage .draw-group-badge{font-size:var(--draw-group-label-fs,16px)!important}
+      .draw-stage .draw-group-badge b{font-size:var(--draw-group-letter-fs,30px)!important}
+      .draw-stage .draw-team-name{font-size:var(--draw-team-fs,56px)!important}
+      .draw-stage .draw-team-sub{font-size:var(--draw-meta-fs,14px)!important}
+      .draw-stage .draw-progress-text{font-size:var(--draw-status-fs,12px)!important}
+      .pl-anim-core .draw-chip{font-size:var(--draw-chip-fs,12px)!important}
+      .pl-anim-core .draw-group-badge{font-size:var(--draw-group-label-fs,16px)!important}
+      .pl-anim-core .draw-group-badge b{font-size:var(--draw-group-letter-fs,30px)!important}
+      .pl-anim-name{font-size:var(--source-team-fs,72px)!important}
+      .pl-anim-meta{font-size:var(--source-meta-fs,22px)!important}
+      .pl-group-title{font-size:var(--group-title-fs,14px)!important}
+      .pl-group-row .team{font-size:var(--group-team-fs,14px)!important}
+      .draw-inline-tool{
+        display:grid;
+        grid-template-columns:minmax(180px,240px) 1fr;
+        gap:10px;
+        align-items:center;
+        margin:12px 0;
+        border:1px solid rgba(91,231,255,.18);
+        border-radius:16px;
+        padding:10px 12px;
+        background:rgba(7,20,38,.45);
+      }
+      .draw-inline-tool label{
+        color:var(--muted);
+        font-size:12px;
+        font-weight:800;
+      }
+      .draw-inline-tool b{color:var(--text)}
+      .settings-extra-controls{
+        margin:12px 0;
+        padding:12px;
+        border:1px solid rgba(91,231,255,.16);
+        border-radius:16px;
+        background:rgba(7,20,38,.38);
+      }
+      .peps-settings-modal{
+        position:fixed;
+        inset:0;
+        z-index:2147483600;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        padding:18px;
+        background:rgba(0,0,0,.66);
+        backdrop-filter:blur(10px);
+      }
+      .peps-settings-modal.open{display:flex}
+      .peps-settings-box{
+        width:min(980px,96vw);
+        max-height:92vh;
+        overflow:auto;
+        border:1px solid var(--line);
+        border-radius:24px;
+        background:linear-gradient(180deg,rgba(14,29,49,.98),rgba(7,17,31,.98));
+        box-shadow:var(--shadow);
+      }
+      .peps-settings-head{
+        position:sticky;
+        top:0;
+        z-index:2;
+        display:flex;
+        justify-content:space-between;
+        gap:16px;
+        padding:18px 20px;
+        border-bottom:1px solid var(--line);
+        background:rgba(14,29,49,.98);
+      }
+      .peps-settings-head h3{margin:0}
+      .peps-settings-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+      .peps-settings-body{
+        display:grid;
+        grid-template-columns:minmax(280px,.85fr) minmax(340px,1.15fr);
+        gap:18px;
+        padding:18px 20px;
+      }
+      .peps-settings-sliders{display:grid;gap:10px}
+      .peps-slider label{
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        color:var(--muted);
+        font-size:12px;
+        font-weight:800;
+        margin-bottom:6px;
+      }
+      .peps-slider b{color:var(--text)}
+      .peps-slider input{padding:0;height:8px;accent-color:var(--accent)}
+      .peps-settings-preview{
+        display:grid;
+        align-content:start;
+        gap:12px;
+      }
+      .preview-graphic{
+        width:100%!important;
+        height:500px!important;
+        min-height:500px!important;
+      }
+      .preview-group-card{width:100%}
+      .peps-settings-actions{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        padding:0 20px 20px;
+      }
+      @media(max-width:860px){
+        .peps-settings-body{grid-template-columns:1fr}
+        .draw-inline-tool{grid-template-columns:1fr}
+      }
 
       @media(max-width:900px){.score-row{grid-template-columns:1fr 60px auto 60px 1fr}.score-row b,.score-row select{grid-column:1/-1}}
     `;
