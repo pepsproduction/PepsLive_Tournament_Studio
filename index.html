@@ -96,270 +96,338 @@
   'use strict';
 
   const KEY = 'pepsliveTournamentControlV2';
-  const PAGE_KEY = 'pepslivePageSettingsCoreV2';
-  const DRAW_MODES = ['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex'];
+  const PAGE_KEY = 'pepslivePageSettingsCoreV3';
+  const DRAW_SIZE_DEFAULT = {
+    drawChipFontSize: 12,
+    drawGroupFontSize: 17,
+    drawGroupValueFontSize: 30,
+    drawNameFontSize: 72,
+    drawSubFontSize: 22,
+    drawStatusFontSize: 13
+  };
+  const PAGE_DEFAULT = { widthPx: 1280, fontScale: 1, cardPadding: 16, tableHeight: 620 };
+  const DATA_SOURCES = [
+    ['groups', 'Groups Table'],
+    ['schedule', 'Schedule Table'],
+    ['standings', 'Standings Table'],
+    ['knockout', 'Knockout Bracket'],
+    ['lower-third', 'Lower Third'],
+    ['next-match', 'Next Match'],
+    ['latest-result', 'Latest Result']
+  ];
+  const DRAW_SOURCE_VIEW = 'draw-animation';
   const qs = new URLSearchParams(location.search);
   const VIEW = (qs.get('view') || '').trim();
   const IS_SOURCE = !!VIEW && VIEW !== 'control';
-  const DRAW_SOURCE_VIEW = VIEW === 'draw-animation' || DRAW_MODES.includes(VIEW) || VIEW === 'winner';
+
   const $ = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
   const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const clamp = (n, a, b) => Math.max(a, Math.min(b, Number(n) || a));
-  const clampPct = n => Math.max(0, Math.min(100, Number(n) || 0));
-  const letters = n => Array.from({ length: Math.max(1, Number(n) || 4) }, (_, i) => String.fromCharCode(65 + i));
-  const now = () => Date.now();
+  const num = (v, d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
+  const clamp = (v, a, b, d=a) => Math.max(a, Math.min(b, num(v, d)));
+  const sourceUrl = id => location.href.split('?')[0].split('#')[0] + '?view=' + encodeURIComponent(id);
+  const letters = n => Array.from({length: Math.max(1, Number(n) || 4)}, (_, i) => String.fromCharCode(65 + i));
 
-  const DEFAULT = {
-    event: { name:'PepsLive Tournament', sport:'Basketball 3x3', groupCount:4 },
-    teams: [], groups: {}, pendingGroups: null, pendingSequence: [], pendingRevealIndex: 0, pendingComplete:false,
-    drawLive: { running:false, waiting:false, finished:false, current:null, pendingItem:null, revealEndsAt:0, progress:0, total:0, feed:[] },
-    settings: {
-      drawAnimation:'wheel', drawMethod:'auto-sequence', drawDuration:5,
-      sourceBg:'transparent', fontScale:1,
-      groupTableColumns:3,
-      winnerLine1Color:'#ffb86b', winnerLine2Color:'#ffffff', winnerBgOpacity:0.86,
-      wheelSpacing:30, separatorOn:true,
-      drawChipFontSize:12, drawGroupFontSize:17, drawGroupValueFontSize:30,
-      drawNameFontSize:72, drawSubFontSize:22, drawStatusFontSize:13
-    },
-    audit: []
-  };
-
-  let stateCache = null;
-  let lastRenderKey = '';
-  let rafId = 0;
-  let statePollTimer = 0;
-  let sourcePanelTimer = 0;
-  let pageModal = null;
-
-  function deepMerge(base, obj){
-    if(!obj || typeof obj !== 'object') return base;
-    for(const [k, v] of Object.entries(obj)){
-      if(v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) deepMerge(base[k], v);
-      else base[k] = v;
-    }
-    return base;
+  function readState(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
+    catch { return {}; }
   }
-  function cloneDefault(){ return typeof structuredClone === 'function' ? structuredClone(DEFAULT) : JSON.parse(JSON.stringify(DEFAULT)); }
-  function getState(force=false){
-    if(stateCache && !force) return stateCache;
-    try{ stateCache = deepMerge(cloneDefault(), JSON.parse(localStorage.getItem(KEY) || '{}')); }
-    catch{ stateCache = cloneDefault(); }
-    normalizeSettings(stateCache);
-    return stateCache;
-  }
-  function normalizeSettings(s){
-    s.settings = s.settings || {};
-    const set = s.settings;
-    set.groupTableColumns = clamp(set.groupTableColumns ?? 3, 1, 10);
-    set.drawChipFontSize = clamp(set.drawChipFontSize ?? 12, 9, 24);
-    set.drawGroupFontSize = clamp(set.drawGroupFontSize ?? 17, 10, 40);
-    set.drawGroupValueFontSize = clamp(set.drawGroupValueFontSize ?? 30, 16, 72);
-    set.drawNameFontSize = clamp(set.drawNameFontSize ?? 72, 24, 140);
-    set.drawSubFontSize = clamp(set.drawSubFontSize ?? 22, 10, 54);
-    set.drawStatusFontSize = clamp(set.drawStatusFontSize ?? 13, 9, 30);
-    set.winnerBgOpacity = clamp(set.winnerBgOpacity ?? .86, 0, 1);
-  }
-  function setState(mutator){
-    const s = getState(true);
-    mutator(s);
-    normalizeSettings(s);
+  function writeState(s){
     s.updatedAt = new Date().toISOString();
     localStorage.setItem(KEY, JSON.stringify(s));
-    stateCache = s;
-    applySettings(s);
+    // Manual-save guard in index.html intercepts KEY writes unless a built-in button was clicked.
+    // This flushes our intentional save immediately through the existing safe hook.
+    if(typeof window.pepsManualSaveNow === 'function') setTimeout(() => window.pepsManualSaveNow(), 0);
+  }
+  function withSettings(){
+    const s = readState();
+    s.settings = s.settings || {};
     return s;
   }
   function addAudit(action, data={}){
-    try{
-      setState(s => {
-        s.audit = Array.isArray(s.audit) ? s.audit : [];
-        s.audit.unshift({ at:new Date().toISOString(), action, data });
-        s.audit = s.audit.slice(0, 120);
-      });
-    }catch(err){ console.warn('audit skipped', err); }
+    const s = withSettings();
+    s.audit = Array.isArray(s.audit) ? s.audit : [];
+    s.audit.unshift({ at: new Date().toISOString(), action, data });
+    s.audit = s.audit.slice(0, 120);
+    writeState(s);
   }
-  function sourceUrl(id){ return location.href.split('?')[0].split('#')[0] + '?view=' + encodeURIComponent(id); }
+  function savedPageSettings(){
+    try { return JSON.parse(localStorage.getItem(PAGE_KEY) || '{}') || {}; }
+    catch { return {}; }
+  }
+  function savePageSettings(all){ localStorage.setItem(PAGE_KEY, JSON.stringify(all || {})); }
 
   function injectCss(){
-    if($('#pl-draw-sync-css-v2')) return;
+    if($('#pl-hotfix-v3-css')) return;
     const st = document.createElement('style');
-    st.id = 'pl-draw-sync-css-v2';
+    st.id = 'pl-hotfix-v3-css';
     st.textContent = `
-      :root{
-        --pl-groups-cols:3;--pl-win1:#ffb86b;--pl-win2:#fff;--pl-win-bg:rgba(9,16,29,.86);--pl-wheel-spacing:30px;
-        --pl-chip-size:12px;--pl-group-size:17px;--pl-group-value-size:30px;--pl-name-size:72px;--pl-sub-size:22px;--pl-status-size:13px;
+      /* V3 smooth animation fixes */
+      .pl-sync-stage,.pl-sync-shell,.pl-sync-fx,.pl-wheel-stage,.pl-slot-machine,.pl-card-stack,.pl-lottery,.pl-energy-ring{
+        transform:translateZ(0)!important; backface-visibility:hidden!important; will-change:transform,opacity!important;
       }
-      html.pl-source-mode,html.pl-source-mode body{background:transparent!important;background-image:none!important;margin:0!important;overflow:hidden!important;}
-      body.pl-source-dark{background:radial-gradient(circle at 20% 0%,rgba(255,132,49,.14),transparent 32%),#07111f!important;}
-      body.pl-source-green{background:#00b140!important;}
-      .groupgrid,.pl-groups-grid{grid-template-columns:repeat(var(--pl-groups-cols),minmax(190px,1fr))!important;}
-      @media(max-width:900px){.groupgrid,.pl-groups-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important;}}
-      .pl-sync-stage{min-height:360px!important;border:0!important;background:transparent!important;overflow:visible!important;contain:layout paint;}
-      .pl-sync-shell{position:relative;width:min(820px,96%);margin:auto;padding:18px 20px 24px;border:1px solid rgba(255,130,49,.28);border-radius:30px;background:linear-gradient(145deg,rgba(16,18,24,.95),rgba(28,22,18,.86));box-shadow:0 22px 60px rgba(0,0,0,.38),inset 0 0 0 1px rgba(255,255,255,.045);overflow:hidden;isolation:isolate;transform:translateZ(0);backface-visibility:hidden;}
-      .pl-source-draw .pl-sync-shell{width:min(980px,96vw);background:transparent!important;border:0!important;box-shadow:none!important;padding:18px 16px 30px;}
-      .pl-sync-shell:before{content:'';position:absolute;inset:-160px -80px auto auto;width:310px;height:310px;background:radial-gradient(circle,rgba(255,132,49,.20),transparent 62%);filter:blur(6px);z-index:-1;}
-      .pl-sync-shell:after{content:'';position:absolute;left:-130px;bottom:-170px;width:320px;height:320px;background:radial-gradient(circle,rgba(91,231,255,.12),transparent 62%);filter:blur(8px);z-index:-1;}
-      .pl-source-draw .pl-sync-shell:before,.pl-source-draw .pl-sync-shell:after{display:none!important;}
-      .pl-sync-meta{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px 0 16px;}
-      .pl-sync-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,132,49,.34);border-radius:999px;background:rgba(255,132,49,.08);padding:7px 12px;color:#ffd7bd;font:800 var(--pl-chip-size)/1 'Chakra Petch','Prompt',sans-serif;letter-spacing:.04em;}
-      .pl-sync-chip b{color:#fff;}
-      .pl-sync-fx{display:grid;place-items:center;min-height:250px;margin-bottom:10px;transform:translateZ(0);}
-      .pl-sync-hero{display:grid;justify-items:center;text-align:center;gap:10px;}
-      .pl-sync-group{padding:9px 18px;border:1px solid rgba(255,132,49,.42);border-radius:999px;background:rgba(255,132,49,.12);color:var(--pl-win1);font:900 var(--pl-group-size)/1 'Chakra Petch','Prompt',sans-serif;letter-spacing:.16em;text-transform:uppercase;transform:translateZ(0);}
-      .pl-sync-group b{font-size:var(--pl-group-value-size);color:var(--pl-win2);margin-left:8px;}
-      .pl-sync-name{max-width:96%;font:950 var(--pl-name-size)/.95 'Prompt','IBM Plex Sans Thai',sans-serif;color:var(--pl-win2);text-shadow:0 7px 28px rgba(0,0,0,.55);text-wrap:balance;transform:translateZ(0);}
-      .pl-sync-sub{font:800 var(--pl-sub-size)/1.15 'IBM Plex Sans Thai','Prompt',sans-serif;color:#d5d5d5;}
-      .pl-sync-status{font:800 var(--pl-status-size)/1.35 'IBM Plex Sans Thai','Prompt',sans-serif;color:#ffd7bd;margin-top:4px;}
-      .pl-sync-progress{margin:18px auto 0;width:min(620px,96%);}
-      .pl-sync-track{height:12px;border:1px solid rgba(255,132,49,.22);border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);}
-      .pl-sync-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#ff8131,#ffbe57,#5be7ff);box-shadow:0 0 15px rgba(255,132,49,.32);transform-origin:left center;will-change:transform;transition:none;}
-      .pl-sync-shell.waiting .pl-sync-name,.pl-sync-shell.waiting .pl-sync-group{filter:none;}
-      .pl-wheel-stage{position:relative;display:grid;place-items:center;margin-top:8px;}
-      .pl-wheel-pointer{width:0;height:0;border-left:22px solid transparent;border-right:22px solid transparent;border-top:43px solid #ffb35a;margin-bottom:-16px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.30));z-index:3;}
-      .pl-wheel-core{position:relative;width:260px;height:260px;border-radius:50%;background:conic-gradient(#ffd51f 0 45deg,#5be7ff 45deg 90deg,#ff4081 90deg 135deg,#7d4dff 135deg 180deg,#ff9500 180deg 225deg,#ff4b3f 225deg 270deg,#b928ff 270deg 315deg,#48e662 315deg 360deg);box-shadow:0 0 0 11px #193462,0 0 0 17px rgba(255,255,255,.08),0 22px 48px rgba(0,0,0,.34);animation:plWheelSpin 1.05s linear infinite;will-change:transform;transform:translate3d(0,0,0);}
-      .pl-wheel-core:before{content:'';position:absolute;inset:24px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.18),transparent 28%),radial-gradient(circle,#1d5ab8 0 18%,#14100b 19% 100%);box-shadow:inset 0 0 0 5px rgba(255,255,255,.06);}
-      .pl-wheel-core:after{content:'SPIN';position:absolute;inset:92px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;border:4px solid rgba(255,132,49,.28);font:950 22px/1 'Chakra Petch',sans-serif;letter-spacing:.12em;}
-      .pl-slot-machine{width:min(560px,96%);padding:18px;border-radius:26px;background:linear-gradient(135deg,#35161c,#111522 48%,#2b1d0d);border:1px solid rgba(255,132,49,.34);box-shadow:0 22px 48px rgba(0,0,0,.34);transform:translateZ(0);}
-      .pl-slot-title{font:950 30px/1 'Prompt',sans-serif;color:#ffc79f;margin-bottom:14px;text-shadow:0 0 14px rgba(255,132,49,.30);}
-      .pl-slot-reels{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-      .pl-slot-reel{height:102px;border-radius:17px;background:#0b1020;border:2px solid rgba(255,255,255,.09);position:relative;overflow:hidden;box-shadow:inset 0 0 20px rgba(255,132,49,.11);}
-      .pl-slot-reel:before,.pl-slot-reel:after{content:'';position:absolute;left:0;right:0;height:24px;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent);z-index:2}.pl-slot-reel:after{bottom:0;top:auto;transform:scaleY(-1)}
-      .pl-slot-track{position:absolute;left:0;right:0;top:-90%;display:grid;gap:8px;padding:8px 0;animation:plSlotRoll .46s linear infinite;will-change:transform;transform:translate3d(0,0,0);}
-      .pl-slot-chip{height:30px;margin:0 8px;border-radius:11px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#ff8131,#5be7ff);font:900 12px/1 'Prompt',sans-serif;}
-      .pl-card-stack{position:relative;width:292px;height:190px;margin:auto;transform:translateZ(0);}
-      .pl-card-one{position:absolute;width:142px;height:184px;border-radius:20px;background:#fff;color:#151515;display:flex;flex-direction:column;justify-content:space-between;padding:13px;box-shadow:0 18px 38px rgba(0,0,0,.28);font:950 38px/1 'Chakra Petch',sans-serif;will-change:transform;backface-visibility:hidden;}
-      .pl-card-one:nth-child(1){left:0;top:12px;transform:rotate(-18deg);animation:plCard1 1.05s ease-in-out infinite alternate}.pl-card-one:nth-child(2){left:74px;top:0;transform:rotate(-2deg);animation:plCard2 1.12s ease-in-out infinite alternate}.pl-card-one:nth-child(3){right:0;top:14px;transform:rotate(17deg);animation:plCard3 1.08s ease-in-out infinite alternate}.pl-card-one small{font-size:24px;color:#ff8131;}
-      .pl-lottery{position:relative;width:282px;height:282px;margin:auto;transform:translateZ(0);}.pl-lottery-cage{position:absolute;inset:0;border-radius:50%;border:4px solid rgba(230,239,255,.75);box-shadow:inset 0 0 0 3px rgba(255,255,255,.08)}.pl-lottery-cage:before,.pl-lottery-cage:after{content:'';position:absolute;inset:10px;border-radius:50%;border:1px solid rgba(255,255,255,.18);transform:rotate(30deg)}.pl-lottery-cage:after{transform:rotate(-28deg)}
-      .pl-ball-mini{position:absolute;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font:900 12px/1 'Prompt';color:#fff;background:radial-gradient(circle at 30% 28%,#fff,#ff8131 42%,#aa3217);box-shadow:0 8px 15px rgba(0,0,0,.20);animation:plBob 1.0s ease-in-out infinite alternate;will-change:transform;}.pl-ball-mini:nth-child(2){left:42px;bottom:56px}.pl-ball-mini:nth-child(3){left:78px;bottom:98px;animation-delay:.13s}.pl-ball-mini:nth-child(4){left:124px;bottom:68px;animation-delay:.26s}.pl-ball-mini:nth-child(5){left:168px;bottom:112px;animation-delay:.09s}.pl-ball-mini:nth-child(6){left:202px;bottom:62px;animation-delay:.32s}.pl-ball-mini:nth-child(7){left:110px;bottom:144px;animation-delay:.18s}
-      .pl-energy-ring{width:276px;height:276px;border-radius:50%;border:13px solid rgba(255,255,255,.09);border-top-color:#ff8131;border-right-color:#5be7ff;border-bottom-color:#ff5bbd;box-shadow:0 0 40px rgba(255,132,49,.24),inset 0 0 42px rgba(91,231,255,.10);animation:plWheelSpin 1.1s linear infinite;will-change:transform;transform:translate3d(0,0,0);position:relative}.pl-energy-ring:after{content:'';position:absolute;inset:52px;border-radius:50%;background:radial-gradient(circle,rgba(255,132,49,.2),transparent 62%);}
-      .pl-groups-source{min-height:100vh;display:grid;place-items:center;padding:36px;color:#fff;background:transparent;font-family:'IBM Plex Sans Thai','Prompt',sans-serif;}.pl-groups-board{width:min(1520px,96vw);padding:24px;border:1px solid rgba(255,132,49,.28);border-radius:28px;background:rgba(8,13,22,.90);box-shadow:0 22px 56px rgba(0,0,0,.34);}.pl-groups-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.13)}.pl-groups-head h1{margin:0;font-size:clamp(28px,3.4vw,54px)}.pl-groups-head p{margin:5px 0 0;color:#b7c5d8}.pl-group-card{border:1px solid rgba(255,255,255,.13);border-radius:18px;background:rgba(255,255,255,.055);overflow:hidden}.pl-group-title{display:flex;justify-content:space-between;padding:12px 14px;background:rgba(255,132,49,.12);font-weight:950}.pl-group-row{display:grid;grid-template-columns:42px 1fr;gap:8px;padding:9px 12px;border-top:1px solid rgba(255,255,255,.1)}.pl-group-row .no{color:#ffb86b;font-weight:950}.pl-group-row .team{font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl-group-row.empty .team{opacity:.45}
-      .pl-draw-size-card,.pl-settings-card{border:1px solid rgba(255,132,49,.22)!important;background:rgba(255,132,49,.055)!important}.pl-slider-mini{display:grid;gap:6px}.pl-slider-mini label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}.pl-slider-mini input{width:100%}.pl-audit-list{display:grid;gap:8px;max-height:260px;overflow:auto}.pl-audit-item{border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 10px;background:rgba(0,0,0,.16);font-size:12px;color:#dcecff}.pl-audit-item b{color:#ffb86b}.pl-guard-lock{opacity:.55!important;pointer-events:none!important;filter:saturate(.6)}
-      .pl-page-btn{margin-left:auto!important;white-space:nowrap}.pl-page-modal{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.62);backdrop-filter:blur(8px)}.pl-page-modal.open{display:flex}.pl-page-box{width:min(680px,94vw);max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:24px;background:var(--panel,#0e1d31);box-shadow:var(--shadow);padding:20px;color:var(--text)}.pl-page-box h3{margin:0 0 8px}.pl-page-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.pl-source-note{font-size:12px;color:var(--muted);margin-top:8px}.source-card[data-pl-hidden-draw-source="1"]{display:none!important}
-      @keyframes plWheelSpin{to{transform:rotate(360deg)}}@keyframes plSlotRoll{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,46px,0)}}@keyframes plCard1{to{transform:rotate(-13deg) translate3d(0,-9px,0)}}@keyframes plCard2{to{transform:rotate(2deg) translate3d(0,-10px,0)}}@keyframes plCard3{to{transform:rotate(22deg) translate3d(0,-9px,0)}}@keyframes plBob{to{transform:translate3d(0,-15px,0)}}
-      @media(prefers-reduced-motion:reduce){.pl-wheel-core,.pl-slot-track,.pl-card-one,.pl-ball-mini,.pl-energy-ring{animation-duration:2.2s!important}}
+      .pl-wheel-core{
+        animation:plWheelSpinFix 1.05s linear infinite!important;
+        animation-play-state:running!important; transform-origin:50% 50%!important;
+        will-change:transform!important; backface-visibility:hidden!important; contain:paint;
+      }
+      .pl-wheel-core:before,.pl-wheel-core:after{ transform:translateZ(0); backface-visibility:hidden; }
+      .pl-energy-ring{ animation:plWheelSpinFix 1.12s linear infinite!important; animation-play-state:running!important; transform-origin:50% 50%!important; }
+      .pl-slot-track{ animation:plSlotRollFix .54s linear infinite!important; animation-play-state:running!important; will-change:transform!important; }
+      .pl-card-one,.pl-ball-mini{ animation-play-state:running!important; will-change:transform!important; backface-visibility:hidden!important; }
+      .pl-sync-bar{ transition:none!important; will-change:transform!important; }
+      @keyframes plWheelSpinFix{ from{transform:translate3d(0,0,0) rotate(0deg)} to{transform:translate3d(0,0,0) rotate(360deg)} }
+      @keyframes plSlotRollFix{ from{transform:translate3d(0,-46px,0)} to{transform:translate3d(0,0,0)} }
+
+      /* V3 Draw text sizing */
+      .pl-draw-size-card-v3{margin-top:16px;border-color:rgba(91,231,255,.28)!important;}
+      .pl-v3-range{display:grid;gap:8px;margin:0 0 12px;}
+      .pl-v3-range label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-weight:800;font-size:12px;}
+      .pl-v3-range b{color:var(--text);font-family:'Chakra Petch',sans-serif;min-width:66px;text-align:right;}
+      .pl-v3-range input[type=range]{width:100%;height:7px;padding:0;border-radius:999px;accent-color:var(--accent);}
+      .pl-v3-range input[type=number]{padding:8px 10px;border-radius:12px;}
+      .pl-v3-mini{display:grid;grid-template-columns:1fr 92px;gap:10px;align-items:center;}
+      .pl-v3-status{font-size:12px;color:#bfffe0;margin-top:6px;min-height:18px;}
+
+      /* V3 page modal: scrollable + live preview */
+      .pl-page-modal-v3{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.62);backdrop-filter:blur(10px)}
+      .pl-page-modal-v3.open{display:flex;}
+      .pl-page-box-v3{width:min(860px,96vw);max-height:88vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);border-radius:24px;background:var(--panel,#0e1d31);box-shadow:var(--shadow);padding:20px;color:var(--text);scrollbar-width:thin;scrollbar-color:var(--accent) rgba(255,255,255,.14);}
+      .pl-page-box-v3::-webkit-scrollbar{width:10px}.pl-page-box-v3::-webkit-scrollbar-track{background:rgba(255,255,255,.14);border-radius:999px}.pl-page-box-v3::-webkit-scrollbar-thumb{background:var(--accent);border-radius:999px}
+      .pl-page-head-v3{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px;}
+      .pl-page-head-v3 h3{margin:0}.pl-page-head-v3 p{margin:6px 0 0;color:var(--muted);font-size:12px;}
+      .pl-page-close-v3{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.05);color:var(--text);font-size:24px;width:40px;height:40px;}
+      .pl-page-preview-v3{border:1px dashed rgba(91,231,255,.34);border-radius:18px;background:rgba(7,20,38,.48);padding:16px;margin:12px 0;}
+      .pl-page-preview-card-v3{border:1px solid rgba(255,255,255,.14);border-radius:16px;background:rgba(255,255,255,.05);padding:var(--pl-prev-pad,16px);font-size:var(--pl-prev-font,1rem);max-width:var(--pl-prev-width,640px);margin:auto;transition:max-width .12s linear,font-size .12s linear,padding .12s linear;}
+      .pl-page-actions-v3{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px;}
+      .pl-page-btn{margin-left:auto;}
+
+      /* V3 no horizontal scrollbar in Draw result / Reveal Feed */
+      #groupResult,#revealFeed{overflow-x:hidden!important;max-width:100%!important;}
+      #groupResult .groupgrid,#groupResult .pl-groups-grid,.pl-groups-grid{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))!important;max-width:100%!important;overflow-x:hidden!important;}
+      #groupResult table,#revealFeed table{min-width:0!important;width:100%!important;table-layout:auto!important;}
+      #groupResult .groupcard,#groupResult .pl-group-card,.pl-group-card{min-width:0!important;}
+      .pl-group-row .team,.teamrow{min-width:0!important;overflow:hidden;text-overflow:ellipsis;}
+      .pl-groups-board{max-width:96vw!important;overflow-x:hidden!important;}
+
+      /* V3 source cards: never appear locked/waiting */
+      .source-card.src-locked{opacity:1!important;pointer-events:auto!important;}
+      .source-card.src-locked button{opacity:1!important;cursor:pointer!important;}
+      .pl-v3-url-actions{margin-top:10px;}
     `;
     document.head.appendChild(st);
   }
 
-  function applySettings(s=getState()){
-    normalizeSettings(s);
-    const set = s.settings || {};
-    document.documentElement.style.setProperty('--pl-groups-cols', clamp(set.groupTableColumns ?? 3, 1, 10));
-    document.documentElement.style.setProperty('--pl-win1', set.winnerLine1Color || '#ffb86b');
-    document.documentElement.style.setProperty('--pl-win2', set.winnerLine2Color || '#ffffff');
-    document.documentElement.style.setProperty('--pl-wheel-spacing', `${clamp(set.wheelSpacing ?? 30,0,2000)}px`);
-    document.documentElement.style.setProperty('--pl-win-bg', `rgba(9,16,29,${clamp(set.winnerBgOpacity ?? .86,0,1)})`);
-    document.documentElement.style.setProperty('--pl-chip-size', `${clamp(set.drawChipFontSize ?? 12,9,24)}px`);
-    document.documentElement.style.setProperty('--pl-group-size', `${clamp(set.drawGroupFontSize ?? 17,10,40)}px`);
-    document.documentElement.style.setProperty('--pl-group-value-size', `${clamp(set.drawGroupValueFontSize ?? 30,16,72)}px`);
-    document.documentElement.style.setProperty('--pl-name-size', `${clamp(set.drawNameFontSize ?? 72,24,140)}px`);
-    document.documentElement.style.setProperty('--pl-sub-size', `${clamp(set.drawSubFontSize ?? 22,10,54)}px`);
-    document.documentElement.style.setProperty('--pl-status-size', `${clamp(set.drawStatusFontSize ?? 13,9,30)}px`);
-    document.body.classList.toggle('pl-source-dark', IS_SOURCE && set.sourceBg === 'dark');
-    document.body.classList.toggle('pl-source-green', IS_SOURCE && set.sourceBg === 'green');
-    if(IS_SOURCE) document.documentElement.classList.add('pl-source-mode');
+  function applyDrawVars(values){
+    const v = Object.assign({}, DRAW_SIZE_DEFAULT, values || {});
+    document.documentElement.style.setProperty('--pl-chip-size', clamp(v.drawChipFontSize, 7, 40, 12) + 'px');
+    document.documentElement.style.setProperty('--pl-group-size', clamp(v.drawGroupFontSize, 8, 60, 17) + 'px');
+    document.documentElement.style.setProperty('--pl-group-value-size', clamp(v.drawGroupValueFontSize, 12, 110, 30) + 'px');
+    document.documentElement.style.setProperty('--pl-name-size', clamp(v.drawNameFontSize, 18, 180, 72) + 'px');
+    document.documentElement.style.setProperty('--pl-sub-size', clamp(v.drawSubFontSize, 8, 80, 22) + 'px');
+    document.documentElement.style.setProperty('--pl-status-size', clamp(v.drawStatusFontSize, 8, 48, 13) + 'px');
   }
-
-  function fxHtml(mode){
-    if(mode === 'slot') return `<div class="pl-slot-machine"><div class="pl-slot-title">SLOT REVEAL</div><div class="pl-slot-reels">${Array.from({length:4},()=>`<div class="pl-slot-reel"><div class="pl-slot-track"><span class="pl-slot-chip">A</span><span class="pl-slot-chip">B</span><span class="pl-slot-chip">C</span><span class="pl-slot-chip">D</span><span class="pl-slot-chip">TEAM</span></div></div>`).join('')}</div></div>`;
-    if(mode === 'card') return `<div class="pl-card-stack"><div class="pl-card-one"><small>PL</small><span>A</span><small>DRAW</small></div><div class="pl-card-one"><small>PL</small><span>B</span><small>TEAM</small></div><div class="pl-card-one"><small>PL</small><span>?</span><small>LIVE</small></div></div>`;
-    if(mode === 'lottery') return `<div class="pl-lottery"><div class="pl-lottery-cage"></div>${Array.from({length:6},(_,i)=>`<i class="pl-ball-mini">${i+1}</i>`).join('')}</div>`;
-    if(['glitch','galaxy','crystal','plasma','vortex'].includes(mode)) return `<div class="pl-energy-ring"></div>`;
-    return `<div class="pl-wheel-stage"><div class="pl-wheel-pointer"></div><div class="pl-wheel-core"></div></div>`;
+  function currentDrawSize(){ return Object.assign({}, DRAW_SIZE_DEFAULT, (readState().settings || {})); }
+  function rangeRow(id, label, val, min, max, step=1){
+    return `<div class="pl-v3-range"><label>${esc(label)} <b><span id="${id}Val">${esc(val)}</span>px</b></label><div class="pl-v3-mini"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(val)}"></div></div>`;
   }
-  function getFinalItem(s){
-    const live = s.drawLive || {};
-    const item = live.pendingItem || live.current || (Array.isArray(live.feed) && live.feed[0]) || null;
-    if(item && (item.team || item.group)) return item;
-    return { group:'-', slot:'-', team:'READY' };
-  }
-  function tickerItem(s, finalItem){
-    const live = s.drawLive || {};
-    const waiting = !!live.waiting;
-    if(!waiting) return { ...finalItem, _progress:null };
-    const duration = Math.max(1000, (Number(s.settings?.drawDuration)||5) * 1000);
-    const remain = Math.max(0, (Number(live.revealEndsAt)||0) - now());
-    const p = Math.max(0, Math.min(1, 1 - remain / duration));
-    if(p > .88) return { ...finalItem, _progress:p };
-    const teams = (Array.isArray(s.teams) && s.teams.length ? s.teams : (Array.isArray(s.pendingSequence) ? s.pendingSequence.map(x=>x.team).filter(Boolean) : [])).filter(Boolean);
-    const gs = Object.keys(s.pendingGroups || s.groups || {}).length ? Object.keys(s.pendingGroups || s.groups || {}) : letters(s.event?.groupCount || 4);
-    const tickMs = p > .70 ? 210 : p > .48 ? 130 : 64;
-    const idx = Math.floor(now() / tickMs);
+  function getDrawForm(){
     return {
-      team: teams.length ? teams[idx % teams.length] : 'กำลังสุ่ม...',
-      group: gs.length ? gs[(idx + 1) % gs.length] : '-',
-      slot: ((idx % 8) + 1),
-      _ticker:true,
-      _progress:p
+      drawChipFontSize: clamp($('#plV3Chip')?.value, 7, 40, 12),
+      drawGroupFontSize: clamp($('#plV3Group')?.value, 8, 60, 17),
+      drawGroupValueFontSize: clamp($('#plV3GroupValue')?.value, 12, 110, 30),
+      drawNameFontSize: clamp($('#plV3Name')?.value, 18, 180, 72),
+      drawSubFontSize: clamp($('#plV3Sub')?.value, 8, 80, 22),
+      drawStatusFontSize: clamp($('#plV3Status')?.value, 8, 48, 13)
     };
   }
-  function drawRenderKey(s, source=false){
-    const live = s.drawLive || {};
-    const mode = s.settings?.drawAnimation || 'wheel';
-    return [source?'src':'ctrl', mode, !!live.waiting, live.total || 0, s.settings?.drawMethod || 'auto-sequence'].join('|');
+  function bindDual(id, preview){
+    const r = $('#'+id), n = $('#'+id+'Num'), out = $('#'+id+'Val');
+    if(!r || !n || !out) return;
+    const sync = (from) => {
+      const val = from.value;
+      r.value = val; n.value = val; out.textContent = val;
+      preview();
+    };
+    r.addEventListener('input', () => sync(r));
+    n.addEventListener('input', () => sync(n));
   }
-  function drawShellHtml(s, source=false){
-    const live = s.drawLive || {};
-    const mode = s.settings?.drawAnimation || 'wheel';
-    const sourceClass = source ? ' pl-source-draw' : '';
-    const methodText = s.settings?.drawMethod === 'instant-all' ? 'Instant All' : s.settings?.drawMethod === 'manual-step' ? 'Manual Step' : 'Auto Sequence';
-    return `<div class="draw-stage cinematic pl-sync-stage${sourceClass}"><div class="pl-sync-shell mode-${esc(mode)} ${live.waiting?'waiting':'revealed'}" data-pl-draw-shell="1">
-      <div class="pl-sync-meta"><span class="pl-sync-chip">STYLE <b class="pl-live-style">${esc(mode).toUpperCase()}</b></span><span class="pl-sync-chip">MODE <b class="pl-live-method">${esc(methodText)}</b></span><span class="pl-sync-chip">REVEAL <b class="pl-live-reveal">0/0</b></span></div>
-      <div class="pl-sync-fx">${fxHtml(mode)}</div>
-      <div class="pl-sync-hero"><div class="pl-sync-group">GROUP <b class="pl-live-group">-</b></div><div class="pl-sync-name pl-live-name">READY</div><div class="pl-sync-sub pl-live-sub">สาย - · ลำดับ -</div><div class="pl-sync-status pl-live-status">เลือกวิธีสุ่ม แล้วกด Start Draw</div></div>
-      <div class="pl-sync-progress"><div class="pl-sync-track"><div class="pl-sync-bar pl-live-bar"></div></div></div>
-    </div></div>`;
-  }
-  function updateDrawDom(root=document, s=getState()){
-    const shell = $('[data-pl-draw-shell="1"]', root); if(!shell) return;
-    const live = s.drawLive || {};
-    const finalItem = getFinalItem(s);
-    const item = tickerItem(s, finalItem);
-    const waiting = !!live.waiting;
-    shell.classList.toggle('waiting', waiting);
-    shell.classList.toggle('revealed', !waiting);
-    const total = Number(live.total || s.pendingSequence?.length || 0);
-    const progressCount = Number(s.pendingRevealIndex || live.progress || 0);
-    const progress = waiting ? Math.round((item._progress || 0) * 100) : Math.round((progressCount / Math.max(1,total || 1)) * 100);
-    const status = waiting ? 'กำลังรันรายชื่อ / สาย / ลำดับแบบสุ่มเร็ว แล้วค่อย ๆ ชะลอจนล็อกผลจริง' : (finalItem.team === 'READY' ? 'เลือกวิธีสุ่ม แล้วกด Start Draw' : 'ผลล่าสุดล็อกแล้ว พร้อมแสดงใน OBS Source');
-    const setText = (sel,val) => { const el = $(sel, shell); if(el && el.textContent !== String(val)) el.textContent = String(val); };
-    setText('.pl-live-group', item.group ?? '-');
-    setText('.pl-live-name', item.team ?? 'READY');
-    setText('.pl-live-sub', `สาย ${item.group ?? '-'} · ลำดับ ${item.slot ?? '-'}`);
-    setText('.pl-live-status', status);
-    setText('.pl-live-reveal', `${progressCount}/${total}`);
-    setText('.pl-live-style', String(s.settings?.drawAnimation || 'wheel').toUpperCase());
-    const bar = $('.pl-live-bar', shell);
-    if(bar) bar.style.transform = `scaleX(${clampPct(progress)/100})`;
-  }
-  function renderControlDraw(force=false){
-    const stage = $('#drawStage'); if(!stage) return;
-    const s = getState(true);
-    const key = drawRenderKey(s, false);
-    if(force || lastRenderKey !== key || !$('[data-pl-draw-shell="1"]', stage)){
-      lastRenderKey = key;
-      stage.innerHTML = drawShellHtml(s, false);
-    }
-    updateDrawDom(stage, s);
-  }
-  function renderDrawSource(force=false){
-    const root = $('#sourceRoot') || document.body;
-    const s = getState(true);
-    document.body.classList.add('pl-source-draw');
-    root.classList.remove('hidden');
-    const app = $('#app'); if(app) app.style.display = 'none';
-    const key = drawRenderKey(s, true);
-    if(force || lastRenderKey !== key || !$('[data-pl-draw-shell="1"]', root)){
-      lastRenderKey = key;
-      root.innerHTML = drawShellHtml(s, true);
-    }
-    updateDrawDom(root, s);
+  function installDrawSizeSettings(){
+    if(IS_SOURCE) return;
+    const drawPanel = $('[data-panel="draw"]');
+    const firstCard = drawPanel && $('.card', drawPanel);
+    if(!firstCard) return;
+    const old = $('#plDrawTextSizeCard');
+    if(old) old.remove();
+    if($('#plDrawTextSizeCardV3')) return;
+    const set = currentDrawSize();
+    applyDrawVars(set);
+    const card = document.createElement('div');
+    card.className = 'card compact pl-draw-size-card-v3';
+    card.id = 'plDrawTextSizeCardV3';
+    card.innerHTML = `<h3>Draw Text Size Settings V3</h3><p class="hint">ปรับขนาดตัวหนังสือในหน้าสุ่มและ Draw Animation Source แบบแยกส่วน ใช้จริงทันทีตอนเลื่อน</p>
+      <div class="grid two">
+        ${rangeRow('plV3Chip','ป้าย STYLE / MODE',set.drawChipFontSize,7,40,1)}
+        ${rangeRow('plV3Group','คำว่า GROUP',set.drawGroupFontSize,8,60,1)}
+        ${rangeRow('plV3GroupValue','ตัวอักษรสาย A/B/C',set.drawGroupValueFontSize,12,110,1)}
+        ${rangeRow('plV3Name','ชื่อทีมหลัก',set.drawNameFontSize,18,180,1)}
+        ${rangeRow('plV3Sub','บรรทัดสาย / ลำดับ',set.drawSubFontSize,8,80,1)}
+        ${rangeRow('plV3Status','ข้อความสถานะ',set.drawStatusFontSize,8,48,1)}
+      </div>
+      <div class="row"><button class="btn primary" id="plV3SaveDrawSize" type="button">บันทึกขนาดตัวหนังสือ</button><button class="btn" id="plV3ResetDrawSize" type="button">Reset Size</button></div>
+      <div class="pl-v3-status" id="plV3DrawSizeStatus"></div>`;
+    firstCard.appendChild(card);
+    const preview = () => { applyDrawVars(getDrawForm()); const x=$('#plV3DrawSizeStatus'); if(x) x.textContent='Preview อยู่ ยังไม่บันทึก'; };
+    ['plV3Chip','plV3Group','plV3GroupValue','plV3Name','plV3Sub','plV3Status'].forEach(id => bindDual(id, preview));
+    $('#plV3SaveDrawSize')?.addEventListener('click', () => {
+      const s = withSettings();
+      Object.assign(s.settings, getDrawForm());
+      writeState(s);
+      applyDrawVars(s.settings);
+      addAudit('save-draw-text-size-v3', getDrawForm());
+      const x=$('#plV3DrawSizeStatus'); if(x) x.textContent='บันทึกแล้ว';
+    });
+    $('#plV3ResetDrawSize')?.addEventListener('click', () => {
+      const s = withSettings();
+      Object.assign(s.settings, DRAW_SIZE_DEFAULT);
+      writeState(s);
+      $('#plDrawTextSizeCardV3')?.remove();
+      installDrawSizeSettings();
+      addAudit('reset-draw-text-size-v3');
+    });
   }
 
-  function hasGroups(o){ return Object.values(o || {}).some(x => Array.isArray(x) && x.length); }
-  function emptyGroups(s){ const out={}; letters(s.event?.groupCount || 4).forEach(k => out[k] = []); return out; }
+  function ensurePageButtons(){
+    if(IS_SOURCE) return;
+    $$('.panel').forEach(panel => {
+      const head = $('.panel-head', panel);
+      if(!head) return;
+      let btn = $('.pl-page-btn', head);
+      if(!btn){
+        btn = document.createElement('button');
+        btn.className = 'btn small pl-page-btn';
+        btn.type = 'button';
+        head.appendChild(btn);
+      }
+      btn.textContent = 'UI ตั้งค่าหน้านี้';
+      btn.dataset.panelId = panel.dataset.panel || 'dashboard';
+    });
+  }
+  function applyPage(panelId, cfg){
+    const panel = document.querySelector(`.panel[data-panel="${CSS.escape(panelId)}"]`);
+    if(!panel) return;
+    const c = Object.assign({}, PAGE_DEFAULT, cfg || {});
+    panel.style.maxWidth = clamp(c.widthPx, 620, 2200, 1280) + 'px';
+    panel.style.marginInline = 'auto';
+    panel.style.fontSize = clamp(c.fontScale, .65, 1.8, 1) + 'rem';
+    panel.style.setProperty('--pl-page-card-pad-v3', clamp(c.cardPadding, 6, 42, 16) + 'px');
+    panel.querySelectorAll('.card').forEach(card => card.style.padding = 'var(--pl-page-card-pad-v3)');
+    ['scoresBox','standingsBox','scheduleBox','groupResult','revealFeed'].forEach(id => {
+      const el = panel.querySelector('#'+id);
+      if(el){ el.style.maxHeight = clamp(c.tableHeight, 180, 1200, 620) + 'px'; el.style.overflowY = 'auto'; el.style.overflowX = 'hidden'; }
+    });
+  }
+  function applyAllPages(){
+    const all = savedPageSettings();
+    Object.entries(all).forEach(([panelId, cfg]) => applyPage(panelId, cfg));
+  }
+  function rangeModal(id, label, val, min, max, step, unit){
+    return `<div class="pl-v3-range"><label>${esc(label)} <b><span id="${id}Val">${esc(val)}</span>${esc(unit||'')}</b></label><div class="pl-v3-mini"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(val)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(val)}"></div></div>`;
+  }
+  let pageModal, pageDraft, pageSaved, pagePanelId;
+  function openPageModalV3(panelId){
+    pagePanelId = panelId || 'dashboard';
+    const all = savedPageSettings();
+    pageSaved = Object.assign({}, PAGE_DEFAULT, all[pagePanelId] || {});
+    pageDraft = Object.assign({}, pageSaved);
+    if(!pageModal){
+      pageModal = document.createElement('div');
+      pageModal.className = 'pl-page-modal-v3';
+      pageModal.innerHTML = `<div class="pl-page-box-v3"><div class="pl-page-head-v3"><div><h3>UI Settings</h3><p>เลื่อนปรับแบบละเอียด พร้อม Preview ถ้าไม่บันทึกจะย้อนกลับค่าล่าสุด</p></div><button class="pl-page-close-v3" type="button">×</button></div><div id="plPageModalBodyV3"></div></div>`;
+      document.body.appendChild(pageModal);
+      pageModal.addEventListener('click', e => { if(e.target === pageModal || e.target.closest('.pl-page-close-v3')) closePageModalV3(false); });
+    }
+    renderPageModalBody();
+    pageModal.classList.add('open');
+    applyPage(pagePanelId, pageDraft);
+  }
+  function modalValues(){
+    return {
+      widthPx: clamp($('#plV3PageWidth')?.value, 620, 2200, 1280),
+      fontScale: clamp($('#plV3PageFont')?.value, .65, 1.8, 1),
+      cardPadding: clamp($('#plV3PagePad')?.value, 6, 42, 16),
+      tableHeight: clamp($('#plV3PageTable')?.value, 180, 1200, 620)
+    };
+  }
+  function renderPageModalBody(){
+    const body = $('#plPageModalBodyV3', pageModal);
+    body.innerHTML = `${rangeModal('plV3PageWidth','ความกว้างหน้าหมวด',pageDraft.widthPx,620,2200,1,'px')}${rangeModal('plV3PageFont','ขนาดตัวหนังสือรวม',pageDraft.fontScale,.65,1.8,.01,'x')}${rangeModal('plV3PagePad','ความโปร่ง/ระยะห่างการ์ด',pageDraft.cardPadding,6,42,1,'px')}${rangeModal('plV3PageTable','ความสูงตาราง/ฟีด',pageDraft.tableHeight,180,1200,1,'px')}<div class="pl-page-preview-v3"><div class="pl-page-preview-card-v3"><b>Preview</b><p>ตัวอย่างขนาดการ์ดและตัวอักษรของหน้าหมวดนี้</p><div class="notice">ตาราง/ฟีดจะสูงตามค่าที่เลื่อน และไม่เกิดแถบเลื่อนแนวนอน</div></div></div><div class="pl-page-actions-v3"><button class="btn" id="plV3CancelPage" type="button">ยกเลิก</button><button class="btn primary" id="plV3SavePage" type="button">บันทึก UI หน้านี้</button></div>`;
+    const preview = () => {
+      pageDraft = modalValues();
+      applyPage(pagePanelId, pageDraft);
+      document.documentElement.style.setProperty('--pl-prev-width', Math.min(640, pageDraft.widthPx) + 'px');
+      document.documentElement.style.setProperty('--pl-prev-font', pageDraft.fontScale + 'rem');
+      document.documentElement.style.setProperty('--pl-prev-pad', pageDraft.cardPadding + 'px');
+      ['plV3PageWidth','plV3PageFont','plV3PagePad','plV3PageTable'].forEach(id => {
+        const r=$('#'+id), n=$('#'+id+'Num'), out=$('#'+id+'Val');
+        if(r&&n&&out){ n.value=r.value; out.textContent=r.value; }
+      });
+    };
+    ['plV3PageWidth','plV3PageFont','plV3PagePad','plV3PageTable'].forEach(id => {
+      const r=$('#'+id), n=$('#'+id+'Num');
+      if(r) r.addEventListener('input', preview);
+      if(n) n.addEventListener('input', () => { if(r) r.value=n.value; preview(); });
+    });
+    $('#plV3CancelPage')?.addEventListener('click', () => closePageModalV3(false));
+    $('#plV3SavePage')?.addEventListener('click', () => closePageModalV3(true));
+    preview();
+  }
+  function closePageModalV3(save){
+    if(!pageModal) return;
+    if(save){
+      const all = savedPageSettings();
+      all[pagePanelId] = pageDraft;
+      savePageSettings(all);
+      applyPage(pagePanelId, pageDraft);
+    }else{
+      applyPage(pagePanelId, pageSaved);
+    }
+    pageModal.classList.remove('open');
+  }
+
+  function enhanceSourceCards(){
+    if(IS_SOURCE) return;
+    const box = $('#sourceCards');
+    if(!box) return;
+    box.querySelectorAll('.source-card').forEach(card => {
+      card.classList.remove('src-locked');
+      card.style.pointerEvents = '';
+      card.style.opacity = '';
+      card.querySelectorAll('button').forEach(b => { b.disabled = false; b.removeAttribute('disabled'); });
+      card.innerHTML = card.innerHTML.replace(/⚠\s*Wait/gi, 'Ready');
+    });
+
+    // Single Draw Animation Source card / URL
+    if(!$('#plV3DrawSourceCard')){
+      const card = document.createElement('div');
+      card.className = 'source-card';
+      card.id = 'plV3DrawSourceCard';
+      const url = sourceUrl(DRAW_SOURCE_VIEW);
+      card.innerHTML = `<h3>Draw Animation Source</h3><p>ลิงก์เดียวสำหรับ OBS เปลี่ยน Animation Style ตามหน้า Draw Control</p><div class="source-url">${esc(url)}</div><div class="row pl-v3-url-actions"><button class="btn primary" type="button" data-pl-v3-copy="${esc(url)}">Copy URL</button><button class="btn" type="button" data-pl-v3-preview="${esc(url)}">Preview URL</button></div>`;
+      box.prepend(card);
+    }
+
+    DATA_SOURCES.forEach(([id, title]) => {
+      const url = sourceUrl(id);
+      const card = Array.from(box.querySelectorAll('.source-card')).find(c => (c.querySelector('h3')?.textContent || c.textContent || '').toLowerCase().includes(title.toLowerCase()));
+      if(card && !card.querySelector(`[data-pl-v3-source="${id}"]`)){
+        card.insertAdjacentHTML('beforeend', `<div class="source-url" data-pl-v3-source="${id}">${esc(url)}</div><div class="row pl-v3-url-actions" data-pl-v3-source="${id}"><button class="btn primary" type="button" data-pl-v3-copy="${esc(url)}">Copy URL</button><button class="btn" type="button" data-pl-v3-preview="${esc(url)}">Preview URL</button></div>`);
+      }
+    });
+  }
+
+  function hasGroups(groups){ return Object.values(groups || {}).some(x => Array.isArray(x) && x.some(Boolean)); }
+  function emptyGroups(s){ const out = {}; letters(s.event?.groupCount || 4).forEach(k => out[k] = []); return out; }
   function revealedGroups(s){
     const out = emptyGroups(s);
     const feed = Array.isArray(s.drawLive?.feed) ? [...s.drawLive.feed].reverse() : [];
@@ -375,299 +443,72 @@
     });
     return out;
   }
-  function groupsData(s){
+  function sourceGroupsData(s){
     const method = s.settings?.drawMethod || 'auto-sequence';
-    const drawingNotComplete = Array.isArray(s.pendingSequence) && s.pendingSequence.length && !s.pendingComplete && hasGroups(s.pendingGroups);
-    if(drawingNotComplete && method !== 'instant-all') return revealedGroups(s);
+    const feedHasData = Array.isArray(s.drawLive?.feed) && s.drawLive.feed.length > 0;
+    if(method !== 'instant-all' && Array.isArray(s.pendingSequence) && s.pendingSequence.length && !s.pendingComplete) return revealedGroups(s);
+    if(method !== 'instant-all' && feedHasData && !hasGroups(s.groups)) return revealedGroups(s);
     if(method === 'instant-all' && hasGroups(s.pendingGroups)) return s.pendingGroups;
     if(hasGroups(s.groups)) return s.groups;
     if(hasGroups(s.pendingGroups) && s.pendingComplete) return s.pendingGroups;
     return emptyGroups(s);
   }
-  function renderGroupsSource(){
+  function renderGroupsSourceV3(){
+    if(VIEW !== 'groups') return;
     const root = $('#sourceRoot') || document.body;
-    const s = getState(true);
-    const groups = groupsData(s);
-    const cols = clamp(s.settings?.groupTableColumns ?? 3, 1, 10);
-    root.classList.remove('hidden');
     const app = $('#app'); if(app) app.style.display = 'none';
-    const cards = Object.entries(groups).map(([g,teams]) => {
+    root.classList.remove('hidden');
+    const s = readState(); s.settings = s.settings || {}; s.event = s.event || {};
+    const groups = sourceGroupsData(s);
+    const cols = clamp(s.settings.groupTableColumns, 1, 10, 3);
+    document.documentElement.style.setProperty('--pl-groups-cols', cols);
+    const cards = Object.entries(groups).map(([g, teams]) => {
       const clean = Array.isArray(teams) ? teams : [];
       const rows = clean.length ? clean : [''];
-      return `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(g)}</span><span>${esc(clean.filter(x=>x && x !== 'BYE').length)} ทีม</span></div>${rows.map((t,i)=>`<div class="pl-group-row ${(!t)?'empty':''}"><span class="no">${i+1}</span><span class="team">${esc(t || 'รอผลสุ่ม')}</span></div>`).join('')}</div>`;
+      return `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(g)}</span><span>${esc(clean.filter(x => x && x !== 'BYE').length)} ทีม</span></div>${rows.map((t,i)=>`<div class="pl-group-row ${(!t)?'empty':''}"><span class="no">${i+1}</span><span class="team">${esc(t || 'รอผลสุ่ม')}</span></div>`).join('')}</div>`;
     }).join('');
-    root.innerHTML = `<div class="pl-groups-source"><div class="pl-groups-board"><div class="pl-groups-head"><div><h1>${esc(s.event?.name || 'PepsLive Tournament')}</h1><p>Groups Table · แสดงตามผลที่ Reveal แล้ว · ${cols} คอลัมน์</p></div><div class="pl-sync-chip">LIVE <b>${new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</b></div></div><div class="pl-groups-grid" style="grid-template-columns:repeat(${cols},minmax(170px,1fr))">${cards}</div></div></div>`;
+    root.innerHTML = `<div class="pl-groups-source"><div class="pl-groups-board"><div class="pl-groups-head"><div><h1>${esc(s.event.name || 'PepsLive Tournament')}</h1><p>Groups Table · แสดงตาม Reveal Feed · ไม่โชว์ผลทั้งหมดก่อนเวลา</p></div><div class="pl-sync-chip">LIVE <b>${new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</b></div></div><div class="pl-groups-grid">${cards}</div></div></div>`;
   }
 
-  function ensureDrawTextSettings(){
-    if(IS_SOURCE || $('#plDrawTextSizeCard')) return;
-    const drawPanel = $('[data-panel="draw"]'); if(!drawPanel) return;
-    const firstCard = $('.card', drawPanel); if(!firstCard) return;
-    const s = getState(); const set = s.settings || {};
-    const card = document.createElement('div');
-    card.className = 'card compact pl-draw-size-card';
-    card.id = 'plDrawTextSizeCard';
-    card.innerHTML = `<h3>Draw Text Size Settings</h3><p class="hint">ปรับขนาดตัวหนังสือในหน้าสุ่ม / OBS Draw Source แยกกันได้</p>
-      <div class="grid two">
-        ${sliderHtml('plChipSize','ป้าย STYLE / MODE',set.drawChipFontSize,9,24)}
-        ${sliderHtml('plGroupSize','คำว่า GROUP',set.drawGroupFontSize,10,40)}
-        ${sliderHtml('plGroupValueSize','ตัวอักษรสาย A/B/C',set.drawGroupValueFontSize,16,72)}
-        ${sliderHtml('plNameSize','ชื่อทีมหลัก',set.drawNameFontSize,24,140)}
-        ${sliderHtml('plSubSize','บรรทัดสาย / ลำดับ',set.drawSubFontSize,10,54)}
-        ${sliderHtml('plStatusSize','ข้อความสถานะ',set.drawStatusFontSize,9,30)}
-      </div>
-      <div class="row"><button class="btn primary" id="plSaveDrawTextSize" type="button">บันทึกขนาดตัวหนังสือ</button><button class="btn" id="plResetDrawTextSize" type="button">Reset Size</button></div>`;
-    firstCard.appendChild(card);
-    ['plChipSize','plGroupSize','plGroupValueSize','plNameSize','plSubSize','plStatusSize'].forEach(id => {
-      const el = $('#'+id); if(!el) return;
-      el.addEventListener('input', () => { updateSliderLabel(id); previewDrawSizeSettings(); });
-    });
-    $('#plSaveDrawTextSize')?.addEventListener('click', saveDrawSizeSettings);
-    $('#plResetDrawTextSize')?.addEventListener('click', () => {
-      setState(s => Object.assign(s.settings, { drawChipFontSize:12, drawGroupFontSize:17, drawGroupValueFontSize:30, drawNameFontSize:72, drawSubFontSize:22, drawStatusFontSize:13 }));
-      card.remove(); ensureDrawTextSettings(); renderControlDraw(true); addAudit('reset-draw-text-size');
-    });
-  }
-  function sliderHtml(id,label,val,min,max){ return `<div class="pl-slider-mini"><label>${label} <b><span id="${id}Val">${esc(val)}</span>px</b></label><input id="${id}" type="range" min="${min}" max="${max}" value="${esc(val)}"></div>`; }
-  function updateSliderLabel(id){ const el=$('#'+id), out=$('#'+id+'Val'); if(el&&out) out.textContent = el.value; }
-  function previewDrawSizeSettings(){
-    const s = getState();
-    s.settings.drawChipFontSize = clamp($('#plChipSize')?.value || s.settings.drawChipFontSize,9,24);
-    s.settings.drawGroupFontSize = clamp($('#plGroupSize')?.value || s.settings.drawGroupFontSize,10,40);
-    s.settings.drawGroupValueFontSize = clamp($('#plGroupValueSize')?.value || s.settings.drawGroupValueFontSize,16,72);
-    s.settings.drawNameFontSize = clamp($('#plNameSize')?.value || s.settings.drawNameFontSize,24,140);
-    s.settings.drawSubFontSize = clamp($('#plSubSize')?.value || s.settings.drawSubFontSize,10,54);
-    s.settings.drawStatusFontSize = clamp($('#plStatusSize')?.value || s.settings.drawStatusFontSize,9,30);
-    applySettings(s);
-  }
-  function saveDrawSizeSettings(){
-    setState(s => {
-      s.settings.drawChipFontSize = clamp($('#plChipSize')?.value || 12,9,24);
-      s.settings.drawGroupFontSize = clamp($('#plGroupSize')?.value || 17,10,40);
-      s.settings.drawGroupValueFontSize = clamp($('#plGroupValueSize')?.value || 30,16,72);
-      s.settings.drawNameFontSize = clamp($('#plNameSize')?.value || 72,24,140);
-      s.settings.drawSubFontSize = clamp($('#plSubSize')?.value || 22,10,54);
-      s.settings.drawStatusFontSize = clamp($('#plStatusSize')?.value || 13,9,30);
-    });
-    addAudit('save-draw-text-size');
-    renderControlDraw(true);
-  }
-
-  function ensureJamornzSettings(){
-    if(IS_SOURCE || $('#pl-jamornz-settings')) return;
-    const panel = $('[data-panel="settings"]');
-    const grid = panel && $('.grid.two', panel);
-    if(!grid) return;
-    const s = getState(); const set = s.settings || {};
-    const card = document.createElement('div');
-    card.className = 'card pl-settings-card';
-    card.id = 'pl-jamornz-settings';
-    card.innerHTML = `<h3>Draw / Groups Source Settings</h3><p class="hint">คุมคอลัมน์ Groups Table, สีผลลัพธ์, พื้นหลัง Source และความโปร่งใส</p>
-      <div class="grid two">
-        <div class="field"><label>Groups Table Columns</label><input id="plGroupCols" type="number" min="1" max="10" value="${esc(set.groupTableColumns ?? 3)}"></div>
-        <div class="field"><label>Source Background</label><select id="plSourceBg"><option value="transparent">Transparent</option><option value="dark">Dark</option><option value="green">Green Screen</option></select></div>
-        <div class="field"><label>สีสาย/กลุ่ม</label><input id="plWin1" type="color" value="${esc(set.winnerLine1Color || '#ffb86b')}"></div>
-        <div class="field"><label>สีชื่อทีม</label><input id="plWin2" type="color" value="${esc(set.winnerLine2Color || '#ffffff')}"></div>
-        <div class="field"><label>Winner BG Opacity</label><input id="plWinOpacity" type="range" min="0" max="100" value="${Math.round((set.winnerBgOpacity ?? .86)*100)}"></div>
-        <div class="field"><label>Wheel Spacing</label><input id="plWheelSpacing" type="range" min="0" max="2000" value="${esc(set.wheelSpacing ?? 30)}"></div>
-      </div>
-      <div class="notice">กด <b>บันทึก Display Settings</b> เพื่อบันทึกค่าชุดนี้</div>`;
-    const audit = document.createElement('div');
-    audit.className = 'card pl-settings-card';
-    audit.innerHTML = `<h3>Draw Audit Log</h3><div id="plAuditLog" class="pl-audit-list"></div>`;
-    grid.appendChild(card); grid.appendChild(audit);
-    $('#plSourceBg').value = set.sourceBg || 'transparent';
-    ['plGroupCols','plSourceBg','plWin1','plWin2','plWinOpacity','plWheelSpacing'].forEach(id => $('#'+id)?.addEventListener('input', previewSourceSettings));
-    $('#saveDisplaySettings')?.addEventListener('click', saveSourceSettings, true);
-  }
-  function previewSourceSettings(){
-    const s = getState();
-    s.settings.groupTableColumns = clamp($('#plGroupCols')?.value || s.settings.groupTableColumns || 3, 1, 10);
-    s.settings.sourceBg = $('#plSourceBg')?.value || s.settings.sourceBg || 'transparent';
-    s.settings.winnerLine1Color = $('#plWin1')?.value || s.settings.winnerLine1Color || '#ffb86b';
-    s.settings.winnerLine2Color = $('#plWin2')?.value || s.settings.winnerLine2Color || '#ffffff';
-    s.settings.winnerBgOpacity = clamp(($('#plWinOpacity')?.value || 86)/100, 0, 1);
-    s.settings.wheelSpacing = clamp($('#plWheelSpacing')?.value || 30, 0, 2000);
-    applySettings(s);
-  }
-  function saveSourceSettings(){
-    setState(s => {
-      s.settings.groupTableColumns = clamp($('#plGroupCols')?.value || 3, 1, 10);
-      s.settings.sourceBg = $('#plSourceBg')?.value || 'transparent';
-      s.settings.winnerLine1Color = $('#plWin1')?.value || '#ffb86b';
-      s.settings.winnerLine2Color = $('#plWin2')?.value || '#ffffff';
-      s.settings.winnerBgOpacity = clamp(($('#plWinOpacity')?.value || 86)/100, 0, 1);
-      s.settings.wheelSpacing = clamp($('#plWheelSpacing')?.value || 30, 0, 2000);
-    });
-    addAudit('save-source-settings', { groupTableColumns:getState().settings.groupTableColumns });
-  }
-  function renderAudit(){
-    const box = $('#plAuditLog'); if(!box) return;
-    const logs = (getState(true).audit || []).slice(0,12);
-    box.innerHTML = logs.length ? logs.map(x => `<div class="pl-audit-item"><b>${esc(x.action)}</b><br><span>${new Date(x.at).toLocaleString('th-TH')}</span></div>`).join('') : '<div class="empty">ยังไม่มี Audit Log</div>';
-  }
-
-  function ensurePageSettingButtons(){
-    if(IS_SOURCE) return;
-    $$('.panel').forEach(panel => {
-      const head = $('.panel-head', panel); if(!head || $('.pl-page-btn', head)) return;
-      const btn = document.createElement('button');
-      btn.className = 'btn small pl-page-btn';
-      btn.type = 'button';
-      btn.textContent = 'UI ตั้งค่าหน้านี้';
-      btn.addEventListener('click', () => openPageModal(panel.dataset.panel || 'dashboard'));
-      head.appendChild(btn);
-    });
-    applyPageSettings();
-  }
-  function loadPageSettings(){ try { return JSON.parse(localStorage.getItem(PAGE_KEY) || '{}'); } catch { return {}; } }
-  function savePageSettings(data){ localStorage.setItem(PAGE_KEY, JSON.stringify(data)); }
-  function openPageModal(panelId){
-    if(!pageModal){
-      pageModal = document.createElement('div');
-      pageModal.className = 'pl-page-modal';
-      pageModal.innerHTML = `<div class="pl-page-box"><h3>UI Settings</h3><p class="hint">ตั้งค่าเฉพาะหน้าหมวดนี้ ไม่แตะระบบสุ่ม/ตาราง/คะแนน</p>
-        <div class="grid two">
-          <div class="field"><label>Page Width</label><select id="plPageWidth"><option value="normal">Normal</option><option value="narrow">Narrow</option><option value="wide">Wide</option><option value="full">Full</option></select></div>
-          <div class="field"><label>Font Size</label><select id="plPageFont"><option value="normal">Normal</option><option value="small">Small</option><option value="large">Large</option><option value="xlarge">XLarge</option></select></div>
-          <div class="field"><label>Density</label><select id="plPageDensity"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div>
-          <div class="field"><label>Table Height</label><select id="plPageTable"><option value="normal">Normal</option><option value="short">Short</option><option value="tall">Tall</option></select></div>
-        </div>
-        <div class="pl-page-actions"><button class="btn primary" id="plSavePageUi" type="button">บันทึก</button><button class="btn" id="plResetPageUi" type="button">Reset หน้านี้</button><button class="btn" id="plClosePageUi" type="button">ปิด</button></div></div>`;
-      document.body.appendChild(pageModal);
-      $('#plClosePageUi', pageModal).onclick = () => pageModal.classList.remove('open');
-      pageModal.addEventListener('click', e => { if(e.target === pageModal) pageModal.classList.remove('open'); });
-    }
-    pageModal.dataset.panel = panelId;
-    const all = loadPageSettings(); const cfg = all[panelId] || {};
-    $('#plPageWidth', pageModal).value = cfg.width || 'normal';
-    $('#plPageFont', pageModal).value = cfg.font || 'normal';
-    $('#plPageDensity', pageModal).value = cfg.density || 'comfortable';
-    $('#plPageTable', pageModal).value = cfg.table || 'normal';
-    $('#plSavePageUi', pageModal).onclick = () => {
-      const data = loadPageSettings();
-      data[panelId] = { width:$('#plPageWidth',pageModal).value, font:$('#plPageFont',pageModal).value, density:$('#plPageDensity',pageModal).value, table:$('#plPageTable',pageModal).value };
-      savePageSettings(data); applyPageSettings(); pageModal.classList.remove('open'); addAudit('save-page-ui', { panel:panelId });
-    };
-    $('#plResetPageUi', pageModal).onclick = () => { const data = loadPageSettings(); delete data[panelId]; savePageSettings(data); applyPageSettings(); pageModal.classList.remove('open'); };
-    pageModal.classList.add('open');
-  }
-  function applyPageSettings(){
-    const data = loadPageSettings();
-    $$('.panel').forEach(panel => {
-      const cfg = data[panel.dataset.panel] || {};
-      panel.dataset.pageWidth = cfg.width || 'normal';
-      panel.dataset.pageFont = cfg.font || 'normal';
-      panel.dataset.pageDensity = cfg.density || 'comfortable';
-      panel.dataset.pageTable = cfg.table || 'normal';
-    });
-  }
-
-  function guardButtons(){
-    if(IS_SOURCE) return;
-    const s = getState(true);
-    const busy = !!(s.drawLive && (s.drawLive.waiting || s.drawLive.running));
-    ['startDraw','nextReveal'].forEach(id => {
-      const b = $('#'+id); if(!b) return;
-      b.disabled = busy;
-      b.classList.toggle('pl-guard-lock', busy);
-      b.title = busy ? 'กำลังสุ่มอยู่ รอให้อนิเมชั่นจบก่อน' : '';
-    });
-  }
-  function hookDrawButtons(){
-    if(IS_SOURCE || window.__plDrawGuardHookedV2) return;
-    window.__plDrawGuardHookedV2 = true;
-    ['startDraw','nextReveal','confirmDraw','redraw','undoDraw'].forEach(id => {
-      const btn = $('#'+id); if(!btn) return;
-      const old = btn.onclick;
-      btn.onclick = function(ev){
-        const s = getState(true);
-        if((id === 'startDraw' || id === 'nextReveal') && s.drawLive && (s.drawLive.waiting || s.drawLive.running)){
-          ev?.preventDefault?.();
-          alert('กำลังสุ่มอยู่ รอให้อนิเมชั่นจบก่อน เพื่อกันผลเพี้ยน/กันกดซ้ำ');
-          return false;
-        }
-        addAudit('ui-' + id, { animation:s.settings?.drawAnimation, method:s.settings?.drawMethod });
-        const res = typeof old === 'function' ? old.call(this, ev) : undefined;
-        setTimeout(() => refreshStatic(false), 80);
-        setTimeout(() => refreshStatic(false), 360);
-        return res;
-      };
-    });
-  }
-
-  function enhanceSourceCards(){
-    if(IS_SOURCE) return;
-    const box = $('#sourceCards'); if(!box) return;
-    const drawUrl = sourceUrl('draw-animation');
-    const groupsUrl = sourceUrl('groups');
-    // hide old separated animation sources; keep data sources untouched
-    $$('.source-card', box).forEach(card => {
-      const title = (card.querySelector('h3')?.textContent || card.textContent || '').trim().toLowerCase();
-      if(['wheel spin','slot reveal','card draw','lottery ball','glitch cyber','galaxy spiral','crystal oracle','plasma arc','vortex portal','winner graphic'].some(x => title.includes(x))) card.dataset.plHiddenDrawSource = '1';
-    });
-    if(!$('#plSingleDrawSourceCard')){
-      const card = document.createElement('div');
-      card.className = 'source-card';
-      card.id = 'plSingleDrawSourceCard';
-      card.innerHTML = `<h3>Draw Animation Source</h3><p>ลิงก์เดียวสำหรับ OBS เปลี่ยน Animation Style ตามหน้า Draw Control อัตโนมัติ</p><div class="source-url">${esc(drawUrl)}</div><div class="row"><button class="btn primary" type="button" data-pl-copy="${esc(drawUrl)}">Copy URL</button><button class="btn" type="button" data-pl-preview="${esc(drawUrl)}">Preview URL</button></div>`;
-      box.prepend(card);
-    }
-    // make Groups Table card always expose Copy / Preview URL
-    const groupsCard = $$('.source-card', box).find(card => (card.querySelector('h3')?.textContent || card.textContent || '').toLowerCase().includes('groups table'));
-    if(groupsCard && !$('.pl-groups-url-actions', groupsCard)){
-      groupsCard.insertAdjacentHTML('beforeend', `<div class="source-url">${esc(groupsUrl)}</div><div class="row pl-groups-url-actions"><button class="btn primary" type="button" data-pl-copy="${esc(groupsUrl)}">Copy URL</button><button class="btn" type="button" data-pl-preview="${esc(groupsUrl)}">Preview URL</button></div><div class="pl-source-note">OBS จะแสดงตามผลที่ Reveal แล้ว ไม่เปิดเผยผลสุ่มทั้งหมด ยกเว้น Draw Method = กดทีเดียวสุ่มทั้งหมด</div>`);
-    }
-    if(!box.dataset.plSourceActionsHooked){
-      box.dataset.plSourceActionsHooked = '1';
-      box.addEventListener('click', e => {
-        const copy = e.target.closest('[data-pl-copy]');
-        const preview = e.target.closest('[data-pl-preview]');
-        if(copy){ navigator.clipboard?.writeText(copy.dataset.plCopy); copy.textContent = 'Copied'; setTimeout(()=>copy.textContent='Copy URL', 1200); }
-        if(preview) window.open(preview.dataset.plPreview, '_blank');
-      });
-    }
-  }
-
-  function refreshStatic(force=false){
-    injectCss();
-    const s = getState(true);
-    applySettings(s);
-    if(IS_SOURCE){
-      if(DRAW_SOURCE_VIEW) renderDrawSource(force);
-      else if(VIEW === 'groups') renderGroupsSource();
+  document.addEventListener('click', e => {
+    const pageBtn = e.target.closest('.pl-page-btn');
+    if(pageBtn){
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      openPageModalV3(pageBtn.dataset.panelId || pageBtn.closest('.panel')?.dataset.panel || 'dashboard');
       return;
     }
-    ensureDrawTextSettings();
-    ensureJamornzSettings();
-    ensurePageSettingButtons();
-    hookDrawButtons();
-    renderControlDraw(force);
-    renderAudit();
-    guardButtons();
-    enhanceSourceCards();
-  }
-  function smoothLoop(){
-    const s = getState();
-    if(IS_SOURCE){ if(DRAW_SOURCE_VIEW) updateDrawDom($('#sourceRoot') || document.body, s); }
-    else updateDrawDom($('#drawStage') || document, s);
-    rafId = requestAnimationFrame(smoothLoop);
-  }
-  function boot(){
-    refreshStatic(true);
-    clearInterval(statePollTimer);
-    statePollTimer = setInterval(() => refreshStatic(false), IS_SOURCE ? 700 : 650);
-    if(!IS_SOURCE){
-      clearInterval(sourcePanelTimer);
-      sourcePanelTimer = setInterval(enhanceSourceCards, 1200);
+    const copy = e.target.closest('[data-pl-v3-copy]');
+    if(copy){
+      e.preventDefault();
+      navigator.clipboard?.writeText(copy.dataset.plV3Copy);
+      copy.textContent = 'Copied';
+      setTimeout(() => copy.textContent = 'Copy URL', 1200);
+      return;
     }
-    if(!rafId) rafId = requestAnimationFrame(smoothLoop);
+    const prev = e.target.closest('[data-pl-v3-preview]');
+    if(prev){ e.preventDefault(); window.open(prev.dataset.plV3Preview, '_blank'); }
+  }, true);
+
+  function tick(){
+    injectCss();
+    applyDrawVars(currentDrawSize());
+    if(!IS_SOURCE){
+      installDrawSizeSettings();
+      ensurePageButtons();
+      applyAllPages();
+      enhanceSourceCards();
+    }else if(VIEW === 'groups'){
+      renderGroupsSourceV3();
+    }
   }
 
-  window.addEventListener('storage', e => { if(e.key === KEY || e.key === PAGE_KEY) refreshStatic(true); });
-  document.addEventListener('visibilitychange', () => { if(!document.hidden) refreshStatic(true); });
-  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 80), { once:true });
-  if(document.readyState !== 'loading') setTimeout(boot, 80);
+  document.addEventListener('DOMContentLoaded', () => {
+    tick();
+    setInterval(tick, IS_SOURCE ? 700 : 1000);
+  }, { once:true });
+  if(document.readyState !== 'loading'){
+    setTimeout(() => { tick(); setInterval(tick, IS_SOURCE ? 700 : 1000); }, 80);
+  }
 })();
 </script>
 </body>
