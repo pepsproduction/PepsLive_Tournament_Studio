@@ -87,6 +87,269 @@
 
   <div class="modal" id="sourceModal"><div class="modalbox"><div class="modal-head"><div><h3 id="modalTitle">Source</h3><p id="modalDesc"></p></div><button class="iconbtn" id="closeModal">×</button></div><div class="field"><label>OBS Browser Source URL</label><div class="codebox" id="modalUrl"></div></div><div class="row"><button class="btn primary" id="copyModalUrl">Copy URL</button><button class="btn" id="openModalUrl">Open Preview</button></div></div></div>
 
+
+<script>
+(() => {
+  'use strict';
+
+  const DRAW_SOURCE_ID = 'draw-animation';
+  const LIVE_SOURCE_IDS = ['groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
+  const OLD_SOURCE_TITLES = [
+    'wheel spin',
+    'slot reveal',
+    'card draw',
+    'lottery ball',
+    'glitch cyber',
+    'galaxy spiral',
+    'crystal oracle',
+    'plasma arc',
+    'vortex portal',
+    'winner graphic'
+  ];
+
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+
+  function sourceUrl(id) {
+    const base = location.href.split('?')[0].split('#')[0];
+    return `${base}?view=${encodeURIComponent(id)}`;
+  }
+
+  function sourceTitle(id) {
+    return ({
+      groups: 'Groups Table',
+      schedule: 'Schedule Table',
+      standings: 'Standings Table',
+      knockout: 'Knockout Bracket',
+      'lower-third': 'Lower Third',
+      'next-match': 'Next Match',
+      'latest-result': 'Latest Result'
+    })[id] || id;
+  }
+
+  function sourceCard(id, title, desc) {
+    return `
+      <div class="peps-source-card-clean" data-peps-source-card="${esc(id)}">
+        <h3>${esc(title)}</h3>
+        <p>${esc(desc)}</p>
+        <div class="row">
+          <button class="btn primary small" type="button" data-peps-copy-source="${esc(id)}">Copy URL</button>
+          <button class="btn small" type="button" data-peps-preview-source="${esc(id)}">Preview URL</button>
+        </div>
+        <div class="source-url">${esc(sourceUrl(id))}</div>
+      </div>
+    `;
+  }
+
+  function cleanSourcesHtml() {
+    const draw = `
+      <div class="peps-source-section-clean" data-peps-clean-source-section="draw">
+        <h3>Draw Animation Source</h3>
+        <div class="peps-source-grid-clean single">
+          ${sourceCard(DRAW_SOURCE_ID, 'Draw Animation Source', 'ลิงก์เดียว ดึง Animation Style จากหน้า Draw Control')}
+        </div>
+      </div>
+    `;
+
+    const live = `
+      <div class="peps-source-section-clean" data-peps-clean-source-section="live">
+        <h3>Live Data Sources</h3>
+        <div class="peps-source-grid-clean">
+          ${LIVE_SOURCE_IDS.map(id => sourceCard(
+            id,
+            sourceTitle(id),
+            id === 'groups' ? 'แสดงตามผลแบ่งสาย / Reveal Feed เท่านั้น' : 'Source สำหรับ OBS Browser'
+          )).join('')}
+        </div>
+      </div>
+    `;
+
+    return draw + live;
+  }
+
+  function looksLikeOldSourceHtml(value) {
+    const lower = String(value || '').toLowerCase();
+    const hits = OLD_SOURCE_TITLES.filter(t => lower.includes(t)).length;
+    return hits >= 2;
+  }
+
+  function isClean(holder) {
+    if (!holder) return false;
+    return (
+      holder.querySelectorAll('[data-peps-clean-source-section="draw"]').length === 1 &&
+      holder.querySelectorAll('[data-peps-clean-source-section="live"]').length === 1 &&
+      holder.querySelectorAll('[data-peps-copy-source]').length === 8 &&
+      holder.querySelectorAll('[data-peps-preview-source]').length === 8 &&
+      !looksLikeOldSourceHtml(holder.textContent)
+    );
+  }
+
+  function renderCleanSources(reason = 'force') {
+    const holder = document.getElementById('sourceCards');
+    if (!holder) return false;
+    holder.className = 'grid three peps-source-holder-clean';
+    holder.dataset.pepsCleanSources = 'v4';
+    holder.innerHTML = cleanSourcesHtml();
+    return isClean(holder);
+  }
+
+  function installCssGuard() {
+    if (document.getElementById('peps-source-pre-guard-css')) return;
+    const style = document.createElement('style');
+    style.id = 'peps-source-pre-guard-css';
+    style.textContent = `
+      #sourceCards.peps-source-holder-clean > *:not(.peps-source-section-clean) {
+        display: none !important;
+      }
+      .peps-source-section-clean {
+        grid-column: 1 / -1;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: rgba(255,255,255,.03);
+        padding: 14px;
+      }
+      .peps-source-section-clean > h3 {
+        margin: 0 0 12px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-size: 13px;
+      }
+      .peps-source-grid-clean {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .peps-source-grid-clean.single {
+        grid-template-columns: minmax(260px, 560px);
+      }
+      .peps-source-card-clean {
+        border: 1px solid rgba(255,255,255,.14);
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+        padding: 16px;
+        min-height: 128px;
+      }
+      .peps-source-card-clean h3 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+      .peps-source-card-clean p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 13px;
+        min-height: 34px;
+      }
+      .peps-source-card-clean .source-url {
+        margin-top: 12px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function installInnerHtmlGuard() {
+    const proto = Element.prototype;
+    const desc = Object.getOwnPropertyDescriptor(proto, 'innerHTML');
+    if (!desc || !desc.set || proto.__pepsSourceGuardInstalled) return;
+
+    Object.defineProperty(proto, 'innerHTML', {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: desc.get,
+      set(value) {
+        if (this && this.id === 'sourceCards' && looksLikeOldSourceHtml(value)) {
+          desc.set.call(this, cleanSourcesHtml());
+          this.className = 'grid three peps-source-holder-clean';
+          this.dataset.pepsCleanSources = 'v4';
+          return;
+        }
+        desc.set.call(this, value);
+      }
+    });
+
+    proto.__pepsSourceGuardInstalled = true;
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+  }
+
+  function installDelegates() {
+    if (document.__pepsSourceDelegatesInstalled) return;
+    document.__pepsSourceDelegatesInstalled = true;
+
+    document.addEventListener('click', (e) => {
+      const copy = e.target.closest('[data-peps-copy-source]');
+      if (copy) {
+        e.preventDefault();
+        e.stopPropagation();
+        copyText(sourceUrl(copy.dataset.pepsCopySource));
+        return;
+      }
+
+      const preview = e.target.closest('[data-peps-preview-source]');
+      if (preview) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(sourceUrl(preview.dataset.pepsPreviewSource), '_blank');
+      }
+    }, true);
+  }
+
+  function installObserver() {
+    const holder = document.getElementById('sourceCards');
+    if (!holder || holder.__pepsSourceObserverInstalled) return;
+
+    const observer = new MutationObserver(() => {
+      if (!isClean(holder)) {
+        setTimeout(() => renderCleanSources('observer'), 0);
+      }
+    });
+    observer.observe(holder, { childList: true, subtree: true, characterData: true });
+    holder.__pepsSourceObserverInstalled = true;
+  }
+
+  function boot() {
+    installCssGuard();
+    installInnerHtmlGuard();
+    installDelegates();
+    renderCleanSources('boot');
+    installObserver();
+
+    // Save Teams triggers app.js saveState() -> renderAll(false).
+    // This watchdog keeps sourceCards clean without touching other panels.
+    setInterval(() => {
+      const holder = document.getElementById('sourceCards');
+      if (!holder) return;
+      if (!isClean(holder)) renderCleanSources('watchdog');
+    }, 120);
+  }
+
+  window.PepsLiveSourceGuard = {
+    render: renderCleanSources,
+    isClean,
+    html: cleanSourcesHtml,
+    oldDetected: looksLikeOldSourceHtml
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
+})();
+</script>
+
   <script src="assets/app.js"></script>
 
 <script>
@@ -100,10 +363,6 @@
 
   const DRAW_MODES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex'];
   const LIVE_SOURCE_IDS = ['groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
-
-  let sourceCardsObserver = null;
-  let sourceCardsRenderLock = false;
-  let sourceCardsRefreshTimer = 0;
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -190,9 +449,7 @@
         background: transparent !important;
         overflow: hidden;
       }
-      html.peps-source-mode #app,
-      html.peps-source-mode .app-shell,
-      html.peps-source-mode .modal { display:none !important; }
+      html.peps-source-mode #app { display:none !important; }
       html.peps-source-mode #sourceRoot {
         display: block !important;
         min-height: 100vh;
@@ -218,14 +475,6 @@
       .peps-source-card-clean .source-url {
         margin-top: 12px;
       }
-      #sourceCards.peps-source-holder-clean > *:not(.peps-source-section-clean) {
-        display: none !important;
-      }
-      #sourceCards.peps-source-holder-clean .source-card:not(.peps-source-card-clean),
-      #sourceCards.peps-source-holder-clean [data-source]:not(.peps-source-card-clean) {
-        display: none !important;
-      }
-
       .peps-source-section-clean {
         grid-column: 1 / -1;
         border: 1px solid var(--line);
@@ -860,12 +1109,12 @@
     return true;
   }
 
-  function renderCleanSourceCards(reason = 'manual') {
+  function renderCleanSourceCards() {
     const holder = $('#sourceCards');
     if (!holder) return;
 
     const drawCard = `
-      <div class="peps-source-section-clean" data-clean-source-root="1" data-clean-section="draw">
+      <div class="peps-source-section-clean">
         <h3>Draw Animation Source</h3>
         <div class="peps-source-grid-clean single">
           ${sourceCardHtml(DRAW_SOURCE_ID, 'Draw Animation Source', 'ลิงก์เดียว ดึง Animation Style จากหน้า Draw Control')}
@@ -874,7 +1123,7 @@
     `;
 
     const liveCards = `
-      <div class="peps-source-section-clean" data-clean-source-root="1" data-clean-section="live">
+      <div class="peps-source-section-clean">
         <h3>Live Data Sources</h3>
         <div class="peps-source-grid-clean">
           ${LIVE_SOURCE_IDS.map(id => sourceCardHtml(id, sourceTitle(id), id === 'groups' ? 'แสดงตามผลแบ่งสาย / Reveal Feed เท่านั้น' : 'Source สำหรับ OBS Browser')).join('')}
@@ -883,22 +1132,9 @@
     `;
 
     const html = drawCard + liveCards;
-    const currentOk =
-      holder.dataset.cleanCardsVersion === 'v3' &&
-      holder.querySelectorAll('[data-clean-section="draw"]').length === 1 &&
-      holder.querySelectorAll('[data-clean-section="live"]').length === 1 &&
-      holder.querySelectorAll('[data-clean-copy-url]').length === 8 &&
-      !['wheel spin','slot reveal','card draw','lottery ball','glitch cyber','galaxy spiral','crystal oracle','plasma arc','vortex portal','winner graphic']
-        .some(title => holder.textContent.toLowerCase().includes(title));
-
-    if (currentOk && holder.dataset.cleanCardsHash === String(html.length)) return;
-
-    sourceCardsRenderLock = true;
-    if (sourceCardsObserver) sourceCardsObserver.disconnect();
-
-    holder.dataset.cleanCardsVersion = 'v3';
-    holder.dataset.cleanCardsHash = String(html.length);
-    holder.className = 'grid three peps-source-holder-clean';
+    if (holder.dataset.cleanCards === html) return;
+    holder.dataset.cleanCards = html;
+    holder.className = 'grid three';
     holder.innerHTML = html;
 
     $$('[data-clean-copy-url]', holder).forEach(btn => {
@@ -907,113 +1143,9 @@
     $$('[data-clean-preview-url]', holder).forEach(btn => {
       btn.addEventListener('click', () => window.open(sourceUrl(btn.dataset.cleanPreviewUrl), '_blank'));
     });
-
-    setTimeout(() => {
-      sourceCardsRenderLock = false;
-      installSourceCardsObserver();
-    }, 0);
   }
 
-  function queueSourceCardsRefresh(reason = 'queue') {
-    if (sourceCardsRefreshTimer) clearTimeout(sourceCardsRefreshTimer);
-    sourceCardsRefreshTimer = setTimeout(() => {
-      sourceCardsRefreshTimer = 0;
-      renderCleanSourceCards(reason);
-    }, 30);
-  }
-
-  function installSourceCardsObserver() {
-    const holder = $('#sourceCards');
-    if (!holder || sourceCardsObserver) {
-      if (holder && sourceCardsObserver) {
-        try { sourceCardsObserver.observe(holder, { childList: true, subtree: true }); } catch {}
-      }
-      return;
-    }
-
-    sourceCardsObserver = new MutationObserver(() => {
-      if (sourceCardsRenderLock) return;
-      const drawSections = holder.querySelectorAll('[data-clean-section="draw"]').length;
-      const liveSections = holder.querySelectorAll('[data-clean-section="live"]').length;
-      const copyButtons = holder.querySelectorAll('[data-clean-copy-url]').length;
-      const lowerText = (holder.textContent || '').toLowerCase();
-      const oldDrawCards = DRAW_MODES.filter(mode => lowerText.includes(mode.toLowerCase())).length;
-
-      if (drawSections !== 1 || liveSections !== 1 || copyButtons !== 8 || oldDrawCards > 2) {
-        queueSourceCardsRefresh('observer');
-      }
-    });
-
-    sourceCardsObserver.observe(holder, { childList: true, subtree: true });
-  }
-
-  function sourceCardsHealth() {
-    const holder = $('#sourceCards');
-    if (!holder) return { ok: true, reason: 'no-holder' };
-
-    const drawSections = holder.querySelectorAll('[data-clean-section="draw"]').length;
-    const liveSections = holder.querySelectorAll('[data-clean-section="live"]').length;
-    const copyButtons = holder.querySelectorAll('[data-clean-copy-url]').length;
-    const previewButtons = holder.querySelectorAll('[data-clean-preview-url]').length;
-    const lowerText = (holder.textContent || '').toLowerCase();
-
-    const oldSourceTitles = [
-      'wheel spin',
-      'slot reveal',
-      'card draw',
-      'lottery ball',
-      'glitch cyber',
-      'galaxy spiral',
-      'crystal oracle',
-      'plasma arc',
-      'vortex portal',
-      'winner graphic'
-    ];
-    const oldHits = oldSourceTitles.filter(t => lowerText.includes(t)).length;
-
-    const ok =
-      holder.dataset.cleanCardsVersion === 'v3' &&
-      drawSections === 1 &&
-      liveSections === 1 &&
-      copyButtons === 8 &&
-      previewButtons === 8 &&
-      oldHits === 0;
-
-    return {
-      ok,
-      reason: ok ? 'ok' : `draw=${drawSections}, live=${liveSections}, copy=${copyButtons}, preview=${previewButtons}, old=${oldHits}`
-    };
-  }
-
-  function forceCleanSourceCards(reason = 'force') {
-    const holder = $('#sourceCards');
-    if (!holder) return;
-    renderCleanSourceCards(reason);
-    holder.classList.add('peps-source-holder-clean');
-
-    const health = sourceCardsHealth();
-    if (!health.ok) {
-      // One more microtask pass catches app.js renderAll() that runs immediately after saveState().
-      setTimeout(() => renderCleanSourceCards(`${reason}-retry`), 0);
-    }
-  }
-
-  let sourceWatchdogTimer = 0;
-  function startSourceCardsWatchdog() {
-    if (sourceWatchdogTimer) return;
-    sourceWatchdogTimer = setInterval(() => {
-      const sourcePanelActive = !!$('[data-panel="sources"].active') || location.hash.includes('sources');
-      const holder = $('#sourceCards');
-      if (!holder) return;
-
-      const health = sourceCardsHealth();
-      if (!health.ok || sourcePanelActive) {
-        if (!health.ok) forceCleanSourceCards(`watchdog:${health.reason}`);
-      }
-    }, 140);
-  }
-
-  function sourceCardHtml  function sourceCardHtml(id, title, desc) {
+  function sourceCardHtml(id, title, desc) {
     const url = sourceUrl(id);
     return `
       <div class="peps-source-card-clean">
@@ -1242,88 +1374,38 @@
   }
 
   function removeLegacySourceDupes() {
+    // In a clean index this is mostly inert. It protects against app.js rerendering the old source list.
     const holder = $('#sourceCards');
     if (!holder) return;
-    const drawSections = holder.querySelectorAll('[data-clean-section="draw"]').length;
-    const liveSections = holder.querySelectorAll('[data-clean-section="live"]').length;
-    const copyButtons = holder.querySelectorAll('[data-clean-copy-url]').length;
-    const previewButtons = holder.querySelectorAll('[data-clean-preview-url]').length;
-    const lowerText = (holder.textContent || '').toLowerCase();
-    const oldDrawCards = DRAW_MODES.filter(mode => lowerText.includes(mode.toLowerCase())).length;
-
-    if (
-      drawSections !== 1 ||
-      liveSections !== 1 ||
-      copyButtons !== 8 ||
-      previewButtons !== 8 ||
-      oldDrawCards > 2 ||
-      holder.dataset.cleanCardsVersion !== 'v3'
-    ) {
-      renderCleanSourceCards('legacy-cleanup');
-    }
+    const text = holder.textContent || '';
+    const legacyCount = DRAW_MODES.filter(name => text.toLowerCase().includes(name)).length;
+    if (legacyCount > 2 || !holder.dataset.cleanCards) renderCleanSourceCards();
   }
 
-  function patchControlView  function patchControlView() {
+  function patchControlView() {
     injectCleanStyles();
     applyTypography();
     injectDrawSizeButton();
     attachDrawTicker();
-    forceCleanSourceCards('boot');
-    installSourceCardsObserver();
-    startSourceCardsWatchdog();
-
-    const refreshAfterCoreRender = () => {
-      [0, 20, 60, 120, 240, 420, 700, 1100, 1600].forEach(ms => setTimeout(() => {
-        forceCleanSourceCards(`after-core-${ms}`);
-        removeLegacySourceDupes();
-        injectDrawSizeButton();
-        applyTypography();
-      }, ms));
-    };
+    renderCleanSourceCards();
 
     document.addEventListener('click', (e) => {
-      if (e.target.closest('#saveTeams')) {
-        // app.js calls saveState() then renderAll(false). These delayed passes win back #sourceCards.
-        [10, 80, 180, 360, 720, 1300, 2100].forEach(ms => setTimeout(() => forceCleanSourceCards(`saveTeams-hard-${ms}`), ms));
+      if (e.target.closest('[data-panel-target="sources"]')) {
+        setTimeout(renderCleanSourceCards, 80);
+        setTimeout(renderCleanSourceCards, 350);
       }
-
-      if (
-        e.target.closest('[data-panel-target="sources"]') ||
-        e.target.closest('#saveTeams') ||
-        e.target.closest('#dedupeTeams') ||
-        e.target.closest('#sampleTeams') ||
-        e.target.closest('#saveSetup') ||
-        e.target.closest('#confirmDraw') ||
-        e.target.closest('#redraw') ||
-        e.target.closest('#undoDraw')
-      ) {
-        refreshAfterCoreRender();
-      }
-
       if (e.target.closest('[data-panel-target="draw"]')) {
         setTimeout(() => {
           injectDrawSizeButton();
           applyTypography();
-        }, 80);
-      }
-    }, true);
-
-    document.addEventListener('change', (e) => {
-      if (
-        e.target.closest('#teamText') ||
-        e.target.closest('#eventName') ||
-        e.target.closest('#groupCount') ||
-        e.target.closest('#drawAnimation') ||
-        e.target.closest('#drawMethod')
-      ) {
-        refreshAfterCoreRender();
+        }, 120);
       }
     }, true);
 
     window.addEventListener('storage', (e) => {
       if (e.key === TYPO_KEY) applyTypography();
       if (e.key === STORAGE_KEY) {
-        refreshAfterCoreRender();
+        removeLegacySourceDupes();
       }
     });
 
@@ -1331,10 +1413,10 @@
       applyTypography();
       if ($('#sourceCards')) removeLegacySourceDupes();
       if ($('[data-panel="draw"].active')) injectDrawSizeButton();
-    }, 500);
+    }, 1200);
   }
 
-  if (initSourceView())  if (initSourceView()) return;
+  if (initSourceView()) return;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', patchControlView, { once: true });
