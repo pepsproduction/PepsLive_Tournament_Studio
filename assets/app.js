@@ -19,18 +19,25 @@
   ];
 
   const SOURCES = [
-    ['wheel', 'Wheel Spin', 'วงล้อสุ่มแบบคลาสสิก ใช้กับ OBS ได้ทันที'],
-    ['slot', 'Slot Reveal', 'ชื่อทีมวิ่งแบบสล็อต เหมาะกับไลฟ์สนุก ๆ'],
-    ['card', 'Card Draw', 'สับการ์ดแล้วเปิดชื่อทีม ดูโปรและไม่จำเจ'],
-    ['lottery', 'Lottery Ball', 'สุ่มแบบลูกบอลจับฉลาก เหมาะกับงานทางการ'],
-    ['winner', 'Winner Graphic', 'แสดงผลสุ่มล่าสุดหรือผลคู่ล่าสุด'],
-    ['groups', 'Groups Table', 'แสดงตารางแบ่งสาย / กลุ่ม'],
-    ['schedule', 'Schedule Table', 'แสดงตารางแข่งพร้อมเวลาและสนาม'],
-    ['standings', 'Standings Table', 'แสดงตารางคะแนนอัตโนมัติ'],
-    ['knockout', 'Knockout Bracket', 'แสดงสายรอบ 8 ทีม / 4 ทีม / ชิง'],
-    ['lower-third', 'Lower Third', 'แถบล่างสำหรับผลล่าสุด'],
-    ['next-match', 'Next Match', 'แสดงคู่ถัดไปในตาราง'],
-    ['latest-result', 'Latest Result', 'แสดงผลการแข่งขันล่าสุด']
+    // Draw Animation Sources (transparent, OBS-ready, no background)
+    ['wheel',   'Wheel Spin',      'วงล้อสุ่มแบบคลาสสิก — พื้นหลังโปร่งใส'],
+    ['slot',    'Slot Reveal',     'ชื่อทีมวิ่งแบบสล็อต — พื้นหลังโปร่งใส'],
+    ['card',    'Card Draw',       'สับการ์ดแล้วเปิดชื่อทีม — พื้นหลังโปร่งใส'],
+    ['lottery', 'Lottery Ball',    'ลูกบอลจับฉลาก — พื้นหลังโปร่งใส'],
+    ['glitch',  'Glitch Cyber',    'สไตล์ Cyber Glitch สุดเท — พื้นหลังโปร่งใส'],
+    ['galaxy',  'Galaxy Spiral',   'กาแล็กซีหมุนวน สวยงาม — พื้นหลังโปร่งใส'],
+    ['crystal', 'Crystal Oracle',  'ลูกแก้วพยากรณ์ — พื้นหลังโปร่งใส'],
+    ['plasma',  'Plasma Arc',      'พลาสมาอาร์คพลังสูง — พื้นหลังโปร่งใส'],
+    ['vortex',  'Vortex Portal',   'พอร์ทัลวอร์เท็กซ์มิติ — พื้นหลังโปร่งใส'],
+    // Live Data Sources
+    ['winner',       'Winner Graphic',   'แสดงผลสุ่มล่าสุด / อนิเมชั่นตาม Draw Mode ที่เลือก'],
+    ['groups',       'Groups Table',     'แสดงตารางแบ่งสาย / กลุ่ม อัปเดตสด'],
+    ['schedule',     'Schedule Table',   'แสดงตารางแข่งพร้อมเวลาและสนาม'],
+    ['standings',    'Standings Table',  'แสดงตารางคะแนนอัตโนมัติ'],
+    ['knockout',     'Knockout Bracket', 'แสดงสายรอบ 8 ทีม / 4 ทีม / ชิง'],
+    ['lower-third',  'Lower Third',      'แถบล่างสำหรับผลล่าสุด'],
+    ['next-match',   'Next Match',       'แสดงคู่ถัดไปในตาราง'],
+    ['latest-result','Latest Result',    'แสดงผลการแข่งขันล่าสุด']
   ];
 
   let state = loadState();
@@ -1240,9 +1247,78 @@
     $('#saveKoScores').onclick = readKnockout;
   }
 
+  function sourceReadiness(id){
+    // Returns { ready: bool, reason: string }
+    const hasTeams = state.teams.length > 0;
+    const hasGroups = Object.keys(state.groups).length > 0;
+    const hasMatches = state.matches.length > 0;
+    const hasStandings = Object.keys(state.standings).length > 0;
+    const hasKnockout = state.knockout.length > 0;
+    if(['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex'].includes(id)){
+      if(hasTeams) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้องใส่รายชื่อทีมก่อน' };
+    }
+    if(id === 'winner'){
+      if(hasGroups || hasTeams) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้องสุ่มสายก่อน' };
+    }
+    if(id === 'groups'){
+      if(hasGroups) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้องสุ่มสายก่อน (Confirm Result)' };
+    }
+    if(id === 'schedule'){
+      if(hasMatches) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้องสร้างตารางแข่งก่อน' };
+    }
+    if(id === 'standings'){
+      if(hasStandings) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้องกรอกคะแนนก่อน' };
+    }
+    if(id === 'knockout'){
+      if(hasKnockout) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้อง Generate Knockout ก่อน' };
+    }
+    if(id === 'lower-third' || id === 'next-match' || id === 'latest-result'){
+      if(hasMatches || hasGroups) return { ready: true, reason: '' };
+      return { ready: false, reason: 'ต้องมีข้อมูลในระบบก่อน' };
+    }
+    return { ready: true, reason: '' };
+  }
+
   function renderSources(){
-    $('#sourceCards').innerHTML = SOURCES.map(([id,name,desc]) => `<div class="source-card"><h3>+ ${esc(name)}</h3><p>${esc(desc)}</p><div class="row"><button class="btn small primary" data-source="${id}">Copy / Preview URL</button></div></div>`).join('');
-    $$('[data-source]').forEach(btn => btn.onclick = () => openSourceModal(btn.dataset.source));
+    const DRAW_IDS = ['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex'];
+    const INFO_IDS = ['winner','groups','schedule','standings','knockout','lower-third','next-match','latest-result'];
+    let html = '';
+    // Section: Draw Animation
+    html += `<div style="grid-column:1/-1;margin-bottom:4px"><h3 style="font-family:'Chakra Petch',sans-serif;color:var(--orange);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 6px">🎡 Draw Animation Sources</h3><p style="color:var(--muted);font-size:12px;margin:0">ส่งตรงเข้า OBS Browser Source — พื้นหลังโปร่งใส ไม่มีส่วนอื่นติดมา</p></div>`;
+    DRAW_IDS.forEach(id => {
+      const src = SOURCES.find(x => x[0] === id);
+      if(!src) return;
+      const [sid, name, desc] = src;
+      const rdy = sourceReadiness(sid);
+      html += `<div class="source-card${rdy.ready ? '' : ' src-locked'}">`;
+      html += `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><h3 style="margin:0 0 5px">${esc(name)}</h3><span class="tag ${rdy.ready ? 'good' : 'warn'}" style="white-space:nowrap;font-size:11px">${rdy.ready ? '✓ Ready' : '⚠ Wait'}</span></div>`;
+      html += `<p>${esc(desc)}</p>`;
+      if(!rdy.ready) html += `<p style="color:var(--warn);font-size:12px;margin:6px 0 0">${esc(rdy.reason)}</p>`;
+      html += `<div class="row"><button class="btn small primary" data-source="${sid}" ${rdy.ready ? '' : 'disabled'}>Copy / Preview URL</button></div>`;
+      html += `</div>`;
+    });
+    // Section: Live Data
+    html += `<div style="grid-column:1/-1;margin:12px 0 4px"><h3 style="font-family:'Chakra Petch',sans-serif;color:var(--orange);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 6px">📊 Live Data Sources</h3><p style="color:var(--muted);font-size:12px;margin:0">ข้อมูลสด — ตาราง, สาย, คะแนน, ผล Knockout อัปเดตอัตโนมัติทุก 300ms</p></div>`;
+    INFO_IDS.forEach(id => {
+      const src = SOURCES.find(x => x[0] === id);
+      if(!src) return;
+      const [sid, name, desc] = src;
+      const rdy = sourceReadiness(sid);
+      html += `<div class="source-card${rdy.ready ? '' : ' src-locked'}">`;
+      html += `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><h3 style="margin:0 0 5px">${esc(name)}</h3><span class="tag ${rdy.ready ? 'good' : 'warn'}" style="white-space:nowrap;font-size:11px">${rdy.ready ? '✓ Ready' : '⚠ Wait'}</span></div>`;
+      html += `<p>${esc(desc)}</p>`;
+      if(!rdy.ready) html += `<p style="color:var(--warn);font-size:12px;margin:6px 0 0">${esc(rdy.reason)}</p>`;
+      html += `<div class="row"><button class="btn small${rdy.ready ? ' primary' : ''}" data-source="${sid}" ${rdy.ready ? '' : 'disabled'}>Copy / Preview URL</button></div>`;
+      html += `</div>`;
+    });
+    $('#sourceCards').innerHTML = html;
+    $$('[data-source]').forEach(btn => btn.onclick = () => !btn.disabled && openSourceModal(btn.dataset.source));
   }
 
   function openSourceModal(id){
@@ -1504,7 +1580,12 @@
     fillForms();
   }
 
+  // Draw-animation views that should be transparent (no src-card wrapper, no background)
+  const DRAW_ANIM_VIEWS = ['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex','winner'];
+
   function renderSource(view){
+    // Mark html element so CSS can kill body background/pseudo-elements
+    document.documentElement.classList.add('src-mode');
     $('#app')?.classList.add('hidden');
     const root = $('#sourceRoot');
     root.classList.remove('hidden');
@@ -1541,8 +1622,15 @@
         return;
       }
       lastSig = nextSig;
-      const bg = state.settings.sourceBg || 'dark';
-      root.className = 'srcbody ' + bg;
+      // Draw animation views: always transparent background, no body gradient
+      const isAnimView = DRAW_ANIM_VIEWS.includes(view);
+      if(isAnimView){
+        // Force transparent regardless of sourceBg setting
+        root.className = 'srcbody transparent src-anim-view';
+      } else {
+        const bg = state.settings.sourceBg || 'dark';
+        root.className = 'srcbody ' + bg;
+      }
       root.style.fontSize = `${16 * (state.settings.fontScale || 1)}px`;
       root.innerHTML = sourceHtml(view);
       updateDrawCountdownUI(root);
@@ -1552,27 +1640,57 @@
     setInterval(() => draw(false), 300);
   }
 
+  // Build clean animation-only HTML for draw source views (no background, no header/meta)
+  function sourceAnimHtml(view){
+    const mode = view === 'winner' ? (state.settings.drawAnimation || 'wheel') : view;
+    const live = state.drawLive || {};
+    const waiting = !!live.waiting;
+    const phase = live.phase || 'idle';
+    const isIdle = !live.current && !live.pendingItem && !state.pendingGroups;
+    const fallback = live.current || { order:0, group:'READY', slot:'-', team:'READY' };
+    const showItem = waiting ? (live.pendingItem || fallback) : fallback;
+    const isBye = showItem.team === 'BYE';
+    const stateClass = waiting ? 'active waiting' : (isIdle ? 'idle' : 'result revealed');
+    const bulkClass = phase.includes('bulk') ? 'bulk' : '';
+    const visual = modeVisual(mode, waiting, showItem, phase, isIdle);
+    const teamName = waiting
+      ? (phase === 'bulk-suspense' ? 'DRAW ALL TEAMS' : '????????')
+      : (isIdle ? 'READY TO DRAW' : (showItem.team || 'READY'));
+    const groupLabel = isIdle ? 'STANDBY' : (phase === 'bulk-suspense' ? 'ALL GROUPS' : `Group ${esc(showItem.group)}`);
+    const slotLabel = isIdle ? '' : (phase === 'bulk-suspense' ? '' : `Slot ${showItem.slot}`);
+    // Animate the full draw-graphic but stripped of progress/meta (clean for OBS)
+    return [
+      `<div class="draw-graphic src-anim-graphic mode-${esc(mode)} ${stateClass} ${bulkClass} ${isBye ? 'danger-zone' : ''}" data-motion="${waiting ? 'active' : (isIdle ? 'idle' : 'result')}">`,
+      visual,
+      `<div class="src-anim-hero">`,
+      `<div class="draw-group-badge">${groupLabel}${slotLabel ? ` <span style="opacity:.65;font-size:.7em">${slotLabel}</span>` : ''}</div>`,
+      `<div class="draw-team-name">${esc(teamName)}</div>`,
+      `</div>`,
+      `</div>`
+    ].join('');
+  }
+
   function sourceHtml(view){
+    // Lower third: floating bar
     if(view === 'lower-third') return `<div class="src-lower">${esc(state.lastResult?.text || state.event.name)}</div>`;
+    // Next match: data card
     if(view === 'next-match'){
       const m = nextMatch();
       return `<div class="src-card"><h1 class="src-title">Next Match</h1><p class="src-sub">${esc(state.event.name)}</p><div class="src-next">${m ? `Match ${m.no} · ${esc(m.time)} · ${esc(m.court)}<br>${esc(m.teamA)} vs ${esc(m.teamB)}` : 'ยังไม่มีคู่ถัดไป'}</div></div>`;
     }
+    // Latest result: data card
     if(view === 'latest-result'){
       const lr = lastFinishedResult();
       return `<div class="src-card"><h1 class="src-title">Latest Result</h1><p class="src-sub">${esc(state.event.name)}</p><div class="src-result">${esc(lr?.text || 'ยังไม่มีผลล่าสุด')}</div></div>`;
     }
+    // Draw animation views: transparent, animation-only, no src-card wrapper
+    const DRAW_MODES = ['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex'];
+    if(DRAW_MODES.includes(view) || view === 'winner'){
+      return sourceAnimHtml(view);
+    }
+    // Data table views: wrapped in src-card
     let title = 'PepsLive Source', body = '';
-    if(['wheel','slot','card','lottery'].includes(view)){
-      title = ({wheel:'Wheel Spin', slot:'Slot Reveal', card:'Card Draw', lottery:'Lottery Ball'})[view];
-      const live = state.drawLive || {};
-      const item = live.current || { order:0, group:'?', slot:'?', team: state.lastResult?.text || 'READY' };
-      body = `<div class="src-draw-stage">${drawStageHtml()}</div>`;
-    }else if(view === 'winner'){
-      title = 'Winner Graphic';
-      if(state.drawLive?.current) body = `<div class="src-draw-stage">${drawStageHtml()}</div>`;
-      else body = `<div class="src-result">${esc(state.lastResult?.text || 'รอผลล่าสุด')}</div>`;
-    }else if(view === 'groups'){
+    if(view === 'groups'){
       title = 'Groups Table'; body = renderGroupCards(state.groups);
     }else if(view === 'schedule'){
       title = 'Schedule Table'; body = state.scheduleLive?.waiting ? scheduleSuspenseHtml() : sourceTable(rows('schedule'));
