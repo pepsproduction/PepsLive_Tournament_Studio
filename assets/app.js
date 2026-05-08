@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V11
+/* PepsLive Tournament Studio - Clean Core V12
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -8,7 +8,8 @@
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const APP_VERSION = 'Clean-Core-11.0.0';
+  const DRAW_TEXT_PREVIEW_KEY = 'pepsliveDrawTextPreviewV12';
+  const APP_VERSION = 'Clean-Core-12.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -65,17 +66,30 @@
     groupTeam: 14
   };
 
-  function drawTextSizes(settings = state?.settings || {}) {
-    const merged = { ...DEFAULT_DRAW_TEXT_SIZES, ...((settings && settings.drawTextSizes) || {}) };
-    // V11: OBS Draw Source must reference Draw Control text sizes.
-    // Keep old saved keys for backward compatibility, but ignore them at render time.
-    merged.sourceTeam = merged.team;
-    merged.sourceMeta = merged.meta;
-    return merged;
+  function readDrawTextPreview() {
+    try {
+      return JSON.parse(localStorage.getItem(DRAW_TEXT_PREVIEW_KEY) || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizeDrawTextSizes(values = {}) {
+    const normalized = { ...DEFAULT_DRAW_TEXT_SIZES, ...values };
+    // OBS Draw Animation Source references Draw Control sizes.
+    normalized.sourceTeam = normalized.team;
+    normalized.sourceMeta = normalized.meta;
+    return normalized;
+  }
+
+  function drawTextSizes(settings = state?.settings || {}, includePreview = true) {
+    const saved = { ...DEFAULT_DRAW_TEXT_SIZES, ...((settings && settings.drawTextSizes) || {}) };
+    const preview = includePreview ? readDrawTextPreview() : null;
+    return normalizeDrawTextSizes(preview ? { ...saved, ...preview } : saved);
   }
 
   function setDrawTextSizeVars(values = drawTextSizes()) {
-    const normalized = { ...values, sourceTeam: values.team, sourceMeta: values.meta };
+    const normalized = normalizeDrawTextSizes(values);
     const root = document.documentElement;
     root.style.setProperty('--draw-chip-fs', `${normalized.chip}px`);
     root.style.setProperty('--draw-group-label-fs', `${normalized.groupLabel}px`);
@@ -87,6 +101,21 @@
     root.style.setProperty('--source-meta-fs', `${normalized.meta}px`);
     root.style.setProperty('--group-title-fs', `${normalized.groupTitle}px`);
     root.style.setProperty('--group-team-fs', `${normalized.groupTeam}px`);
+  }
+
+  function publishDrawTextPreview(values) {
+    const normalized = normalizeDrawTextSizes(values);
+    try {
+      localStorage.setItem(DRAW_TEXT_PREVIEW_KEY, JSON.stringify(normalized));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('pepslive-draw-text-preview', { detail: normalized }));
+  }
+
+  function clearDrawTextPreview() {
+    try {
+      localStorage.removeItem(DRAW_TEXT_PREVIEW_KEY);
+    } catch {}
+    window.dispatchEvent(new CustomEvent('pepslive-draw-text-preview-clear'));
   }
 
   function effectiveGroupColumns(requested, availableWidth = window.innerWidth) {
@@ -1127,7 +1156,8 @@
   }
 
   function openDrawTextSettingsModal() {
-    const saved = drawTextSizes();
+    clearDrawTextPreview();
+    const saved = drawTextSizes(state.settings, false);
     let temp = { ...saved };
     $('#drawTextSettingsModal')?.remove();
 
@@ -1150,7 +1180,7 @@
         <div class="peps-settings-head">
           <div>
             <h3>Draw Text Size Settings</h3>
-            <p>เลื่อนแล้วดู Preview แบบ real-time · OBS Source อ้างอิงขนาดจาก Draw Control · Cancel จะคืนค่าล่าสุด</p>
+            <p>เลื่อนแล้วดู Preview แบบ real-time · Draw Animation Source เปลี่ยนตาม Draw Control แบบ real-time · Cancel จะคืนค่าล่าสุด</p>
           </div>
           <button type="button" class="iconbtn" data-close-text-modal>×</button>
         </div>
@@ -1225,8 +1255,8 @@
     };
 
     const updatePreview = () => {
-      temp.sourceTeam = temp.team;
-      temp.sourceMeta = temp.meta;
+      temp = normalizeDrawTextSizes(temp);
+      publishDrawTextPreview(temp);
       setDrawTextSizeVars(temp);
       applyVarsTo(modal, temp);
       applyVarsTo($('.peps-settings-preview', modal), temp);
@@ -1253,6 +1283,7 @@
     });
 
     const closeRestore = () => {
+      clearDrawTextPreview();
       setDrawTextSizeVars(saved);
       modal.remove();
       renderAll(false);
@@ -1268,8 +1299,8 @@
       updatePreview();
     });
     on($('[data-save-text-size]', modal), 'click', () => {
-      temp.sourceTeam = temp.team;
-      temp.sourceMeta = temp.meta;
+      temp = normalizeDrawTextSizes(temp);
+      clearDrawTextPreview();
       state.settings.drawTextSizes = { ...temp };
       applyLayoutSettings();
       saveState('draw-text-sizes');
@@ -1596,6 +1627,7 @@
           feed0: (live.feed || [])[0],
           progress: live.progress,
           total: live.total,
+          textSizes: drawTextSizes(),
           tick: live.waiting ? Math.floor(Date.now() / 110) : 0
         });
       }
@@ -1610,7 +1642,8 @@
           feed: state.drawLive?.feed || [],
           groupCount: state.event.groupCount,
           groupColumns: state.settings.groupColumns,
-          eventName: state.event.name
+          eventName: state.event.name,
+          textSizes: drawTextSizes()
         });
       }
 
@@ -1635,6 +1668,7 @@
 
     const tick = () => {
       state = loadState();
+      setDrawTextSizeVars(drawTextSizes());
       const hash = buildHash();
 
       if (hash !== lastHash) {
@@ -1642,9 +1676,19 @@
         draw();
       }
 
-      const fast = view === 'draw-animation' && !!state.drawLive?.waiting;
+      const previewActive = !!readDrawTextPreview();
+      const fast = view === 'draw-animation' || previewActive || !!state.drawLive?.waiting;
       setTimeout(tick, fast ? 110 : 650);
     };
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY || e.key === DRAW_TEXT_PREVIEW_KEY) {
+        state = loadState();
+        setDrawTextSizeVars(drawTextSizes());
+        lastHash = '';
+        draw();
+      }
+    });
 
     tick();
   }
