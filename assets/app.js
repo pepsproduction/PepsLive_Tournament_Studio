@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V12
+/* PepsLive Tournament Studio - Clean Core V13
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -9,7 +9,7 @@
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const DRAW_TEXT_PREVIEW_KEY = 'pepsliveDrawTextPreviewV12';
-  const APP_VERSION = 'Clean-Core-12.0.0';
+  const APP_VERSION = 'Clean-Core-13.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -101,6 +101,22 @@
     root.style.setProperty('--source-meta-fs', `${normalized.meta}px`);
     root.style.setProperty('--group-title-fs', `${normalized.groupTitle}px`);
     root.style.setProperty('--group-team-fs', `${normalized.groupTeam}px`);
+  }
+
+  function textSizeVarsStyle(values = drawTextSizes()) {
+    const normalized = normalizeDrawTextSizes(values);
+    return [
+      `--draw-chip-fs:${normalized.chip}px`,
+      `--draw-group-label-fs:${normalized.groupLabel}px`,
+      `--draw-group-letter-fs:${normalized.groupLetter}px`,
+      `--draw-team-fs:${normalized.team}px`,
+      `--draw-meta-fs:${normalized.meta}px`,
+      `--draw-status-fs:${normalized.status}px`,
+      `--source-team-fs:${normalized.team}px`,
+      `--source-meta-fs:${normalized.meta}px`,
+      `--group-title-fs:${normalized.groupTitle}px`,
+      `--group-team-fs:${normalized.groupTeam}px`
+    ].join(';');
   }
 
   function publishDrawTextPreview(values) {
@@ -1168,8 +1184,8 @@
       ['team', 'ชื่อทีม Draw Control / OBS Source', 34, 84, 'ใช้ร่วมกัน'],
       ['meta', 'บรรทัดสาย/ลำดับ Draw / OBS Meta', 10, 28, 'ใช้ร่วมกัน'],
       ['status', 'Progress / Status', 9, 24, 'Draw Control'],
-      ['groupTitle', 'หัวตาราง Groups', 11, 26, 'Groups Table'],
-      ['groupTeam', 'ชื่อทีมใน Groups Table', 11, 24, 'Groups Table']
+      ['groupTitle', 'หัวตาราง Groups / OBS Groups Source', 11, 26, 'Groups Table + OBS'],
+      ['groupTeam', 'ชื่อทีมใน Groups Table / OBS Groups Source', 11, 24, 'Groups Table + OBS']
     ];
 
     const modal = document.createElement('div');
@@ -1431,6 +1447,7 @@
   }
 
   function renderGroups() {
+    setDrawTextSizeVars(drawTextSizes());
     const box = $('#groupResult');
     if (!box) return;
     const groups = getDisplayGroups(false);
@@ -1439,13 +1456,13 @@
     const cols = effectiveGroupColumns(state.settings.groupColumns || 4, box.clientWidth || window.innerWidth);
 
     box.innerHTML = `
-      <div class="pl-groups-grid" style="--group-cols:${cols};grid-template-columns:repeat(${cols},minmax(0,1fr));">
+      <div class="pl-groups-grid" style="${textSizeVarsStyle(drawTextSizes())};--group-cols:${cols};grid-template-columns:repeat(${cols},minmax(0,1fr));">
         ${keys.map(g => `
           <div class="pl-group-card">
-            <div class="pl-group-title"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
+            <div class="pl-group-title" style="font-size:var(--group-title-fs,14px)!important"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
             ${Array.from({ length: maxRows }, (_, i) => {
               const team = (groups[g] || [])[i] || '';
-              return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team">${esc(team || 'รอผลสุ่ม')}</span></div>`;
+              return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team" style="font-size:var(--group-team-fs,14px)!important">${esc(team || 'รอผลสุ่ม')}</span></div>`;
             }).join('')}
           </div>
         `).join('')}
@@ -1712,19 +1729,21 @@
   }
 
   function renderGroupsSource(root) {
+    setDrawTextSizeVars(drawTextSizes());
     const groups = getDisplayGroups(false);
     const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event.groupCount);
     const maxRows = Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
     const cols = effectiveGroupColumns(state.settings.groupColumns || 4, Math.min(1500, window.innerWidth * 0.96));
+    const sizeVars = textSizeVarsStyle(drawTextSizes());
     root.innerHTML = `
-      <div class="pl-groups-source">
-        <div class="pl-groups-board">
+      <div class="pl-groups-source" style="${sizeVars}">
+        <div class="pl-groups-board" style="${sizeVars}">
           <div class="pl-groups-head"><div><h1>${esc(state.event.name || 'PepsLive Tournament')}</h1><p>Groups Table · แสดงตาม Reveal Feed / Confirm Result</p></div></div>
           <div class="pl-groups-grid" style="grid-template-columns:repeat(${cols}, minmax(180px, 1fr));">
-            ${keys.map(g => `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
+            ${keys.map(g => `<div class="pl-group-card"><div class="pl-group-title" style="font-size:var(--group-title-fs,14px)!important"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
               ${Array.from({ length: maxRows }, (_, i) => {
                 const team = (groups[g] || [])[i] || '';
-                return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team">${esc(team || 'รอผลสุ่ม')}</span></div>`;
+                return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team" style="font-size:var(--group-team-fs,14px)!important">${esc(team || 'รอผลสุ่ม')}</span></div>`;
               }).join('')}
             </div>`).join('')}
           </div>
@@ -2490,6 +2509,24 @@
         padding:0 20px 20px;
       }
 
+
+      /* V13: explicit Groups text-size rules for Control + Preview + Source */
+      .pl-group-title{
+        font-size:var(--group-title-fs,14px)!important;
+        line-height:1.2!important;
+      }
+      .pl-group-row .team,
+      .pl-group-row .no{
+        font-size:var(--group-team-fs,14px)!important;
+        line-height:1.25!important;
+      }
+      .preview-group-card .pl-group-title{
+        font-size:var(--group-title-fs,14px)!important;
+      }
+      .preview-group-card .pl-group-row .team,
+      .preview-group-card .pl-group-row .no{
+        font-size:var(--group-team-fs,14px)!important;
+      }
       /* V10: realtime preview selectors for every Draw Text Size control */
       .peps-settings-preview .preview-section-title{
         color:var(--accent);
@@ -2773,6 +2810,20 @@
       .pl-groups-source .pl-group-row .team{font-weight:850;word-break:break-word}
       .pl-groups-board table{width:100%;border-collapse:collapse}
       .pl-groups-board th,.pl-groups-board td{border-bottom:1px solid rgba(255,255,255,.15);padding:10px;text-align:left}
+
+      /* V13: Groups Table OBS Source must follow Groups text-size sliders in real time. */
+      .pl-groups-source .pl-group-title{
+        font-size:var(--group-title-fs,14px)!important;
+        line-height:1.2!important;
+      }
+      .pl-groups-source .pl-group-row .team{
+        font-size:var(--group-team-fs,14px)!important;
+        line-height:1.25!important;
+      }
+      .pl-groups-source .pl-group-row .no{
+        font-size:var(--group-team-fs,14px)!important;
+        line-height:1.25!important;
+      }
       .empty-source{font-size:34px;font-weight:900;color:#c8d7ea;padding:40px;text-align:center}
     `;
     document.head.appendChild(style);
