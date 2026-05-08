@@ -95,572 +95,1073 @@
 (() => {
   'use strict';
 
-  const KEY = 'pepsliveTournamentControlV2';
-  const DRAW_SIZE_KEY = 'pepsliveDrawTextSizesV4';
-  const PAGE_KEY = 'pepslivePageSettingsV4';
-  const DRAW_MODES = ['wheel','slot','card','lottery','glitch','galaxy','crystal','plasma','vortex'];
-  const DATA_SOURCES = [
-    ['groups', 'Groups Table', 'แสดงตารางแบ่งสายตาม Reveal Feed / ผลที่ยืนยันแล้ว'],
-    ['schedule', 'Schedule Table', 'แสดงตารางแข่งพร้อมเวลาและสนาม'],
-    ['standings', 'Standings Table', 'แสดงตารางคะแนนอัตโนมัติ'],
-    ['knockout', 'Knockout Bracket', 'แสดงสายรอบต่อไป'],
-    ['lower-third', 'Lower Third', 'แถบล่างสำหรับผลล่าสุด'],
-    ['next-match', 'Next Match', 'แสดงคู่ถัดไป'],
-    ['latest-result', 'Latest Result', 'แสดงผลการแข่งขันล่าสุด']
-  ];
-  const DEFAULT_SIZE = {
-    chip: 12,
-    groupLabel: 18,
-    groupValue: 32,
-    name: 64,
-    sub: 20,
-    status: 13
-  };
-  const DEFAULT_PAGE = { width: 1280, font: 1, padding: 16, tableHeight: 620, gap: 14 };
+  const STORAGE_KEY = 'pepsliveTournamentControlV2';
+  const TYPO_KEY = 'pepsliveDrawTypographyCleanV1';
+  const PAGE_UI_KEY = 'pepslivePageUiCleanV1';
+  const DRAW_SOURCE_ID = 'draw-animation';
 
-  const qs = new URLSearchParams(location.search);
-  const VIEW = (qs.get('view') || '').trim();
-  const IS_SOURCE = !!VIEW && VIEW !== 'control';
-  const IS_DRAW_SOURCE = VIEW === 'draw-animation' || VIEW === 'winner' || DRAW_MODES.includes(VIEW);
-  const $ = (s, r=document) => r.querySelector(s);
-  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
-  const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const n = (v, d=0) => Number.isFinite(Number(v)) ? Number(v) : d;
-  const clamp = (v, min, max, d=min) => Math.max(min, Math.min(max, n(v, d)));
-  const pct = v => Math.max(0, Math.min(100, n(v, 0)));
-  const baseUrl = () => location.href.split('?')[0].split('#')[0];
-  const sourceUrl = id => baseUrl() + '?view=' + encodeURIComponent(id);
-  const letters = count => Array.from({length: Math.max(1, n(count, 4))}, (_,i) => String.fromCharCode(65+i));
+  const DRAW_MODES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex'];
+  const LIVE_SOURCE_IDS = ['groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
 
-  let raf = 0;
-  let lastSourceCardsKey = '';
-  let sourceObserver = null;
-  let pageModal = null;
-  let pageSaved = null;
-  let pageDraft = null;
-  let pagePanelId = '';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
 
-  function readState(){
-    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
-    catch { return {}; }
-  }
-  function readJson(key, def){
-    try { return Object.assign({}, def, JSON.parse(localStorage.getItem(key) || '{}') || {}); }
-    catch { return Object.assign({}, def); }
-  }
-  function saveJson(key, val){ localStorage.setItem(key, JSON.stringify(val || {})); }
-  function readDrawSize(){ return readJson(DRAW_SIZE_KEY, DEFAULT_SIZE); }
-  function readPageAll(){
-    try { return JSON.parse(localStorage.getItem(PAGE_KEY) || '{}') || {}; }
-    catch { return {}; }
-  }
-  function savePageAll(v){ localStorage.setItem(PAGE_KEY, JSON.stringify(v || {})); }
-  function hasGroups(g){ return Object.values(g || {}).some(arr => Array.isArray(arr) && arr.some(x => x && x !== 'BYE')); }
-
-  function injectCss(){
-    if($('#pl-hotfix-v4-css')) return;
-    const st = document.createElement('style');
-    st.id = 'pl-hotfix-v4-css';
-    st.textContent = `
-      :root{
-        --plv4-chip:${DEFAULT_SIZE.chip}px;--plv4-group-label:${DEFAULT_SIZE.groupLabel}px;--plv4-group-value:${DEFAULT_SIZE.groupValue}px;--plv4-name:${DEFAULT_SIZE.name}px;--plv4-sub:${DEFAULT_SIZE.sub}px;--plv4-status:${DEFAULT_SIZE.status}px;
-      }
-
-      /* Keep only the V4 source cards; old V2/V3/source cards are hidden immediately to stop duplicate UI. */
-      #sourceCards[data-plv4-clean="1"] > *:not([data-plv4-section]){display:none!important;}
-      [data-pl-hidden-draw-source="1"], [data-plv3-source], #plV3DrawSourceCard, #plSingleDrawSourceCard{display:none!important;}
-      #sourceCards .source-card.src-locked{opacity:1!important;pointer-events:auto!important;}
-      #sourceCards .source-card button[disabled]{opacity:1!important;pointer-events:auto!important;cursor:pointer!important;}
-
-      /* Hide obsolete setting cards/modals so there is only one active UI. */
-      #plDrawTextSizeCard,#plDrawTextSizeCardV3,.pl-draw-size-card,.pl-draw-size-card-v3{display:none!important;}
-      .pl-page-modal,.pl-page-modal-v3{display:none!important;}
-
-      /* Smooth animation fixes. Transform-only keyframes prevent the wheel from freezing. */
-      .pl-wheel-core,.plv4-wheel,.pl-energy-ring,.plv4-ring,.pl-slot-track,.plv4-slot-track,.pl-card-one,.plv4-card-one,.pl-ball-mini,.plv4-ball{
-        will-change:transform!important;backface-visibility:hidden!important;transform:translate3d(0,0,0);contain:layout paint style;
-      }
-      .pl-wheel-core,.plv4-wheel{animation:plv4WheelSpin 1.02s linear infinite!important;animation-play-state:running!important;transform-origin:50% 50%!important;}
-      .pl-energy-ring,.plv4-ring{animation:plv4WheelSpin 1.18s linear infinite!important;animation-play-state:running!important;transform-origin:50% 50%!important;}
-      .pl-slot-track,.plv4-slot-track{animation:plv4SlotRoll .48s linear infinite!important;animation-play-state:running!important;}
-      @keyframes plv4WheelSpin{0%{transform:translate3d(0,0,0) rotate(0deg)}100%{transform:translate3d(0,0,0) rotate(360deg)}}
-      @keyframes plv4SlotRoll{0%{transform:translate3d(0,-52px,0)}100%{transform:translate3d(0,0,0)}}
-      @keyframes plv4Float{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(0,-14px,0)}}
-      @keyframes plv4Pulse{0%{transform:scale(.96);opacity:.78}100%{transform:scale(1.03);opacity:1}}
-
-      /* No blur while drawing. */
-      .pl-sync-shell.waiting .pl-sync-name,.pl-sync-shell.waiting .pl-sync-group,.draw-graphic.waiting .draw-team-name{filter:none!important;opacity:1!important;}
-
-      /* Text size variables apply to every known draw renderer. */
-      #drawStage .pl-sync-chip,#sourceRoot .pl-sync-chip,#drawStage .draw-chip,#sourceRoot .draw-chip,.plv4-chip{font-size:var(--plv4-chip)!important;}
-      #drawStage .pl-sync-group,#sourceRoot .pl-sync-group,#drawStage .draw-group-badge,#sourceRoot .draw-group-badge,.plv4-group-label{font-size:var(--plv4-group-label)!important;}
-      #drawStage .pl-sync-group b,#sourceRoot .pl-sync-group b,#drawStage .draw-group-badge b,#sourceRoot .draw-group-badge b,.plv4-group-value{font-size:var(--plv4-group-value)!important;}
-      #drawStage .pl-sync-name,#sourceRoot .pl-sync-name,#drawStage .draw-team-name,#sourceRoot .draw-team-name,.plv4-name{font-size:var(--plv4-name)!important;}
-      #drawStage .pl-sync-sub,#sourceRoot .pl-sync-sub,#drawStage .draw-team-sub,#sourceRoot .draw-team-sub,.plv4-sub{font-size:var(--plv4-sub)!important;}
-      #drawStage .pl-sync-status,#sourceRoot .pl-sync-status,.plv4-status{font-size:var(--plv4-status)!important;}
-
-      /* V4 Draw Text Size card. */
-      #plv4DrawTextSizeCard{display:block!important;margin-top:16px;border-color:rgba(255,132,49,.34)!important;}
-      .plv4-range{display:grid;gap:8px;margin-bottom:12px;}
-      .plv4-range label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-weight:800;font-size:12px;}
-      .plv4-range b{color:var(--text);font-family:'Chakra Petch',sans-serif;min-width:72px;text-align:right;}
-      .plv4-range .plv4-row{display:grid;grid-template-columns:1fr 94px;gap:10px;align-items:center;}
-      .plv4-range input[type=range]{width:100%;height:7px;padding:0;border-radius:999px;accent-color:var(--accent);}
-      .plv4-range input[type=number]{padding:8px 10px;border-radius:12px;}
-      .plv4-save-note{min-height:18px;font-size:12px;color:#bfffe0;}
-
-      /* Scrollable popup with live preview. */
-      .plv4-page-modal{position:fixed;inset:0;z-index:12000;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.64);backdrop-filter:blur(10px);}
-      .plv4-page-modal.open{display:flex;}
-      .plv4-page-box{width:min(900px,96vw);max-height:88vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);border-radius:24px;background:var(--panel,#0e1d31);box-shadow:var(--shadow);padding:20px;color:var(--text);scrollbar-width:thin;scrollbar-color:var(--accent) rgba(255,255,255,.15);}
-      .plv4-page-box::-webkit-scrollbar{width:10px}.plv4-page-box::-webkit-scrollbar-track{background:rgba(255,255,255,.15);border-radius:999px}.plv4-page-box::-webkit-scrollbar-thumb{background:var(--accent);border-radius:999px;}
-      .plv4-page-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px;}
-      .plv4-page-head h3{margin:0}.plv4-page-head p{margin:6px 0 0;color:var(--muted);font-size:12px;}
-      .plv4-page-close{width:42px;height:42px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.05);font-size:26px;color:var(--text);}
-      .plv4-preview{border:1px dashed rgba(91,231,255,.35);border-radius:18px;background:rgba(7,20,38,.52);padding:16px;margin:14px 0;}
-      .plv4-preview-card{max-width:var(--plv4-preview-width,640px);font-size:var(--plv4-preview-font,1rem);padding:var(--plv4-preview-pad,16px);display:grid;gap:var(--plv4-preview-gap,14px);margin:auto;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.05);transition:max-width .08s linear,font-size .08s linear,padding .08s linear,gap .08s linear;}
-      .plv4-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px;}
-      .pl-page-btn{margin-left:auto;}
-
-      /* Draw / Reveal feed must wrap instead of creating a horizontal scrollbar. */
-      #groupResult,#revealFeed{overflow-x:hidden!important;max-width:100%!important;}
-      #groupResult *{max-width:100%;}
-      #groupResult .groupgrid,#groupResult .pl-groups-grid,.pl-groups-grid{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))!important;overflow-x:hidden!important;}
-      #groupResult table,#revealFeed table{min-width:0!important;width:100%!important;table-layout:auto!important;}
-      #groupResult .groupcard,#groupResult .pl-group-card,.pl-group-card{min-width:0!important;}
-      .pl-group-row .team,.teamrow{min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;}
-
-      /* V4 source renderer. Compact, OBS-friendly. */
-      html.plv4-source,html.plv4-source body{margin:0!important;background:transparent!important;background-image:none!important;overflow:hidden!important;}
-      .plv4-source-wrap{min-height:100vh;display:grid;place-items:center;background:transparent;padding:16px;color:var(--text);font-family:'Prompt','IBM Plex Sans Thai',system-ui,sans-serif;}
-      .plv4-draw-card{width:min(500px,96vw);border:1px solid rgba(255,132,49,.36);border-radius:24px;background:linear-gradient(145deg,rgba(18,19,21,.92),rgba(28,24,20,.82));box-shadow:0 18px 46px rgba(0,0,0,.28);padding:16px 18px 20px;text-align:center;overflow:hidden;transform:translateZ(0);}
-      .plv4-fx{height:210px;display:grid;place-items:center;margin-bottom:8px;}
-      .plv4-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
-      .plv4-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,132,49,.35);background:rgba(255,132,49,.08);border-radius:999px;padding:7px 10px;color:#ffd7bd;font-weight:900;font-family:'Chakra Petch','Prompt',sans-serif;letter-spacing:.06em;}
-      .plv4-chip b{color:#fff;}
-      .plv4-group-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,132,49,.44);background:rgba(255,132,49,.10);border-radius:999px;padding:10px 18px;margin:0 auto 8px;color:#ffd7bd;font-family:'Chakra Petch','Prompt',sans-serif;font-weight:900;letter-spacing:.16em;}
-      .plv4-group-pill b{color:#fff;}
-      .plv4-name{font-family:'Prompt','IBM Plex Sans Thai',sans-serif;font-weight:950;line-height:.95;color:#fff;text-shadow:0 7px 26px rgba(0,0,0,.48);overflow-wrap:anywhere;}
-      .plv4-sub{margin-top:12px;color:#d7d7d7;font-weight:800;}
-      .plv4-status{margin-top:14px;color:#ffd7bd;font-weight:800;text-align:left;}
-      .plv4-track{height:11px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid rgba(255,132,49,.22);overflow:hidden;margin-top:10px;}
-      .plv4-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#ff8131,#ffbe57);transform-origin:left center;will-change:transform;}
-      .plv4-wheel-box{position:relative;display:grid;place-items:center;}
-      .plv4-pointer{width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-top:40px solid #ffb45b;margin-bottom:-16px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.28));z-index:2;}
-      .plv4-wheel{position:relative;width:190px;height:190px;border-radius:50%;background:conic-gradient(#ffd51f 0 45deg,#5be7ff 45deg 90deg,#ff4081 90deg 135deg,#7d4dff 135deg 180deg,#ff9500 180deg 225deg,#ff4b3f 225deg 270deg,#b928ff 270deg 315deg,#48e662 315deg 360deg);box-shadow:0 0 0 9px #18305a,0 0 0 14px rgba(255,255,255,.07),0 18px 38px rgba(0,0,0,.34);}
-      .plv4-wheel:before{content:'';position:absolute;inset:20px;border-radius:50%;background:radial-gradient(circle at 38% 34%,rgba(255,255,255,.18),transparent 28%),#15100b;}
-      .plv4-wheel:after{content:'SPIN';position:absolute;inset:70px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;border:3px solid rgba(255,132,49,.28);font:950 18px/1 'Chakra Petch',sans-serif;letter-spacing:.12em;}
-      .plv4-slot{width:min(420px,94%);border:1px solid rgba(255,132,49,.34);border-radius:20px;padding:14px;background:linear-gradient(135deg,#35161c,#111522 48%,#2b1d0d);display:grid;grid-template-columns:repeat(4,1fr);gap:9px;overflow:hidden;}
-      .plv4-reel{height:88px;border-radius:14px;background:#0b1020;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.10);}
-      .plv4-slot-track{position:absolute;inset:auto 0 0 0;display:grid;gap:8px;padding:8px;}
-      .plv4-slot-chip{height:25px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:900;background:linear-gradient(135deg,#ff8131,#5be7ff);}
-      .plv4-card-stack{position:relative;width:230px;height:160px;margin:auto;}
-      .plv4-card-one{position:absolute;width:120px;height:158px;border-radius:18px;background:#fff;color:#111;box-shadow:0 18px 36px rgba(0,0,0,.28);display:grid;place-items:center;font-weight:950;font-size:32px;animation:plv4Float .9s ease-in-out infinite alternate;}
-      .plv4-card-one:nth-child(1){left:0;transform:rotate(-18deg)}.plv4-card-one:nth-child(2){left:55px;animation-delay:.12s}.plv4-card-one:nth-child(3){right:0;transform:rotate(18deg);animation-delay:.24s}
-      .plv4-ball{width:165px;height:165px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 32% 28%,#fff,#ffbe57 38%,#b95513);box-shadow:0 18px 42px rgba(0,0,0,.3);font:950 34px/1 'Chakra Petch',sans-serif;color:#111;animation:plv4Float .75s ease-in-out infinite alternate;}
-      .plv4-ring{width:190px;height:190px;border-radius:50%;border:10px solid rgba(255,255,255,.10);border-top-color:#ff8131;border-right-color:#5be7ff;filter:drop-shadow(0 0 18px rgba(255,132,49,.28));}
-      .plv4-orb{width:170px;height:170px;border-radius:50%;background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.34),rgba(255,132,49,.22) 18%,rgba(99,40,168,.30) 62%,rgba(0,0,0,.22));box-shadow:inset 0 0 42px rgba(255,255,255,.08),0 0 36px rgba(255,132,49,.28);animation:plv4Pulse 1.05s ease-in-out infinite alternate;}
-      .plv4-groups-wrap{min-height:100vh;display:grid;place-items:center;background:transparent;padding:24px;color:var(--text);font-family:'IBM Plex Sans Thai','Prompt',system-ui,sans-serif;}
-      .plv4-groups-board{width:min(1500px,96vw);border:1px solid rgba(255,132,49,.30);border-radius:26px;background:rgba(14,17,22,.88);box-shadow:0 20px 50px rgba(0,0,0,.28);padding:22px;overflow:hidden;}
-      .plv4-groups-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.12);}
-      .plv4-groups-head h1{margin:0;font-size:clamp(26px,3vw,48px);}.plv4-groups-head p{margin:6px 0 0;color:#b8bec8;}
-      .plv4-groups-grid{display:grid;grid-template-columns:repeat(var(--plv4-groups-cols,3),minmax(0,1fr));gap:12px;overflow:hidden;}
-      @media(max-width:1000px){.plv4-groups-grid{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))!important;}}
-      .plv4-group-card{min-width:0;border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(255,255,255,.055);overflow:hidden;}
-      .plv4-group-title{display:flex;justify-content:space-between;gap:8px;padding:11px 13px;background:rgba(255,132,49,.12);font-weight:950;}
-      .plv4-group-row{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;padding:9px 12px;border-top:1px solid rgba(255,255,255,.1);}
-      .plv4-group-row .no{color:#ffb45b;font-weight:950}.plv4-group-row .team{font-weight:850;overflow-wrap:anywhere;}.plv4-group-row.empty .team{opacity:.48;}
-    `;
-    document.head.appendChild(st);
-  }
-
-  function applyDrawSizeVars(values){
-    const v = Object.assign({}, DEFAULT_SIZE, values || {});
-    document.documentElement.style.setProperty('--plv4-chip', clamp(v.chip, 6, 44, DEFAULT_SIZE.chip) + 'px');
-    document.documentElement.style.setProperty('--plv4-group-label', clamp(v.groupLabel, 8, 70, DEFAULT_SIZE.groupLabel) + 'px');
-    document.documentElement.style.setProperty('--plv4-group-value', clamp(v.groupValue, 10, 120, DEFAULT_SIZE.groupValue) + 'px');
-    document.documentElement.style.setProperty('--plv4-name', clamp(v.name, 16, 180, DEFAULT_SIZE.name) + 'px');
-    document.documentElement.style.setProperty('--plv4-sub', clamp(v.sub, 8, 90, DEFAULT_SIZE.sub) + 'px');
-    document.documentElement.style.setProperty('--plv4-status', clamp(v.status, 8, 54, DEFAULT_SIZE.status) + 'px');
-  }
-
-  function formRange(id, label, value, min, max, step=1){
-    return `<div class="plv4-range"><label>${esc(label)} <b><span id="${id}Out">${esc(value)}</span>px</b></label><div class="plv4-row"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(value)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(value)}"></div></div>`;
-  }
-  function getDrawSizeForm(){
-    return {
-      chip: clamp($('#plv4SizeChip')?.value, 6, 44, DEFAULT_SIZE.chip),
-      groupLabel: clamp($('#plv4SizeGroupLabel')?.value, 8, 70, DEFAULT_SIZE.groupLabel),
-      groupValue: clamp($('#plv4SizeGroupValue')?.value, 10, 120, DEFAULT_SIZE.groupValue),
-      name: clamp($('#plv4SizeName')?.value, 16, 180, DEFAULT_SIZE.name),
-      sub: clamp($('#plv4SizeSub')?.value, 8, 90, DEFAULT_SIZE.sub),
-      status: clamp($('#plv4SizeStatus')?.value, 8, 54, DEFAULT_SIZE.status)
-    };
-  }
-  function bindPair(id, onChange){
-    const r = $('#'+id), num = $('#'+id+'Num'), out = $('#'+id+'Out');
-    if(!r || !num || !out) return;
-    const sync = from => {
-      r.value = from.value;
-      num.value = from.value;
-      out.textContent = from.value;
-      onChange();
-    };
-    r.addEventListener('input', () => sync(r));
-    num.addEventListener('input', () => sync(num));
-  }
-  function installDrawTextSizeCard(){
-    if(IS_SOURCE) return;
-    const drawPanel = $('[data-panel="draw"]');
-    const firstCard = drawPanel && $('.card', drawPanel);
-    if(!firstCard || $('#plv4DrawTextSizeCard')) return;
-    const saved = readDrawSize();
-    const card = document.createElement('div');
-    card.className = 'card compact';
-    card.id = 'plv4DrawTextSizeCard';
-    card.innerHTML = `<h3>Draw Text Size Settings</h3><p class="hint">ปรับขนาดตัวหนังสือในหน้าสุ่มและ Draw Animation Source แบบละเอียด ใช้จริงทันทีตอนเลื่อน</p>
-      <div class="grid two">
-        ${formRange('plv4SizeChip','ป้าย STYLE / MODE',saved.chip,6,44,1)}
-        ${formRange('plv4SizeGroupLabel','คำว่า GROUP',saved.groupLabel,8,70,1)}
-        ${formRange('plv4SizeGroupValue','ตัวอักษรสาย A/B/C',saved.groupValue,10,120,1)}
-        ${formRange('plv4SizeName','ชื่อทีมหลัก',saved.name,16,180,1)}
-        ${formRange('plv4SizeSub','บรรทัดสาย / ลำดับ',saved.sub,8,90,1)}
-        ${formRange('plv4SizeStatus','ข้อความสถานะ',saved.status,8,54,1)}
-      </div>
-      <div class="row"><button class="btn primary" id="plv4SaveDrawSize" type="button">บันทึกขนาดตัวหนังสือ</button><button class="btn" id="plv4CancelDrawSize" type="button">ย้อนกลับค่าล่าสุด</button><button class="btn" id="plv4ResetDrawSize" type="button">Reset</button></div>
-      <div class="plv4-save-note" id="plv4DrawSizeNote"></div>`;
-    firstCard.appendChild(card);
-    const preview = () => {
-      applyDrawSizeVars(getDrawSizeForm());
-      const note = $('#plv4DrawSizeNote');
-      if(note) note.textContent = 'Preview อยู่ ยังไม่บันทึก';
-    };
-    ['plv4SizeChip','plv4SizeGroupLabel','plv4SizeGroupValue','plv4SizeName','plv4SizeSub','plv4SizeStatus'].forEach(id => bindPair(id, preview));
-    $('#plv4SaveDrawSize')?.addEventListener('click', () => {
-      const val = getDrawSizeForm();
-      saveJson(DRAW_SIZE_KEY, val);
-      applyDrawSizeVars(val);
-      const note = $('#plv4DrawSizeNote');
-      if(note) note.textContent = 'บันทึกแล้ว ใช้กับ Draw Control และ Draw Animation Source แล้ว';
-    });
-    $('#plv4CancelDrawSize')?.addEventListener('click', () => {
-      $('#plv4DrawTextSizeCard')?.remove();
-      applyDrawSizeVars(readDrawSize());
-      installDrawTextSizeCard();
-    });
-    $('#plv4ResetDrawSize')?.addEventListener('click', () => {
-      saveJson(DRAW_SIZE_KEY, DEFAULT_SIZE);
-      $('#plv4DrawTextSizeCard')?.remove();
-      applyDrawSizeVars(DEFAULT_SIZE);
-      installDrawTextSizeCard();
-    });
-  }
-
-  function ensurePageButtons(){
-    if(IS_SOURCE) return;
-    $$('.panel').forEach(panel => {
-      const head = $('.panel-head', panel);
-      if(!head) return;
-      let btn = $('.pl-page-btn', head);
-      if(!btn){
-        btn = document.createElement('button');
-        btn.className = 'btn small pl-page-btn';
-        btn.type = 'button';
-        head.appendChild(btn);
-      }
-      btn.textContent = 'UI ตั้งค่าหน้านี้';
-      btn.dataset.plv4Panel = panel.dataset.panel || 'dashboard';
-    });
-  }
-  function applyPage(panelId, cfg){
-    const panel = document.querySelector(`.panel[data-panel="${CSS.escape(panelId)}"]`);
-    if(!panel) return;
-    const c = Object.assign({}, DEFAULT_PAGE, cfg || {});
-    panel.style.maxWidth = clamp(c.width, 620, 2400, DEFAULT_PAGE.width) + 'px';
-    panel.style.marginInline = 'auto';
-    panel.style.fontSize = clamp(c.font, .55, 2, DEFAULT_PAGE.font) + 'rem';
-    panel.style.setProperty('--plv4-panel-gap', clamp(c.gap, 4, 50, DEFAULT_PAGE.gap) + 'px');
-    panel.querySelectorAll('.grid').forEach(el => el.style.gap = 'var(--plv4-panel-gap)');
-    panel.querySelectorAll('.card').forEach(el => el.style.padding = clamp(c.padding, 4, 54, DEFAULT_PAGE.padding) + 'px');
-    ['groupResult','revealFeed','scoresBox','standingsBox','scheduleBox'].forEach(id => {
-      const el = panel.querySelector('#'+id);
-      if(el){ el.style.maxHeight = clamp(c.tableHeight, 160, 1400, DEFAULT_PAGE.tableHeight) + 'px'; el.style.overflowY = 'auto'; el.style.overflowX = 'hidden'; }
-    });
-  }
-  function applyAllPages(){
-    const all = readPageAll();
-    Object.entries(all).forEach(([id, cfg]) => applyPage(id, cfg));
-  }
-  function modalRange(id, label, value, min, max, step, unit){
-    return `<div class="plv4-range"><label>${esc(label)} <b><span id="${id}Out">${esc(value)}</span>${esc(unit || '')}</b></label><div class="plv4-row"><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(value)}"><input id="${id}Num" type="number" min="${min}" max="${max}" step="${step}" value="${esc(value)}"></div></div>`;
-  }
-  function modalValues(){
-    return {
-      width: clamp($('#plv4PageWidth')?.value, 620, 2400, DEFAULT_PAGE.width),
-      font: clamp($('#plv4PageFont')?.value, .55, 2, DEFAULT_PAGE.font),
-      padding: clamp($('#plv4PagePad')?.value, 4, 54, DEFAULT_PAGE.padding),
-      tableHeight: clamp($('#plv4PageTable')?.value, 160, 1400, DEFAULT_PAGE.tableHeight),
-      gap: clamp($('#plv4PageGap')?.value, 4, 50, DEFAULT_PAGE.gap)
-    };
-  }
-  function openPageModal(panelId){
-    pagePanelId = panelId || 'dashboard';
-    const all = readPageAll();
-    pageSaved = Object.assign({}, DEFAULT_PAGE, all[pagePanelId] || {});
-    pageDraft = Object.assign({}, pageSaved);
-    if(!pageModal){
-      pageModal = document.createElement('div');
-      pageModal.className = 'plv4-page-modal';
-      pageModal.innerHTML = `<div class="plv4-page-box"><div class="plv4-page-head"><div><h3>UI Settings</h3><p>เลื่อนปรับแบบละเอียด พร้อม Preview ถ้าไม่บันทึกจะกลับค่าล่าสุด</p></div><button class="plv4-page-close" type="button">×</button></div><div id="plv4PageBody"></div></div>`;
-      document.body.appendChild(pageModal);
-      pageModal.addEventListener('click', e => { if(e.target === pageModal || e.target.closest('.plv4-page-close')) closePageModal(false); });
+  function getState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {};
+    } catch {
+      return {};
     }
-    renderPageModalBody();
-    pageModal.classList.add('open');
-    applyPage(pagePanelId, pageDraft);
   }
-  function renderPageModalBody(){
-    const body = $('#plv4PageBody', pageModal);
-    body.innerHTML = `${modalRange('plv4PageWidth','ความกว้างหน้าหมวด',pageDraft.width,620,2400,1,'px')}${modalRange('plv4PageFont','ขนาดตัวหนังสือรวม',pageDraft.font,.55,2,.01,'x')}${modalRange('plv4PagePad','ระยะขอบการ์ด',pageDraft.padding,4,54,1,'px')}${modalRange('plv4PageGap','ระยะห่างช่อง/การ์ด',pageDraft.gap,4,50,1,'px')}${modalRange('plv4PageTable','ความสูงตาราง/ฟีด',pageDraft.tableHeight,160,1400,1,'px')}<div class="plv4-preview"><div class="plv4-preview-card"><b>Preview</b><p>ตัวอย่างตัวอักษร ขนาดการ์ด และระยะห่างของหมวดนี้</p><div class="notice">ถ้ากดปิดหรือยกเลิก ระบบจะย้อนกลับค่าที่บันทึกไว้ล่าสุด</div></div></div><div class="plv4-actions"><button class="btn" id="plv4PageCancel" type="button">ยกเลิก</button><button class="btn primary" id="plv4PageSave" type="button">บันทึก UI หน้านี้</button></div>`;
-    const preview = () => {
-      pageDraft = modalValues();
-      applyPage(pagePanelId, pageDraft);
-      document.documentElement.style.setProperty('--plv4-preview-width', Math.min(680, pageDraft.width) + 'px');
-      document.documentElement.style.setProperty('--plv4-preview-font', pageDraft.font + 'rem');
-      document.documentElement.style.setProperty('--plv4-preview-pad', pageDraft.padding + 'px');
-      document.documentElement.style.setProperty('--plv4-preview-gap', pageDraft.gap + 'px');
-      ['plv4PageWidth','plv4PageFont','plv4PagePad','plv4PageGap','plv4PageTable'].forEach(id => {
-        const r = $('#'+id), num = $('#'+id+'Num'), out = $('#'+id+'Out');
-        if(r && num && out){ num.value = r.value; out.textContent = r.value; }
+
+  function saveState(next) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+
+  function sourceUrl(id) {
+    const base = location.href.split('?')[0].split('#')[0];
+    return `${base}?view=${encodeURIComponent(id)}`;
+  }
+
+  function letters(count) {
+    const n = Math.max(1, Number(count || 4));
+    return Array.from({ length: n }, (_, i) => String.fromCharCode(65 + i));
+  }
+
+  function normalizeSourceId(id) {
+    return DRAW_MODES.includes(id) ? DRAW_SOURCE_ID : id;
+  }
+
+  const defaultTypography = {
+    chip: 12,
+    groupLabel: 14,
+    groupLetter: 30,
+    teamName: 46,
+    meta: 15,
+    status: 12,
+    sourceTeam: 56,
+    sourceMeta: 18
+  };
+
+  function getTypography() {
+    try {
+      return { ...defaultTypography, ...(JSON.parse(localStorage.getItem(TYPO_KEY) || '{}') || {}) };
+    } catch {
+      return { ...defaultTypography };
+    }
+  }
+
+  function setTypography(values) {
+    localStorage.setItem(TYPO_KEY, JSON.stringify({ ...getTypography(), ...values }));
+    applyTypography();
+  }
+
+  function applyTypography(root = document) {
+    const t = getTypography();
+    const stage = $('#drawStage', root) || root.documentElement || document.documentElement;
+    const targets = [document.documentElement, stage].filter(Boolean);
+
+    targets.forEach(el => {
+      el.style.setProperty('--pl-typo-chip', `${t.chip}px`);
+      el.style.setProperty('--pl-typo-group-label', `${t.groupLabel}px`);
+      el.style.setProperty('--pl-typo-group-letter', `${t.groupLetter}px`);
+      el.style.setProperty('--pl-typo-team-name', `${t.teamName}px`);
+      el.style.setProperty('--pl-typo-meta', `${t.meta}px`);
+      el.style.setProperty('--pl-typo-status', `${t.status}px`);
+      el.style.setProperty('--pl-typo-source-team', `${t.sourceTeam}px`);
+      el.style.setProperty('--pl-typo-source-meta', `${t.sourceMeta}px`);
+    });
+  }
+
+  function injectCleanStyles() {
+    if ($('#peps-clean-patch-style')) return;
+    const style = document.createElement('style');
+    style.id = 'peps-clean-patch-style';
+    style.textContent = `
+      html.peps-source-mode, html.peps-source-mode body {
+        margin: 0 !important;
+        width: 100%;
+        min-height: 100%;
+        background: transparent !important;
+        overflow: hidden;
+      }
+      html.peps-source-mode #app { display:none !important; }
+      html.peps-source-mode #sourceRoot {
+        display: block !important;
+        min-height: 100vh;
+      }
+
+      .peps-source-card-clean {
+        border: 1px solid rgba(255,255,255,.14);
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+        padding: 16px;
+        min-height: 128px;
+      }
+      .peps-source-card-clean h3 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+      .peps-source-card-clean p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 13px;
+        min-height: 34px;
+      }
+      .peps-source-card-clean .source-url {
+        margin-top: 12px;
+      }
+      .peps-source-section-clean {
+        grid-column: 1 / -1;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: rgba(255,255,255,.03);
+        padding: 14px;
+      }
+      .peps-source-section-clean > h3 {
+        margin: 0 0 12px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-size: 13px;
+      }
+      .peps-source-grid-clean {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .peps-source-grid-clean.single {
+        grid-template-columns: minmax(260px, 560px);
+      }
+
+      #groupResult, #revealFeed {
+        overflow-x: hidden !important;
+      }
+      #groupResult .groupgrid,
+      #groupResult .pl-groups-grid,
+      #groupResult .group-grid,
+      #groupResult table,
+      #groupResult .tablewrap {
+        min-width: 0 !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+      }
+      #groupResult .groupgrid,
+      #groupResult .pl-groups-grid,
+      .pl-groups-grid-clean {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+        gap: 12px !important;
+      }
+      #groupResult .team,
+      #groupResult .teamrow,
+      #groupResult td,
+      #groupResult th {
+        white-space: normal !important;
+        word-break: break-word;
+      }
+
+      .peps-draw-size-btn {
+        margin-left: auto;
+      }
+      .peps-modal-clean {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,.62);
+        backdrop-filter: blur(10px);
+        padding: 18px;
+      }
+      .peps-modal-clean.open {
+        display: flex;
+      }
+      .peps-modal-box-clean {
+        width: min(860px, 96vw);
+        max-height: 90vh;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--panel, #0e1d31);
+        color: var(--text);
+        box-shadow: var(--shadow);
+      }
+      .peps-modal-head-clean {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 20px 22px;
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        background: var(--panel, #0e1d31);
+        z-index: 2;
+      }
+      .peps-modal-body-clean {
+        padding: 20px 22px;
+        display: grid;
+        grid-template-columns: minmax(280px, .85fr) minmax(280px, 1.15fr);
+        gap: 18px;
+      }
+      .peps-modal-actions-clean {
+        padding: 0 22px 22px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .peps-slider-clean {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .peps-slider-clean label {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .peps-slider-clean b {
+        color: var(--text);
+        min-width: 64px;
+        text-align: right;
+        font-family: "Chakra Petch", sans-serif;
+      }
+      .peps-slider-clean input[type=range] {
+        width: 100%;
+        padding: 0;
+        height: 8px;
+        accent-color: var(--accent);
+      }
+      .peps-preview-clean {
+        border: 1px dashed rgba(91,231,255,.34);
+        border-radius: 20px;
+        background: rgba(7,20,38,.55);
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+        align-content: center;
+        text-align: center;
+        min-height: 340px;
+      }
+      .peps-preview-chip-clean {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        justify-self: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,110,34,.45);
+        color: #ffd7c2;
+        font-size: var(--pl-typo-chip);
+      }
+      .peps-preview-group-clean {
+        justify-self: center;
+        padding: 10px 20px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,110,34,.38);
+        background: rgba(255,110,34,.10);
+        letter-spacing: .16em;
+        font-size: var(--pl-typo-group-label);
+      }
+      .peps-preview-group-clean b {
+        font-size: var(--pl-typo-group-letter);
+        letter-spacing: 0;
+      }
+      .peps-preview-team-clean {
+        font-weight: 950;
+        line-height: .96;
+        font-size: var(--pl-typo-team-name);
+        text-shadow: 0 8px 32px rgba(0,0,0,.38);
+      }
+      .peps-preview-meta-clean {
+        color: var(--muted);
+        font-weight: 800;
+        font-size: var(--pl-typo-meta);
+      }
+      .peps-preview-status-clean {
+        color: #ffe0c8;
+        font-size: var(--pl-typo-status);
+      }
+
+      #drawStage .draw-chip,
+      #drawStage .plv-chip,
+      #drawStage .peps-draw-chip {
+        font-size: var(--pl-typo-chip) !important;
+      }
+      #drawStage .draw-group-badge,
+      #drawStage .plv-group,
+      #drawStage .peps-draw-group {
+        font-size: var(--pl-typo-group-label) !important;
+      }
+      #drawStage .draw-group-badge b,
+      #drawStage .plv-group b,
+      #drawStage .peps-draw-group b {
+        font-size: var(--pl-typo-group-letter) !important;
+      }
+      #drawStage .draw-team-name,
+      #drawStage .plv-team,
+      #drawStage .peps-draw-team,
+      #drawStage .draw-big {
+        font-size: var(--pl-typo-team-name) !important;
+      }
+      #drawStage .draw-team-sub,
+      #drawStage .plv-meta,
+      #drawStage .peps-draw-meta {
+        font-size: var(--pl-typo-meta) !important;
+      }
+      #drawStage .draw-hint,
+      #drawStage .draw-progress-text,
+      #drawStage .peps-draw-status {
+        font-size: var(--pl-typo-status) !important;
+      }
+
+      #drawStage .peps-ticker-clean {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 16px;
+        border: 1px solid rgba(255,110,34,.34);
+        border-radius: 18px;
+        background: rgba(7,17,31,.78);
+        padding: 12px 14px;
+        display: grid;
+        gap: 8px;
+        pointer-events: none;
+        z-index: 4;
+      }
+      #drawStage .peps-ticker-row-clean {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+      #drawStage .peps-ticker-team-clean {
+        font-size: clamp(18px, 3vw, 34px);
+        font-weight: 950;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #drawStage .peps-ticker-pill-clean {
+        border: 1px solid rgba(255,110,34,.36);
+        border-radius: 999px;
+        padding: 6px 10px;
+        color: #ffd8c2;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .peps-source-wrap-clean {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: transparent;
+        color: #fff;
+        font-family: "Prompt", system-ui, sans-serif;
+      }
+      .peps-draw-source-card-clean {
+        width: min(520px, 92vw);
+        border: 1px solid rgba(255,110,34,.36);
+        border-radius: 26px;
+        background: rgba(18,18,18,.72);
+        box-shadow: 0 24px 70px rgba(0,0,0,.34);
+        padding: 20px 20px 18px;
+        text-align: center;
+        overflow: hidden;
+      }
+      .peps-draw-source-fx-clean {
+        height: 190px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 8px;
+      }
+      .peps-wheel-clean {
+        position: relative;
+        width: 170px;
+        height: 170px;
+        border-radius: 50%;
+        background: conic-gradient(#58d5ff 0 45deg, #ff3d7a 45deg 92deg, #7a3dff 92deg 146deg, #ff9b22 146deg 210deg, #ff3b30 210deg 264deg, #34e27a 264deg 315deg, #ffd436 315deg 360deg);
+        box-shadow: 0 0 0 10px rgba(255,255,255,.08), 0 20px 48px rgba(0,0,0,.30);
+        animation: pepsWheelSpinClean .95s linear infinite;
+        transform: translateZ(0);
+        will-change: transform;
+      }
+      .peps-wheel-clean::after {
+        content: "SPIN";
+        position: absolute;
+        inset: 58px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(18,18,18,.96);
+        border: 3px solid rgba(255,255,255,.18);
+        font-weight: 950;
+        font-size: 18px;
+      }
+      .peps-ring-clean {
+        width: 174px;
+        height: 174px;
+        border-radius: 50%;
+        border: 9px solid rgba(255,255,255,.12);
+        border-top-color: #ff6b1a;
+        border-right-color: #ffd166;
+        animation: pepsWheelSpinClean 1.05s linear infinite;
+        transform: translateZ(0);
+        will-change: transform;
+      }
+      .peps-slot-clean {
+        display: grid;
+        grid-template-columns: repeat(4, 44px);
+        gap: 9px;
+      }
+      .peps-slot-clean i {
+        height: 92px;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.04));
+        animation: pepsSlotClean .56s cubic-bezier(.2,.8,.2,1) infinite alternate;
+        transform: translateZ(0);
+      }
+      .peps-card-clean {
+        width: 126px;
+        height: 168px;
+        border-radius: 20px;
+        background: #fff;
+        color: #111;
+        display: grid;
+        place-items: center;
+        font-size: 42px;
+        font-weight: 950;
+        box-shadow: 0 18px 38px rgba(0,0,0,.30);
+        animation: pepsCardClean .82s ease-in-out infinite alternate;
+        transform: translateZ(0);
+      }
+      .peps-ball-clean {
+        width: 136px;
+        height: 136px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 30% 25%, #fff, #ff8b3d 36%, #34130a 100%);
+        color: #161616;
+        font-weight: 950;
+        font-size: 30px;
+        animation: pepsBobClean .72s ease-in-out infinite alternate;
+        transform: translateZ(0);
+      }
+      .peps-draw-source-chips-clean {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 6px 0 14px;
+      }
+      .peps-draw-source-chips-clean span {
+        flex: 1;
+        border: 1px solid rgba(255,110,34,.38);
+        border-radius: 999px;
+        padding: 7px 10px;
+        color: #ffd8c2;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .peps-draw-source-group-clean {
+        display: inline-flex;
+        gap: 10px;
+        align-items: baseline;
+        justify-content: center;
+        border: 1px solid rgba(255,110,34,.38);
+        border-radius: 999px;
+        padding: 9px 20px;
+        letter-spacing: .18em;
+        color: #ffe6d5;
+        background: rgba(255,110,34,.10);
+      }
+      .peps-draw-source-group-clean b {
+        font-size: 34px;
+        letter-spacing: 0;
+      }
+      .peps-draw-source-team-clean {
+        margin-top: 14px;
+        font-weight: 950;
+        line-height: .96;
+        font-size: var(--pl-typo-source-team);
+        text-shadow: 0 8px 30px rgba(0,0,0,.45);
+      }
+      .peps-draw-source-meta-clean {
+        margin-top: 14px;
+        color: #d7d7d7;
+        font-size: var(--pl-typo-source-meta);
+        font-weight: 750;
+      }
+
+      .peps-groups-source-clean {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 30px;
+        color: #fff;
+        font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+        background: transparent;
+      }
+      .peps-groups-board-clean {
+        width: min(1400px, 96vw);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 24px;
+        background: rgba(7,17,31,.82);
+        padding: 20px;
+        box-shadow: 0 22px 60px rgba(0,0,0,.30);
+      }
+      .peps-groups-board-clean h1 {
+        margin: 0 0 6px;
+        font-size: clamp(28px, 3.2vw, 52px);
+      }
+      .peps-groups-board-clean p {
+        margin: 0 0 16px;
+        color: #a9b8ca;
+      }
+      .peps-group-card-clean {
+        border: 1px solid rgba(255,255,255,.14);
+        border-radius: 18px;
+        overflow: hidden;
+        background: rgba(255,255,255,.055);
+      }
+      .peps-group-title-clean {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 14px;
+        background: rgba(255,110,34,.12);
+        font-weight: 950;
+      }
+      .peps-group-row-clean {
+        display: grid;
+        grid-template-columns: 38px 1fr;
+        gap: 8px;
+        padding: 9px 12px;
+        border-top: 1px solid rgba(255,255,255,.10);
+      }
+      .peps-group-row-clean .no { color: #ff9b58; font-weight: 950; }
+      .peps-group-row-clean .team { font-weight: 850; word-break: break-word; }
+      .peps-group-row-clean.empty .team { opacity: .45; }
+
+      @keyframes pepsWheelSpinClean { to { transform: translateZ(0) rotate(360deg); } }
+      @keyframes pepsSlotClean { to { transform: translate3d(0, -14px, 0); opacity: .58; } }
+      @keyframes pepsCardClean { to { transform: translateZ(0) rotateY(24deg) rotateZ(3deg); } }
+      @keyframes pepsBobClean { to { transform: translate3d(0, -18px, 0); } }
+
+      @media(max-width: 820px) {
+        .peps-modal-body-clean { grid-template-columns: 1fr; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function makeFx(mode) {
+    if (mode === 'wheel') return '<div class="peps-wheel-clean"></div>';
+    if (mode === 'slot') return '<div class="peps-slot-clean"><i></i><i></i><i></i><i></i></div>';
+    if (mode === 'card') return '<div class="peps-card-clean">A</div>';
+    if (mode === 'lottery') return '<div class="peps-ball-clean">8</div>';
+    return '<div class="peps-ring-clean"></div>';
+  }
+
+  function currentDrawItem(st) {
+    const live = st.drawLive || {};
+    if (live.waiting && live.pendingItem) return live.pendingItem;
+    if (live.current) return live.current;
+    if ((live.feed || [])[0]) return live.feed[0];
+    if ((st.pendingSequence || [])[Math.max(0, (st.pendingRevealIndex || 1) - 1)]) {
+      return st.pendingSequence[Math.max(0, (st.pendingRevealIndex || 1) - 1)];
+    }
+    return { team: 'READY', group: '-', slot: '-', order: 0 };
+  }
+
+  function tickerItem(st, frame = 0) {
+    const teams = Array.isArray(st.teams) && st.teams.length ? st.teams : ['Volcano A', 'Storm Rider', 'Peps United', 'Blue Shark'];
+    const groups = letters((st.event || {}).groupCount || 4);
+    const now = Date.now();
+    const live = st.drawLive || {};
+    const totalMs = Math.max(1000, ((st.settings || {}).drawDuration || 5) * 1000);
+    const left = live.revealEndsAt ? Math.max(0, live.revealEndsAt - now) : totalMs;
+    const progress = 1 - Math.min(1, left / totalMs);
+    const interval = 35 + Math.round(progress * progress * 280);
+    const tick = Math.floor(now / interval) + frame;
+    return {
+      team: teams[tick % teams.length],
+      group: groups[(tick * 3) % groups.length],
+      slot: ((tick * 5) % Math.max(1, Math.ceil(teams.length / groups.length))) + 1
+    };
+  }
+
+  function renderDrawSource(root) {
+    const st = getState();
+    applyTypography();
+    const mode = (st.settings || {}).drawAnimation || 'wheel';
+    const live = st.drawLive || {};
+    const item = live.waiting ? tickerItem(st) : currentDrawItem(st);
+    const progress = Number.isFinite(live.progress) && Number.isFinite(live.total) && live.total
+      ? Math.round((live.progress / live.total) * 100)
+      : 0;
+
+    root.innerHTML = `
+      <div class="peps-source-wrap-clean">
+        <div class="peps-draw-source-card-clean">
+          <div class="peps-draw-source-fx-clean">${makeFx(mode)}</div>
+          <div class="peps-draw-source-chips-clean">
+            <span>Reveal ${esc((live.progress || 0) + (live.waiting ? 1 : 0))} / ${esc(live.total || (st.pendingSequence || []).length || 0)}</span>
+            <span>สาย ${esc(item.group || '-')}</span>
+            <span>ลำดับ ${esc(item.slot || '-')}</span>
+          </div>
+          <div class="peps-draw-source-group-clean">GROUP <b>${esc(item.group || '-')}</b></div>
+          <div class="peps-draw-source-team-clean">${esc(item.team || 'READY')}</div>
+          <div class="peps-draw-source-meta-clean">${live.waiting ? 'กำลังสุ่มรายชื่อและสาย...' : 'ประกาศผลแล้ว'} ${progress ? `· ${progress}%` : ''}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function revealedGroups(st) {
+    const groupCount = (st.event || {}).groupCount || 4;
+    const groups = {};
+    letters(groupCount).forEach(g => { groups[g] = []; });
+
+    const method = (st.settings || {}).drawMethod || 'auto-sequence';
+    const hasConfirmed = st.groups && Object.values(st.groups).some(v => Array.isArray(v) && v.length);
+    const hasPendingComplete = !!st.pendingComplete && st.pendingGroups && Object.values(st.pendingGroups).some(v => Array.isArray(v) && v.length);
+
+    if (hasConfirmed) return st.groups;
+    if (method === 'instant-all' && st.pendingGroups) return st.pendingGroups;
+    if (hasPendingComplete) return st.pendingGroups;
+
+    const revealed = [...((st.drawLive || {}).feed || [])].reverse();
+    revealed.forEach(item => {
+      if (!item || !item.group) return;
+      if (!groups[item.group]) groups[item.group] = [];
+      const idx = Math.max(0, Number(item.slot || groups[item.group].length + 1) - 1);
+      groups[item.group][idx] = item.team || '';
+    });
+
+    return groups;
+  }
+
+  function renderGroupsSource(root) {
+    const st = getState();
+    const groups = revealedGroups(st);
+    const groupCount = (st.event || {}).groupCount || Object.keys(groups).length || 4;
+    const groupKeys = letters(groupCount);
+    const maxRows = Math.max(1, ...groupKeys.map(g => (groups[g] || []).length), Math.ceil(((st.teams || []).length || 1) / groupKeys.length));
+    const columns = Math.max(1, Math.min(10, Number((st.settings || {}).groupColumns || localStorage.getItem('pepsliveGroupsColumns') || 4)));
+
+    root.innerHTML = `
+      <div class="peps-groups-source-clean">
+        <div class="peps-groups-board-clean">
+          <h1>${esc((st.event || {}).name || 'PepsLive Tournament')}</h1>
+          <p>Groups Table · แสดงตามผลที่ Reveal แล้ว</p>
+          <div class="pl-groups-grid-clean" style="grid-template-columns:repeat(${columns}, minmax(180px, 1fr));">
+            ${groupKeys.map(g => `
+              <div class="peps-group-card-clean">
+                <div class="peps-group-title-clean"><span>สาย ${esc(g)}</span><span>${esc((groups[g] || []).filter(Boolean).length)} ทีม</span></div>
+                ${Array.from({ length: maxRows }, (_, i) => {
+                  const team = (groups[g] || [])[i] || '';
+                  return `<div class="peps-group-row-clean ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team">${esc(team || 'รอผลสุ่ม')}</span></div>`;
+                }).join('')}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSimpleSource(root, id) {
+    const st = getState();
+    const name = (st.event || {}).name || 'PepsLive Tournament';
+    const latest = (st.lastResult || {}).text || 'ยังไม่มีข้อมูลล่าสุด';
+    root.innerHTML = `
+      <div class="peps-source-wrap-clean">
+        <div class="peps-draw-source-card-clean">
+          <div class="peps-draw-source-team-clean" style="font-size:44px">${esc(sourceTitle(id))}</div>
+          <div class="peps-draw-source-meta-clean">${esc(name)}</div>
+          <div class="peps-draw-source-meta-clean">${esc(latest)}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function sourceTitle(id) {
+    return ({
+      schedule: 'Schedule Table',
+      standings: 'Standings Table',
+      knockout: 'Knockout Bracket',
+      'lower-third': 'Lower Third',
+      'next-match': 'Next Match',
+      'latest-result': 'Latest Result'
+    })[id] || id;
+  }
+
+  function initSourceView() {
+    const id = normalizeSourceId(new URLSearchParams(location.search).get('view') || '');
+    if (!id || id === 'control') return false;
+
+    injectCleanStyles();
+    applyTypography();
+    document.documentElement.classList.add('peps-source-mode');
+
+    const root = $('#sourceRoot') || document.body.appendChild(document.createElement('div'));
+    root.id = 'sourceRoot';
+    root.classList.remove('hidden');
+
+    let lastHash = '';
+    const drawIds = [DRAW_SOURCE_ID, ...DRAW_MODES];
+    function tick() {
+      const st = getState();
+      const sourceHash = JSON.stringify({
+        id,
+        mode: (st.settings || {}).drawAnimation,
+        live: st.drawLive,
+        groups: st.groups,
+        pendingGroups: st.pendingGroups,
+        pendingComplete: st.pendingComplete,
+        pendingRevealIndex: st.pendingRevealIndex,
+        method: (st.settings || {}).drawMethod,
+        typography: getTypography()
+      });
+      const liveWaiting = !!((st.drawLive || {}).waiting);
+
+      if (sourceHash !== lastHash || (drawIds.includes(id) && liveWaiting)) {
+        lastHash = sourceHash;
+        if (drawIds.includes(id)) renderDrawSource(root);
+        else if (id === 'groups') renderGroupsSource(root);
+        else renderSimpleSource(root, id);
+      }
+
+      if (drawIds.includes(id) && liveWaiting) requestAnimationFrame(tick);
+      else setTimeout(tick, 450);
+    }
+
+    tick();
+    return true;
+  }
+
+  function renderCleanSourceCards() {
+    const holder = $('#sourceCards');
+    if (!holder) return;
+
+    const drawCard = `
+      <div class="peps-source-section-clean">
+        <h3>Draw Animation Source</h3>
+        <div class="peps-source-grid-clean single">
+          ${sourceCardHtml(DRAW_SOURCE_ID, 'Draw Animation Source', 'ลิงก์เดียว ดึง Animation Style จากหน้า Draw Control')}
+        </div>
+      </div>
+    `;
+
+    const liveCards = `
+      <div class="peps-source-section-clean">
+        <h3>Live Data Sources</h3>
+        <div class="peps-source-grid-clean">
+          ${LIVE_SOURCE_IDS.map(id => sourceCardHtml(id, sourceTitle(id), id === 'groups' ? 'แสดงตามผลแบ่งสาย / Reveal Feed เท่านั้น' : 'Source สำหรับ OBS Browser')).join('')}
+        </div>
+      </div>
+    `;
+
+    const html = drawCard + liveCards;
+    if (holder.dataset.cleanCards === html) return;
+    holder.dataset.cleanCards = html;
+    holder.className = 'grid three';
+    holder.innerHTML = html;
+
+    $$('[data-clean-copy-url]', holder).forEach(btn => {
+      btn.addEventListener('click', () => copyText(sourceUrl(btn.dataset.cleanCopyUrl)));
+    });
+    $$('[data-clean-preview-url]', holder).forEach(btn => {
+      btn.addEventListener('click', () => window.open(sourceUrl(btn.dataset.cleanPreviewUrl), '_blank'));
+    });
+  }
+
+  function sourceCardHtml(id, title, desc) {
+    const url = sourceUrl(id);
+    return `
+      <div class="peps-source-card-clean">
+        <h3>${esc(title)}</h3>
+        <p>${esc(desc)}</p>
+        <div class="row">
+          <button class="btn primary small" type="button" data-clean-copy-url="${esc(id)}">Copy URL</button>
+          <button class="btn small" type="button" data-clean-preview-url="${esc(id)}">Preview URL</button>
+        </div>
+        <div class="source-url">${esc(url)}</div>
+      </div>
+    `;
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('คัดลอก URL แล้ว', 'good');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      toast('คัดลอก URL แล้ว', 'good');
+    }
+  }
+
+  function toast(msg, mode) {
+    const old = $('#peps-clean-toast');
+    if (old) old.remove();
+    const div = document.createElement('div');
+    div.id = 'peps-clean-toast';
+    div.textContent = msg;
+    div.style.cssText = `
+      position:fixed;right:18px;bottom:18px;z-index:999999;
+      border:1px solid ${mode === 'good' ? 'rgba(66,245,155,.5)' : 'rgba(255,209,102,.5)'};
+      background:rgba(7,17,31,.94);color:#fff;border-radius:14px;
+      padding:11px 14px;box-shadow:0 14px 40px rgba(0,0,0,.30);
+      font-family:Prompt,system-ui,sans-serif;font-weight:800;
+    `;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 1800);
+  }
+
+  function injectDrawSizeButton() {
+    const drawPanel = $('[data-panel="draw"]');
+    if (!drawPanel || $('#pepsDrawSizeBtn')) return;
+
+    const row = $('#toggleDrawExpand', drawPanel)?.closest('.row') || $('.card', drawPanel);
+    if (!row) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'pepsDrawSizeBtn';
+    btn.className = 'btn peps-draw-size-btn';
+    btn.type = 'button';
+    btn.textContent = 'Draw Text Size Settings';
+    btn.addEventListener('click', openTypographyModal);
+    row.appendChild(btn);
+  }
+
+  function openTypographyModal() {
+    const previous = getTypography();
+    let current = { ...previous };
+
+    const old = $('#pepsTypographyModal');
+    if (old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'pepsTypographyModal';
+    modal.className = 'peps-modal-clean open';
+
+    const controls = [
+      ['chip', 'ป้าย STYLE / Reveal', 8, 28, 1],
+      ['groupLabel', 'คำว่า GROUP', 8, 34, 1],
+      ['groupLetter', 'ตัวอักษรสาย A/B/C', 16, 64, 1],
+      ['teamName', 'ชื่อทีมหลักใน Draw Control', 24, 92, 1],
+      ['meta', 'บรรทัด สาย / ลำดับ', 10, 34, 1],
+      ['status', 'ข้อความสถานะ / Progress', 9, 28, 1],
+      ['sourceTeam', 'ชื่อทีมใน OBS Source', 28, 100, 1],
+      ['sourceMeta', 'Meta ใน OBS Source', 12, 42, 1]
+    ];
+
+    modal.innerHTML = `
+      <div class="peps-modal-box-clean">
+        <div class="peps-modal-head-clean">
+          <div>
+            <h3>Draw Text Size Settings</h3>
+            <p>เลื่อนแล้วดู Preview ได้ทันที ถ้าไม่กดบันทึกจะคืนค่าล่าสุด</p>
+          </div>
+          <button class="iconbtn" type="button" data-close>×</button>
+        </div>
+        <div class="peps-modal-body-clean">
+          <div>
+            ${controls.map(([key, label, min, max, step]) => `
+              <div class="peps-slider-clean">
+                <label>${esc(label)} <b data-value="${key}">${esc(current[key])}px</b></label>
+                <input type="range" min="${min}" max="${max}" step="${step}" value="${esc(current[key])}" data-typo="${key}">
+              </div>
+            `).join('')}
+          </div>
+          <div class="peps-preview-clean">
+            <div class="peps-preview-chip-clean">Reveal 8 / 16 · Wheel Spin</div>
+            <div class="peps-preview-group-clean">GROUP <b>B</b></div>
+            <div class="peps-preview-team-clean">Volcano B</div>
+            <div class="peps-preview-meta-clean">ทีมถูกสุ่มเข้า สาย B ลำดับ 4</div>
+            <div class="peps-preview-status-clean">กำลังแสดงตัวอย่างขนาดตัวหนังสือ</div>
+          </div>
+        </div>
+        <div class="peps-modal-actions-clean">
+          <button class="btn primary" type="button" data-save>บันทึก</button>
+          <button class="btn" type="button" data-reset>Reset</button>
+          <button class="btn" type="button" data-cancel>ยกเลิก</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    applyTypography();
+
+    const applyTemp = () => {
+      Object.assign(current, Object.fromEntries($$('[data-typo]', modal).map(input => [input.dataset.typo, Number(input.value)])));
+      localStorage.setItem(TYPO_KEY, JSON.stringify(current));
+      applyTypography(modal);
+      controls.forEach(([key]) => {
+        const out = $(`[data-value="${key}"]`, modal);
+        if (out) out.textContent = `${current[key]}px`;
       });
     };
-    ['plv4PageWidth','plv4PageFont','plv4PagePad','plv4PageGap','plv4PageTable'].forEach(id => {
-      const r = $('#'+id), num = $('#'+id+'Num');
-      if(r) r.addEventListener('input', preview);
-      if(num) num.addEventListener('input', () => { if(r) r.value = num.value; preview(); });
-    });
-    $('#plv4PageCancel')?.addEventListener('click', () => closePageModal(false));
-    $('#plv4PageSave')?.addEventListener('click', () => closePageModal(true));
-    preview();
-  }
-  function closePageModal(save){
-    if(save){
-      const all = readPageAll();
-      all[pagePanelId] = pageDraft;
-      savePageAll(all);
-      applyPage(pagePanelId, pageDraft);
-    }else{
-      applyPage(pagePanelId, pageSaved);
-    }
-    pageModal?.classList.remove('open');
-  }
 
-  function modeLabel(s){
-    const method = s.settings?.drawMethod || 'auto-sequence';
-    return method === 'instant-all' ? 'Instant All' : method === 'manual-step' ? 'Manual Step' : 'Auto Sequence';
-  }
-  function finalItem(s){
-    const live = s.drawLive || {};
-    return live.pendingItem || live.current || (Array.isArray(live.feed) && live.feed[0]) || { team:'READY', group:'-', slot:'-' };
-  }
-  function rollingItem(s){
-    const live = s.drawLive || {};
-    const f = finalItem(s);
-    if(!live.waiting) return Object.assign({}, f, {_progress:null});
-    const duration = Math.max(1000, n(s.settings?.drawDuration, 5) * 1000);
-    const end = n(live.revealEndsAt, Date.now() + duration);
-    const remain = Math.max(0, end - Date.now());
-    const p = Math.max(0, Math.min(1, 1 - remain / duration));
-    if(p > .91) return Object.assign({}, f, {_progress:p});
-    const teams = (Array.isArray(s.teams) && s.teams.length ? s.teams : (Array.isArray(s.pendingSequence) ? s.pendingSequence.map(x => x.team) : [])).filter(x => x && x !== 'BYE');
-    const groupKeys = Object.keys(s.pendingGroups || s.groups || {});
-    const groups = groupKeys.length ? groupKeys : letters(s.event?.groupCount || 4);
-    const slow = 48 + Math.pow(p, 2.8) * 430;
-    const idx = Math.floor(Date.now() / slow);
-    return {
-      team: teams.length ? teams[idx % teams.length] : 'กำลังสุ่ม...',
-      group: groups.length ? groups[(idx + 1) % groups.length] : '-',
-      slot: (idx % 8) + 1,
-      _ticker:true,
-      _progress:p
+    $$('[data-typo]', modal).forEach(input => input.addEventListener('input', applyTemp));
+
+    const closeRestore = () => {
+      localStorage.setItem(TYPO_KEY, JSON.stringify(previous));
+      applyTypography();
+      modal.remove();
     };
+
+    $('[data-close]', modal).addEventListener('click', closeRestore);
+    $('[data-cancel]', modal).addEventListener('click', closeRestore);
+    $('[data-reset]', modal).addEventListener('click', () => {
+      current = { ...defaultTypography };
+      controls.forEach(([key]) => {
+        const input = $(`[data-typo="${key}"]`, modal);
+        if (input) input.value = current[key];
+      });
+      applyTemp();
+    });
+    $('[data-save]', modal).addEventListener('click', () => {
+      setTypography(current);
+      modal.remove();
+      toast('บันทึก Draw Text Size แล้ว', 'good');
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeRestore();
+    });
   }
-  function fxHtml(mode){
-    if(mode === 'wheel') return `<div class="plv4-wheel-box"><div class="plv4-pointer"></div><div class="plv4-wheel"></div></div>`;
-    if(mode === 'slot') return `<div class="plv4-slot">${Array.from({length:4},(_,i)=>`<div class="plv4-reel"><div class="plv4-slot-track"><div class="plv4-slot-chip">${i+1}</div><div class="plv4-slot-chip">A</div><div class="plv4-slot-chip">B</div><div class="plv4-slot-chip">C</div></div></div>`).join('')}</div>`;
-    if(mode === 'card') return `<div class="plv4-card-stack"><div class="plv4-card-one">A</div><div class="plv4-card-one">B</div><div class="plv4-card-one">C</div></div>`;
-    if(mode === 'lottery') return `<div class="plv4-ball">LOT</div>`;
-    if(mode === 'crystal') return `<div class="plv4-orb"></div>`;
-    return `<div class="plv4-ring"></div>`;
-  }
-  function drawCardHtml(s){
-    const mode = s.settings?.drawAnimation || 'wheel';
-    return `<div class="plv4-source-wrap"><div class="plv4-draw-card" data-plv4-draw="1"><div class="plv4-fx">${fxHtml(mode)}</div><div class="plv4-meta"><span class="plv4-chip">STYLE <b data-plv4-style>${esc(String(mode).toUpperCase())}</b></span><span class="plv4-chip">REVEAL <b data-plv4-reveal>0/0</b></span><span class="plv4-chip">MODE <b data-plv4-method>${esc(modeLabel(s))}</b></span></div><div class="plv4-group-pill plv4-group-label">GROUP <b class="plv4-group-value" data-plv4-group>-</b></div><div class="plv4-name" data-plv4-name>READY</div><div class="plv4-sub" data-plv4-sub>สาย - · ลำดับ -</div><div class="plv4-status" data-plv4-status>เลือกวิธีสุ่ม แล้วกด Start Draw</div><div class="plv4-track"><div class="plv4-bar" data-plv4-bar></div></div></div></div>`;
-  }
-  function updateDrawText(root, s){
-    const item = rollingItem(s);
-    const live = s.drawLive || {};
-    const total = n(live.total || (Array.isArray(s.pendingSequence) ? s.pendingSequence.length : 0), 0);
-    const done = n(s.pendingRevealIndex || live.progress, 0);
-    const progress = live.waiting ? pct((item._progress || 0) * 100) : pct(total ? (done / Math.max(1,total) * 100) : 0);
-    const status = live.waiting ? 'กำลังรันรายชื่อ / สาย / ลำดับ จนกว่าจะล็อกผล' : ((item.team === 'READY') ? 'เลือกวิธีสุ่ม แล้วกด Start Draw' : 'ผลล่าสุดล็อกแล้ว');
-    const pairs = [
-      ['[data-plv4-group],.pl-live-group', item.group ?? '-'],
-      ['[data-plv4-name],.pl-live-name', item.team ?? 'READY'],
-      ['[data-plv4-sub],.pl-live-sub', `สาย ${item.group ?? '-'} · ลำดับ ${item.slot ?? '-'}`],
-      ['[data-plv4-status],.pl-live-status', status],
-      ['[data-plv4-reveal],.pl-live-reveal', `${done}/${total}`],
-      ['[data-plv4-style],.pl-live-style', String(s.settings?.drawAnimation || 'wheel').toUpperCase()],
-      ['[data-plv4-method],.pl-live-method', modeLabel(s)]
-    ];
-    pairs.forEach(([sel, val]) => $$(sel, root).forEach(el => { if(el.textContent !== String(val)) el.textContent = String(val); }));
-    $$('[data-plv4-bar],.pl-live-bar', root).forEach(el => { el.style.transform = `scaleX(${progress/100})`; el.style.width = progress + '%'; });
-  }
-  function renderDrawSource(){
-    if(!IS_DRAW_SOURCE) return;
-    document.documentElement.classList.add('plv4-source');
-    const app = $('#app'); if(app) app.style.display = 'none';
-    const root = $('#sourceRoot') || document.body;
-    root.classList.remove('hidden');
-    const s = readState(); s.settings = s.settings || {}; s.event = s.event || {};
-    const mode = s.settings.drawAnimation || 'wheel';
-    const current = root.querySelector('[data-plv4-draw="1"]');
-    if(!current || current.dataset.mode !== mode){
-      root.innerHTML = drawCardHtml(s);
-      const card = root.querySelector('[data-plv4-draw="1"]');
-      if(card) card.dataset.mode = mode;
-    }
-    updateDrawText(root, s);
-  }
-  function enhanceControlDraw(){
-    if(IS_SOURCE) return;
+
+  function attachDrawTicker() {
     const stage = $('#drawStage');
-    if(!stage) return;
-    updateDrawText(stage, readState());
+    if (!stage) return;
+
+    let last = '';
+    let running = false;
+
+    function ensureTicker() {
+      let ticker = $('.peps-ticker-clean', stage);
+      if (!ticker) {
+        stage.style.position = stage.style.position || 'relative';
+        ticker = document.createElement('div');
+        ticker.className = 'peps-ticker-clean';
+        ticker.innerHTML = `
+          <div class="peps-ticker-row-clean">
+            <div class="peps-ticker-team-clean">READY</div>
+            <div class="peps-ticker-pill-clean">สาย -</div>
+            <div class="peps-ticker-pill-clean">ลำดับ -</div>
+          </div>
+        `;
+        stage.appendChild(ticker);
+      }
+      return ticker;
+    }
+
+    function removeTicker() {
+      const ticker = $('.peps-ticker-clean', stage);
+      if (ticker) ticker.remove();
+    }
+
+    function loop() {
+      const st = getState();
+      const live = st.drawLive || {};
+      if (!live.waiting) {
+        running = false;
+        removeTicker();
+        return;
+      }
+
+      const item = tickerItem(st);
+      const hash = `${item.team}|${item.group}|${item.slot}`;
+      if (hash !== last) {
+        const ticker = ensureTicker();
+        $('.peps-ticker-team-clean', ticker).textContent = item.team;
+        const pills = $$('.peps-ticker-pill-clean', ticker);
+        if (pills[0]) pills[0].textContent = `สาย ${item.group}`;
+        if (pills[1]) pills[1].textContent = `ลำดับ ${item.slot}`;
+        last = hash;
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function startIfNeeded() {
+      const live = getState().drawLive || {};
+      if (live.waiting && !running) {
+        running = true;
+        requestAnimationFrame(loop);
+      } else if (!live.waiting) {
+        removeTicker();
+      }
+    }
+
+    ['click', 'change', 'input'].forEach(type => document.addEventListener(type, () => setTimeout(startIfNeeded, 60), true));
+    setInterval(startIfNeeded, 350);
   }
 
-  function emptyGroups(s){ const out = {}; letters(s.event?.groupCount || 4).forEach(k => out[k] = []); return out; }
-  function revealedGroups(s){
-    const out = emptyGroups(s);
-    const feed = Array.isArray(s.drawLive?.feed) ? [...s.drawLive.feed].reverse() : [];
-    const seen = new Set();
-    feed.forEach(item => {
-      if(!item || !item.group || !item.team || item.team === 'BYE') return;
-      const key = `${item.group}|${item.slot}|${item.team}`;
-      if(seen.has(key)) return;
-      seen.add(key);
-      if(!out[item.group]) out[item.group] = [];
-      const pos = Math.max(0, n(item.slot, out[item.group].length + 1) - 1);
-      out[item.group][pos] = item.team;
+  function removeLegacySourceDupes() {
+    // In a clean index this is mostly inert. It protects against app.js rerendering the old source list.
+    const holder = $('#sourceCards');
+    if (!holder) return;
+    const text = holder.textContent || '';
+    const legacyCount = DRAW_MODES.filter(name => text.toLowerCase().includes(name)).length;
+    if (legacyCount > 2 || !holder.dataset.cleanCards) renderCleanSourceCards();
+  }
+
+  function patchControlView() {
+    injectCleanStyles();
+    applyTypography();
+    injectDrawSizeButton();
+    attachDrawTicker();
+    renderCleanSourceCards();
+
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-panel-target="sources"]')) {
+        setTimeout(renderCleanSourceCards, 80);
+        setTimeout(renderCleanSourceCards, 350);
+      }
+      if (e.target.closest('[data-panel-target="draw"]')) {
+        setTimeout(() => {
+          injectDrawSizeButton();
+          applyTypography();
+        }, 120);
+      }
+    }, true);
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === TYPO_KEY) applyTypography();
+      if (e.key === STORAGE_KEY) {
+        removeLegacySourceDupes();
+      }
     });
-    return out;
-  }
-  function groupsForSource(s){
-    // Never reveal pendingGroups directly. Source follows Reveal Feed first; confirmed groups only after Confirm.
-    const feedData = revealedGroups(s);
-    if(Object.values(feedData).some(arr => Array.isArray(arr) && arr.some(Boolean))) return feedData;
-    if(hasGroups(s.groups)) return s.groups;
-    return emptyGroups(s);
-  }
-  function renderGroupsSource(){
-    if(VIEW !== 'groups') return;
-    document.documentElement.classList.add('plv4-source');
-    const app = $('#app'); if(app) app.style.display = 'none';
-    const root = $('#sourceRoot') || document.body;
-    root.classList.remove('hidden');
-    const s = readState(); s.event = s.event || {}; s.settings = s.settings || {};
-    const groups = groupsForSource(s);
-    const cols = clamp(s.settings.groupTableColumns || 3, 1, 10, 3);
-    document.documentElement.style.setProperty('--plv4-groups-cols', cols);
-    const html = Object.entries(groups).map(([g, teams]) => {
-      const rows = Array.isArray(teams) && teams.length ? teams : [''];
-      const count = rows.filter(x => x && x !== 'BYE').length;
-      return `<div class="plv4-group-card"><div class="plv4-group-title"><span>สาย ${esc(g)}</span><span>${count} ทีม</span></div>${rows.map((t,i)=>`<div class="plv4-group-row ${!t ? 'empty' : ''}"><span class="no">${i+1}</span><span class="team">${esc(t || 'รอผล Reveal')}</span></div>`).join('')}</div>`;
-    }).join('');
-    root.innerHTML = `<div class="plv4-groups-wrap"><div class="plv4-groups-board"><div class="plv4-groups-head"><div><h1>${esc(s.event.name || 'PepsLive Tournament')}</h1><p>Groups Table Source · ตามผลแบ่งสาย / Reveal Feed</p></div><span class="plv4-chip">LIVE <b>${new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</b></span></div><div class="plv4-groups-grid">${html}</div></div></div>`;
+
+    setInterval(() => {
+      applyTypography();
+      if ($('#sourceCards')) removeLegacySourceDupes();
+      if ($('[data-panel="draw"].active')) injectDrawSizeButton();
+    }, 1200);
   }
 
-  function sourceCardsHtml(){
-    const drawUrl = sourceUrl('draw-animation');
-    const drawCard = `<div class="source-section" data-plv4-section="draw"><h3>DRAW ANIMATION SOURCE</h3><p class="hint">ลิงก์เดียวสำหรับ OBS เปลี่ยน Animation Style ตามหน้า Draw Control</p><div class="source-grid-core single"><div class="source-card" data-plv4-card="draw-animation"><h3>Draw Animation Source</h3><p>แสดงผลสุ่มแบบเดียวกับหน้า Draw Control โดยไม่ต้องใช้ Wheel/Slot/Card แยกหลายลิงก์</p><div class="source-url">${esc(drawUrl)}</div><div class="row"><button class="btn primary" type="button" data-plv4-copy="${esc(drawUrl)}">Copy URL</button><button class="btn" type="button" data-plv4-preview="${esc(drawUrl)}">Preview URL</button></div></div></div></div>`;
-    const dataCards = DATA_SOURCES.map(([id, title, desc]) => {
-      const url = sourceUrl(id);
-      return `<div class="source-card" data-plv4-card="${esc(id)}"><h3>${esc(title)}</h3><p>${esc(desc)}</p><div class="source-url">${esc(url)}</div><div class="row"><button class="btn primary" type="button" data-plv4-copy="${esc(url)}">Copy URL</button><button class="btn" type="button" data-plv4-preview="${esc(url)}">Preview URL</button></div></div>`;
-    }).join('');
-    const liveSection = `<div class="source-section" data-plv4-section="live"><h3>LIVE DATA SOURCES</h3><p class="hint">แสดง URL ได้เลย ไม่ล็อก Wait และไม่แสดงผลสุ่มทั้งหมดก่อนเวลา</p><div class="source-grid-core">${dataCards}</div></div>`;
-    return drawCard + liveSection;
-  }
-  function renderSourceCards(){
-    if(IS_SOURCE) return;
-    const box = $('#sourceCards');
-    if(!box) return;
-    box.dataset.plv4Clean = '1';
-    const key = 'v4-source-cards';
-    if(lastSourceCardsKey !== key || !box.querySelector('[data-plv4-section="draw"]')){
-      lastSourceCardsKey = key;
-      box.innerHTML = sourceCardsHtml();
-    }
-  }
-  function watchSourceCards(){
-    if(IS_SOURCE || sourceObserver || !$('#sourceCards')) return;
-    sourceObserver = new MutationObserver(() => {
-      const box = $('#sourceCards');
-      if(!box || box.querySelector('[data-plv4-section="draw"]')) return;
-      queueMicrotask(renderSourceCards);
-    });
-    sourceObserver.observe($('#sourceCards'), {childList:true, subtree:false});
-  }
+  if (initSourceView()) return;
 
-  document.addEventListener('click', e => {
-    const pageBtn = e.target.closest('.pl-page-btn');
-    if(pageBtn){
-      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      openPageModal(pageBtn.dataset.plv4Panel || pageBtn.closest('.panel')?.dataset.panel || 'dashboard');
-      return;
-    }
-    const copy = e.target.closest('[data-plv4-copy]');
-    if(copy){
-      e.preventDefault(); e.stopPropagation();
-      navigator.clipboard?.writeText(copy.dataset.plv4Copy);
-      const old = copy.textContent;
-      copy.textContent = 'Copied';
-      setTimeout(() => copy.textContent = old || 'Copy URL', 1200);
-      return;
-    }
-    const preview = e.target.closest('[data-plv4-preview]');
-    if(preview){ e.preventDefault(); e.stopPropagation(); window.open(preview.dataset.plv4Preview, '_blank'); }
-  }, true);
-
-  function bootStatic(){
-    injectCss();
-    applyDrawSizeVars(readDrawSize());
-    if(IS_DRAW_SOURCE) renderDrawSource();
-    else if(VIEW === 'groups') renderGroupsSource();
-    else if(!IS_SOURCE){
-      installDrawTextSizeCard();
-      ensurePageButtons();
-      applyAllPages();
-      renderSourceCards();
-      watchSourceCards();
-    }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', patchControlView, { once: true });
+  } else {
+    patchControlView();
   }
-  function loop(){
-    applyDrawSizeVars(readDrawSize());
-    if(IS_DRAW_SOURCE) renderDrawSource();
-    else if(VIEW === 'groups') renderGroupsSource();
-    else if(!IS_SOURCE){
-      enhanceControlDraw();
-      renderSourceCards();
-    }
-    raf = requestAnimationFrame(loop);
-  }
-  function start(){
-    bootStatic();
-    if(!raf) raf = requestAnimationFrame(loop);
-    setInterval(bootStatic, IS_SOURCE ? 900 : 1500);
-  }
-  document.addEventListener('DOMContentLoaded', start, {once:true});
-  if(document.readyState !== 'loading') setTimeout(start, 40);
 })();
 </script>
 </body>
