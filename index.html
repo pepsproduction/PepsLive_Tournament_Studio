@@ -8,10 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Prompt:wght@500;600;700;800;900&display=swap" rel="stylesheet">
   <title>PepsLive Tournament Studio</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <style>
-    /* Core feature layer: kept inside index.html, no extra patch files. */
-    .page-layout-btn{margin-left:auto;display:inline-flex!important;align-items:center;justify-content:center;min-width:132px}.panel-head{gap:12px}.pl-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.62);backdrop-filter:blur(10px)}.pl-modal.open{display:flex}.pl-box{width:min(760px,94vw);max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:24px;background:var(--panel,#0e1d31);box-shadow:var(--shadow);color:var(--text)}.pl-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:22px 24px;border-bottom:1px solid var(--line)}.pl-head h3{margin:0}.pl-head p{margin:6px 0 0;color:var(--muted)}.pl-close{border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.05);color:var(--text);font-size:28px;width:44px;height:44px}.pl-body{padding:22px 24px;display:grid;gap:18px}.pl-slider{display:grid;gap:9px}.pl-slider label{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-weight:800}.pl-slider label b{min-width:84px;text-align:right;color:var(--text);font-family:"Chakra Petch",sans-serif}.pl-slider input[type=range]{width:100%;height:7px;padding:0;border-radius:999px;accent-color:var(--accent);cursor:pointer}.pl-slider input[type=range]::-webkit-slider-thumb{cursor:pointer}.pl-actions{display:flex;gap:10px;flex-wrap:wrap;padding:0 24px 24px}.pl-actions .btn{border-radius:999px}.panel[data-page-width="narrow"]{max-width:980px;margin-inline:auto}.panel[data-page-width="wide"]{max-width:1480px;margin-inline:auto}.panel[data-page-width="full"]{max-width:none}.panel[data-page-font="small"]{font-size:.92rem}.panel[data-page-font="large"]{font-size:1.08rem}.panel[data-page-font="xlarge"]{font-size:1.16rem}.panel[data-page-density="compact"] .card{padding:13px}.panel[data-page-density="compact"] .grid{gap:10px}.panel[data-page-table="short"] #scoresBox,.panel[data-page-table="short"] #standingsBox,.panel[data-page-table="short"] #scheduleBox,.panel[data-page-table="short"] #groupResult{max-height:45vh;overflow:auto}.panel[data-page-table="normal"] #scoresBox,.panel[data-page-table="normal"] #standingsBox,.panel[data-page-table="normal"] #scheduleBox,.panel[data-page-table="normal"] #groupResult{max-height:62vh;overflow:auto}.panel[data-page-table="tall"] #scoresBox,.panel[data-page-table="tall"] #standingsBox,.panel[data-page-table="tall"] #scheduleBox,.panel[data-page-table="tall"] #groupResult{max-height:78vh;overflow:auto}.source-section{grid-column:1/-1;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.03);padding:14px}.source-section h3{margin:0 0 12px}.source-grid-core{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.source-grid-core.single{grid-template-columns:minmax(260px,560px)}.source-url{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:#cbefff;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.22);padding:9px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:10px}.pl-groups-source{min-height:100vh;display:grid;place-items:center;padding:40px;background:transparent;color:var(--text);font-family:"IBM Plex Sans Thai",system-ui,sans-serif}.pl-groups-board{width:min(1500px,96vw);border:1px solid rgba(255,255,255,.18);border-radius:28px;background:rgba(7,17,31,.92);box-shadow:0 24px 70px rgba(0,0,0,.35);padding:24px}.pl-groups-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.14)}.pl-groups-head h1{margin:0;font-size:clamp(28px,3.4vw,56px)}.pl-groups-head p{margin:6px 0 0;color:var(--muted)}.pl-groups-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.pl-group-card{border:1px solid rgba(255,255,255,.14);border-radius:18px;background:rgba(255,255,255,.06);overflow:hidden}.pl-group-title{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:rgba(91,231,255,.08);font-weight:950}.pl-group-row{display:grid;grid-template-columns:38px 1fr;gap:8px;padding:9px 12px;border-top:1px solid rgba(255,255,255,.11)}.pl-group-row.empty .team{opacity:.45}.pl-group-row.wait{background:rgba(255,209,102,.1)}.pl-group-row .no{color:var(--accent);font-weight:950}.pl-group-row .team{font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl-anim-source{min-height:100vh;display:grid;place-items:center;background:transparent;color:var(--text);font-family:"Prompt",system-ui,sans-serif}.pl-anim-core{text-align:center;min-width:min(760px,94vw);padding:20px}.pl-anim-name{font-size:clamp(42px,7vw,96px);font-weight:950;line-height:.95;text-shadow:0 8px 36px rgba(0,0,0,.45)}.pl-anim-meta{margin-top:12px;color:var(--muted);font-size:clamp(18px,2vw,30px);font-weight:800}.pl-anim-fx{height:250px;display:grid;place-items:center}.pl-wheel{width:220px;height:220px;border-radius:50%;background:conic-gradient(var(--accent) 0 45deg,var(--accent2) 45deg 90deg,#ffd166 90deg 135deg,#42f59b 135deg 180deg,var(--accent) 180deg 360deg);box-shadow:0 0 0 12px rgba(255,255,255,.08),0 22px 60px rgba(0,0,0,.38);animation:plSpin 1.25s linear infinite}.pl-slot{display:grid;grid-template-columns:repeat(4,70px);gap:12px}.pl-slot i{height:110px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04));animation:plPulse .55s infinite alternate}.pl-card{width:160px;height:220px;border-radius:22px;background:#fff;color:#111;display:grid;place-items:center;font-size:48px;font-weight:950;box-shadow:0 22px 50px rgba(0,0,0,.35);animation:plFlip .8s infinite alternate}.pl-ball{width:170px;height:170px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,var(--accent) 38%,#14748b);display:grid;place-items:center;color:#07111f;font-size:32px;font-weight:950;animation:plBob .75s infinite alternate}.pl-ring{width:230px;height:230px;border-radius:50%;border:10px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-right-color:var(--accent2);animation:plSpin 1.2s linear infinite}@keyframes plSpin{to{transform:rotate(360deg)}}@keyframes plPulse{to{transform:translateY(-12px);opacity:.5}}@keyframes plFlip{to{transform:rotateY(35deg) rotateZ(4deg)}}@keyframes plBob{to{transform:translateY(-20px)}}@media(max-width:720px){.top-actions{align-items:stretch}.top-actions .btn,.top-actions .pill{width:100%;text-align:center;justify-content:center}.pl-group-row .team{white-space:normal}}
-  </style>
 </head>
 <body>
   <div id="sourceRoot" class="hidden"></div>
@@ -26,9 +22,8 @@
         </div>
       </div>
       <div class="top-actions">
-        <span class="pill" id="autosavePill">Manual Save: Ready</span>
+        <span class="pill" id="autosavePill">Auto Save: Ready</span>
         <span class="pill" id="sheetPill">Google Sheet: Not set</span>
-        <button class="btn small primary" id="btnManualSaveLocal" type="button">Manual Save</button>
         <button class="btn small" id="btnSaveProject">Save JSON</button>
         <label class="btn small file-btn">Load JSON<input id="loadProjectInput" type="file" accept=".json,application/json" /></label>
       </div>
@@ -48,49 +43,52 @@
       </aside>
 
       <section class="content">
-        <section class="panel active" data-panel="dashboard"><div class="panel-head"><div><h2>Dashboard</h2><p>ดูสถานะรายการทั้งหมดและขั้นตอนถัดไป</p></div><button class="btn primary" id="goNext">ไปขั้นตอนถัดไป</button></div><div class="statgrid" id="dashboardStats"></div><div class="grid two"><div class="card"><h3>Next Action</h3><div id="nextAction" class="notice"></div></div><div class="card"><h3>System Guard</h3><div id="guardList"></div></div></div></section>
-        <section class="panel" data-panel="setup"><div class="panel-head"><div><h2>Setup Event</h2><p>ตั้งค่าพื้นฐานก่อนสุ่มและจัดตาราง</p></div></div><div class="grid three"><div class="field"><label>ชื่อรายการ</label><input id="eventName" placeholder="เช่น บาส 3X3 ศรีสะเกษ" /></div><div class="field"><label>ประเภทกีฬา</label><select id="sportType"><option>Basketball 3x3</option><option>Football</option><option>Volleyball</option><option>Esport</option><option>Custom</option></select></div><div class="field"><label>Preset</label><select id="preset"><option value="custom">Custom</option><option value="basket3x3">บาส 3x3</option><option value="football">ฟุตบอล</option><option value="esport">อีสปอร์ต</option></select></div><div class="field"><label>จำนวนสาย / กลุ่ม</label><input id="groupCount" type="number" min="1" value="4" /></div><div class="field"><label>จำนวนสนาม</label><input id="courtCount" type="number" min="1" value="1" /></div><div class="field"><label>เวลาเริ่มแข่ง</label><input id="startTime" type="time" value="09:00" /></div><div class="field"><label>ระยะห่างแต่ละคู่ (นาที)</label><input id="matchInterval" type="number" min="1" value="15" /></div><div class="field"><label>พักทุกกี่รอบเวลา</label><input id="breakEverySlots" type="number" min="0" value="0" /></div><div class="field"><label>เวลาพัก (นาที)</label><input id="breakMinutes" type="number" min="0" value="0" /></div></div><div class="card compact"><h3>กติกาคะแนนรอบแบ่งกลุ่ม</h3><div class="grid four"><div class="field"><label>ชนะได้กี่แต้ม</label><input id="pointsWin" type="number" value="3" /></div><div class="field"><label>เสมอได้กี่แต้ม</label><input id="pointsDraw" type="number" value="1" /></div><div class="field"><label>แพ้ได้กี่แต้ม</label><input id="pointsLoss" type="number" value="0" /></div><div class="field"><label>เข้ารอบต่อสาย</label><input id="qualifiersPerGroup" type="number" min="1" value="2" /></div></div><p class="hint">ลำดับจัดอันดับ Final: PTS → GD → GF → ชนะมากกว่า → ชื่อทีม A-Z</p></div><div class="row"><button class="btn primary" id="saveSetup">บันทึก Setup</button><button class="btn" id="resetAll">Reset โปรเจกต์</button></div></section>
+        <section class="panel active" data-panel="dashboard">
+          <div class="panel-head"><div><h2>Dashboard</h2><p>ดูสถานะรายการทั้งหมดและขั้นตอนถัดไป</p></div><button class="btn primary" id="goNext">ไปขั้นตอนถัดไป</button></div>
+          <div class="statgrid" id="dashboardStats"></div>
+          <div class="grid two"><div class="card"><h3>Next Action</h3><div id="nextAction" class="notice"></div></div><div class="card"><h3>System Guard</h3><div id="guardList"></div></div></div>
+        </section>
+
+        <section class="panel" data-panel="setup">
+          <div class="panel-head"><div><h2>Setup Event</h2><p>ตั้งค่าพื้นฐานก่อนสุ่มและจัดตาราง</p></div></div>
+          <div class="grid three">
+            <div class="field"><label>ชื่อรายการ</label><input id="eventName" placeholder="เช่น บาส 3X3 ศรีสะเกษ" /></div>
+            <div class="field"><label>ประเภทกีฬา</label><select id="sportType"><option>Basketball 3x3</option><option>Football</option><option>Volleyball</option><option>Esport</option><option>Custom</option></select></div>
+            <div class="field"><label>Preset</label><select id="preset"><option value="custom">Custom</option><option value="basket3x3">บาส 3x3</option><option value="football">ฟุตบอล</option><option value="esport">อีสปอร์ต</option></select></div>
+            <div class="field"><label>จำนวนสาย / กลุ่ม</label><input id="groupCount" type="number" min="1" value="4" /></div>
+            <div class="field"><label>จำนวนสนาม</label><input id="courtCount" type="number" min="1" value="1" /></div>
+            <div class="field"><label>เวลาเริ่มแข่ง</label><input id="startTime" type="time" value="09:00" /></div>
+            <div class="field"><label>ระยะห่างแต่ละคู่ (นาที)</label><input id="matchInterval" type="number" min="1" value="15" /></div>
+            <div class="field"><label>พักทุกกี่รอบเวลา</label><input id="breakEverySlots" type="number" min="0" value="0" /></div>
+            <div class="field"><label>เวลาพัก (นาที)</label><input id="breakMinutes" type="number" min="0" value="0" /></div>
+          </div>
+          <div class="card compact"><h3>กติกาคะแนนรอบแบ่งกลุ่ม</h3><div class="grid four"><div class="field"><label>ชนะได้กี่แต้ม</label><input id="pointsWin" type="number" value="3" /></div><div class="field"><label>เสมอได้กี่แต้ม</label><input id="pointsDraw" type="number" value="1" /></div><div class="field"><label>แพ้ได้กี่แต้ม</label><input id="pointsLoss" type="number" value="0" /></div><div class="field"><label>เข้ารอบต่อสาย</label><input id="qualifiersPerGroup" type="number" min="1" value="2" /></div></div><p class="hint">ลำดับจัดอันดับ Final: PTS → GD → GF → ชนะมากกว่า → ชื่อทีม A-Z</p></div>
+          <div class="row"><button class="btn primary" id="saveSetup">บันทึก Setup</button><button class="btn" id="resetAll">Reset โปรเจกต์</button></div>
+        </section>
+
         <section class="panel" data-panel="teams"><div class="panel-head"><div><h2>Teams</h2><p>ใส่รายชื่อทีม ตรวจซ้ำ และเตรียมสุ่ม</p></div></div><div class="grid two"><div class="card"><h3>รายชื่อทีม</h3><textarea id="teamText" placeholder="วางรายชื่อทีม ทีละบรรทัด"></textarea><div class="row"><button class="btn primary" id="saveTeams">บันทึกรายชื่อ</button><button class="btn" id="dedupeTeams">ลบชื่อซ้ำ</button><button class="btn" id="sampleTeams">ใส่ตัวอย่าง 16 ทีม</button></div></div><div class="card"><h3>ผลตรวจข้อมูล</h3><div id="teamValidation"></div></div></div></section>
+
         <section class="panel" data-panel="draw"><div class="panel-head"><div><h2>Draw</h2><p>สุ่มสายแบบใหม่ เลือกได้ทั้งกดทีเดียวสุ่มทั้งหมด หรือเปิดผลทีละทีม พร้อมกราฟิกบอกสาย · ลำดับ · ทีม</p></div></div><div class="grid two"><div class="card"><h3>Draw Control</h3><div class="grid three"><div class="field"><label>Animation Style</label><select id="drawAnimation"><option value="wheel">Wheel Spin</option><option value="slot">Slot Reveal</option><option value="card">Card Draw</option><option value="lottery">Lottery Ball</option><option value="glitch">Glitch Cyber</option><option value="galaxy">Galaxy Spiral</option><option value="crystal">Crystal Oracle</option><option value="plasma">Plasma Arc</option><option value="vortex">Vortex Portal</option></select></div><div class="field"><label>Draw Method</label><select id="drawMethod"><option value="auto-sequence">Auto Reveal ทีละทีม</option><option value="manual-step">Manual Reveal ทีละทีม</option><option value="instant-all">กดทีเดียวสุ่มทั้งหมด</option></select></div><div class="field"><label>Result Delay</label><div class="inline-range"><input id="drawDuration" type="range" min="1" max="20" value="5" /><div class="range-pill"><span id="drawDurationValue">5</span> วินาที</div></div></div></div><div class="field"><label>Seed / Note</label><input id="drawNote" placeholder="ใส่หมายเหตุได้ เช่น รอบจับสายบ่าย" /></div><div class="draw-stage cinematic" id="drawStage"><div><div class="draw-big">READY</div><div class="muted">เลือกวิธีสุ่ม แล้วกด Start Draw</div></div></div><div class="row"><button class="btn primary" id="startDraw">Start Draw</button><button class="btn" id="nextReveal">Next Reveal</button><button class="btn good" id="confirmDraw">Confirm Result</button><button class="btn warn" id="redraw">Reset Prepared</button><button class="btn" id="undoDraw">Undo</button><button class="btn" id="toggleDrawExpand">Expand Draw</button></div><div id="pendingBox" class="notice">ยังไม่มีผล pending</div></div><div class="card"><h3>ผลแบ่งสาย / Reveal Feed</h3><div id="groupResult"></div><div id="revealFeed"></div></div></div></section>
+
         <section class="panel" data-panel="schedule"><div class="panel-head"><div><h2>Schedule</h2><p>สร้างตารางแข่งรอบแบ่งกลุ่ม พร้อมสุ่มลำดับสาย/คู่ และหน่วงเวลาเปิดผลให้ลุ้นขึ้น</p></div></div><div class="card compact"><h3>Schedule Reveal Control</h3><div class="grid three"><div class="field"><label>Schedule Reveal Delay</label><div class="inline-range"><input id="scheduleDuration" type="range" min="1" max="15" value="5" /><div class="range-pill"><span id="scheduleDurationValue">5</span> วินาที</div></div></div><div class="field"><label>Randomize</label><label class="switch-row"><input type="checkbox" id="randomizeSchedule" checked /> สุ่มลำดับสายและคู่แข่ง</label></div><div class="field"><label>Schedule Style</label><select id="scheduleRevealStyle"><option value="shuffle">Shuffle Board</option><option value="scanner">Match Scanner</option><option value="cards">Match Cards</option></select></div></div></div><div class="row"><button class="btn primary" id="generateSchedule">Generate Schedule</button><button class="btn" id="rebalanceSchedule">Rebuild Random</button><button class="btn" id="copyScheduleBtn">Copy Schedule</button></div><div id="restWarnings"></div><div id="scheduleBox"></div></section>
+
         <section class="panel" data-panel="scores"><div class="panel-head"><div><h2>Scores & Standings</h2><p>กรอกผลการแข่งขัน ระบบคำนวณอันดับให้ทันที</p></div></div><div class="row"><button class="btn primary" id="saveScores">บันทึกคะแนน</button><button class="btn" id="markAllPending">ตั้งทุกคู่เป็น Pending</button><button class="btn" id="copyStandingsBtn">Copy Standings</button></div><div class="grid two wide-left"><div class="card"><h3>Match Scores</h3><div id="scoresBox"></div></div><div class="card"><h3>Standings</h3><div id="standingsBox"></div></div></div></section>
+
         <section class="panel" data-panel="knockout"><div class="panel-head"><div><h2>Knockout</h2><p>ดึงอันดับจากสายมาเข้ารอบต่อไป และคำนวณผู้ชนะต่อเนื่อง</p></div></div><div class="grid two"><div class="card"><h3>Qualifier Override</h3><p class="hint">ใช้กรณีหน้างานมีทีมสละสิทธิ์ แพ้บาย หรือกรรมการตัดสินพิเศษ</p><div id="overrideBox"></div><div class="row"><button class="btn" id="clearOverrides">ล้าง Override</button></div></div><div class="card"><h3>Knockout Builder</h3><label class="switch-row"><input type="checkbox" id="enableThird" checked /> มีรอบชิงที่ 3</label><label class="switch-row"><input type="checkbox" id="enableFinal" checked /> มีรอบชิงชนะเลิศ</label><div class="row"><button class="btn primary" id="generateKnockout">Generate / Refresh Knockout</button><button class="btn" id="copyKnockoutBtn">Copy Knockout</button></div><div class="notice">Final รองรับ 4 หรือ 8 ทีมเข้ารอบแบบเต็มสุด ถ้ามากกว่านั้นจะสร้างรอบเบื้องต้นแบบ sequential ให้ก่อน</div></div></div><div id="knockoutBox"></div></section>
+
         <section class="panel" data-panel="sources"><div class="panel-head"><div><h2>Live Sources</h2><p>ใช้ URL เหล่านี้เป็น OBS Browser Source ได้เลย</p></div></div><div class="grid three" id="sourceCards"></div></section>
+
         <section class="panel" data-panel="export"><div class="panel-head"><div><h2>Export</h2><p>รอบนี้ตัด Excel ออก เหลือ Copy + Google Sheet</p></div></div><div class="grid two"><div class="card"><h3>Copy Export</h3><div class="grid two"><button class="btn" data-copy="draw">Copy Draw Result</button><button class="btn" data-copy="schedule">Copy Schedule</button><button class="btn" data-copy="scores">Copy Scores</button><button class="btn" data-copy="standings">Copy Standings</button><button class="btn" data-copy="knockout">Copy Knockout</button><button class="btn" data-copy="caption">Copy Facebook Caption</button><button class="btn primary" data-copy="all">Copy All</button><button class="btn" data-copy="script">Copy Presenter Script</button></div><div id="copyStatus" class="notice">พร้อมคัดลอก</div></div><div class="card"><h3>Google Sheet Webhook</h3><div class="field"><label>Apps Script Webhook URL</label><input id="webhookUrl" placeholder="https://script.google.com/macros/s/.../exec" /></div><div class="field"><label>Secret Token</label><input id="webhookToken" placeholder="ตั้งรหัสเอง เช่น pepslive123" /></div><div class="field"><label>Google Sheet ID (เว้นว่างได้ ถ้าให้ Apps Script สร้างใหม่)</label><input id="sheetId" /></div><div class="row"><button class="btn" id="saveWebhook">Save</button><button class="btn" id="testWebhook">Test</button><button class="btn primary" id="sendWebhook">Export to Google Sheet</button></div><div id="sheetStatus" class="notice">ยังไม่ได้ส่งข้อมูล</div></div></div></section>
-        <section class="panel" data-panel="settings"><div class="panel-head"><div><h2>Settings</h2><p>ตั้งค่าหน้าตาเว็บ, ขนาดแผงควบคุม, ขนาดพื้นที่ทำงาน และ Source สำหรับ OBS</p></div></div><div class="grid two"><div class="card"><h3>Layout Resize</h3><div class="field"><label>ความกว้าง Control Center</label><div class="inline-range"><input id="sidebarWidth" type="range" min="220" max="430" step="10" value="284" /><div class="range-pill"><span id="sidebarWidthValue">284</span> px</div></div></div><div class="field"><label>ความกว้างหน้าเว็บทั้งหมด</label><div class="inline-range"><input id="appMaxWidth" type="range" min="1100" max="1900" step="20" value="1280" /><div class="range-pill"><span id="appMaxWidthValue">1280</span> px</div></div></div><div class="field"><label>ความสูงหน้าต่าง Draw</label><div class="inline-range"><input id="drawStageHeight" type="range" min="300" max="760" step="20" value="420" /><div class="range-pill"><span id="drawStageHeightValue">420</span> px</div></div></div><div class="field"><label>รูปแบบหน้า Draw</label><select id="drawPanelMode"><option value="normal">Normal</option><option value="wide">Wide Draw</option><option value="full">Full Draw</option></select></div><div class="field"><label>ความหนาแน่น UI</label><select id="uiDensity"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div><div class="row"><button class="btn primary" id="saveLayoutSettings">บันทึก Layout</button><button class="btn" id="resetLayoutSettings">Reset Layout</button></div></div><div class="card"><h3>Source Display</h3><div class="field"><label>พื้นหลัง Source</label><select id="sourceBg"><option value="dark">Dark</option><option value="transparent">Transparent</option><option value="green">Green Screen</option></select></div><div class="field"><label>ขนาดตัวอักษร OBS Source</label><input id="fontScale" type="range" min="0.7" max="1.6" step="0.05" value="1" /></div><button class="btn primary" id="saveDisplaySettings">บันทึก Display Settings</button></div><div class="card"><h3>Final QA Status</h3><div class="notice good">ผ่านการตรวจ syntax app.js และโครงสร้างไฟล์สำหรับ GitHub Pages</div><div class="notice">ชื่อโปรเจกต์ที่แนะนำ: <b>PepsLive Tournament Studio</b></div></div><div class="card"><h3>Debug State</h3><pre id="debugState" class="codebox"></pre></div></div></section>
+
+        <section class="panel" data-panel="settings"><div class="panel-head"><div><h2>Settings</h2><p>ตั้งค่าหน้าตาเว็บ, ขนาดแผงควบคุม, ขนาดพื้นที่ทำงาน และ Source สำหรับ OBS</p></div></div><div class="grid two"><div class="card"><h3>Layout Resize</h3><div class="field"><label>ความกว้าง Control Center</label><div class="inline-range"><input id="sidebarWidth" type="range" min="220" max="430" step="10" value="284" /><div class="range-pill"><span id="sidebarWidthValue">284</span> px</div></div></div><div class="field"><label>ความกว้างหน้าเว็บทั้งหมด</label><div class="inline-range"><input id="appMaxWidth" type="range" min="1100" max="1900" step="20" value="1280" /><div class="range-pill"><span id="appMaxWidthValue">1280</span> px</div></div></div><div class="field"><label>ความสูงหน้าต่าง Draw</label><div class="inline-range"><input id="drawStageHeight" type="range" min="300" max="760" step="20" value="420" /><div class="range-pill"><span id="drawStageHeightValue">420</span> px</div></div></div><div class="field"><label>รูปแบบหน้า Draw</label><select id="drawPanelMode"><option value="normal">Normal</option><option value="wide">Wide Draw</option><option value="full">Full Draw</option></select></div><div class="field"><label>ความหนาแน่น UI</label><select id="uiDensity"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div><div class="row"><button class="btn primary" id="saveLayoutSettings">บันทึก Layout</button><button class="btn" id="resetLayoutSettings">Reset Layout</button></div></div><div class="card"><h3>Source Display</h3><div class="field"><label>พื้นหลัง Source</label><select id="sourceBg"><option value="dark">Dark</option><option value="transparent">Transparent</option><option value="green">Green Screen</option></select></div><div class="field"><label>ขนาดตัวอักษร OBS Source</label><input id="fontScale" type="range" min="0.7" max="1.6" step="0.05" value="1" /></div><button class="btn primary" id="saveDisplaySettings">บันทึก Display Settings</button></div><div class="card"><h3>Debug State</h3><pre id="debugState" class="codebox"></pre></div></div></section>
       </section>
     </main>
   </div>
 
   <div class="modal" id="sourceModal"><div class="modalbox"><div class="modal-head"><div><h3 id="modalTitle">Source</h3><p id="modalDesc"></p></div><button class="iconbtn" id="closeModal">×</button></div><div class="field"><label>OBS Browser Source URL</label><div class="codebox" id="modalUrl"></div></div><div class="row"><button class="btn primary" id="copyModalUrl">Copy URL</button><button class="btn" id="openModalUrl">Open Preview</button></div></div></div>
 
-  <script>
-  (()=>{
-    const KEY='pepsliveTournamentControlV2';
-    const view=(new URLSearchParams(location.search).get('view')||'').trim();
-    if(view&&view!=='control')return;
-    const nativeSet=Storage.prototype.setItem;
-    let allowUntil=0,pendingValue=null,dirty=false;
-    const longActions='#startDraw,#nextReveal,#generateSchedule,#rebalanceSchedule';
-    const manualActions='#btnManualSaveLocal,#saveSetup,#saveTeams,#dedupeTeams,#sampleTeams,#confirmDraw,#redraw,#undoDraw,#saveScores,#markAllPending,#generateKnockout,#clearOverrides,#saveWebhook,#testWebhook,#sendWebhook,#saveLayoutSettings,#resetLayoutSettings,#saveDisplaySettings';
-    function pill(){return document.getElementById('autosavePill')}
-    function setPill(t,m){const p=pill();if(!p)return;p.textContent=t;p.dataset.mode=m||''}
-    function markDirty(){dirty=true;setPill('Manual Save: มีการเปลี่ยนแปลง ยังไม่ได้บันทึก','dirty')}
-    function markSaved(){dirty=false;setPill('Manual Save: Saved '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),'saved')}
-    function allow(ms){allowUntil=Date.now()+ms}
-    Storage.prototype.setItem=function(k,v){
-      if(this===localStorage&&k===KEY){
-        if(Date.now()>allowUntil){pendingValue=String(v);markDirty();return;}
-        pendingValue=null;const r=nativeSet.apply(this,arguments);markSaved();return r;
-      }
-      return nativeSet.apply(this,arguments);
-    };
-    window.pepsManualSaveNow=()=>{if(pendingValue){nativeSet.call(localStorage,KEY,pendingValue);pendingValue=null;markSaved()}else if(dirty)markSaved();else setPill('Manual Save: ไม่มีรายการค้างบันทึก','saved')};
-    document.addEventListener('click',e=>{if(e.target.closest(longActions))allow(120000);else if(e.target.closest(manualActions))allow(2500)},true);
-    document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('btnManualSaveLocal');if(b)b.onclick=()=>window.pepsManualSaveNow();setPill('Manual Save: Ready','ready')},{once:true});
-  })();
-  </script>
   <script src="assets/app.js"></script>
+
 <script>
 (() => {
   'use strict';
@@ -102,6 +100,10 @@
 
   const DRAW_MODES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex'];
   const LIVE_SOURCE_IDS = ['groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
+
+  let sourceCardsObserver = null;
+  let sourceCardsRenderLock = false;
+  let sourceCardsRefreshTimer = 0;
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -188,7 +190,9 @@
         background: transparent !important;
         overflow: hidden;
       }
-      html.peps-source-mode #app { display:none !important; }
+      html.peps-source-mode #app,
+      html.peps-source-mode .app-shell,
+      html.peps-source-mode .modal { display:none !important; }
       html.peps-source-mode #sourceRoot {
         display: block !important;
         min-height: 100vh;
@@ -848,12 +852,12 @@
     return true;
   }
 
-  function renderCleanSourceCards() {
+  function renderCleanSourceCards(reason = 'manual') {
     const holder = $('#sourceCards');
     if (!holder) return;
 
     const drawCard = `
-      <div class="peps-source-section-clean">
+      <div class="peps-source-section-clean" data-clean-source-root="1" data-clean-section="draw">
         <h3>Draw Animation Source</h3>
         <div class="peps-source-grid-clean single">
           ${sourceCardHtml(DRAW_SOURCE_ID, 'Draw Animation Source', 'ลิงก์เดียว ดึง Animation Style จากหน้า Draw Control')}
@@ -862,7 +866,7 @@
     `;
 
     const liveCards = `
-      <div class="peps-source-section-clean">
+      <div class="peps-source-section-clean" data-clean-source-root="1" data-clean-section="live">
         <h3>Live Data Sources</h3>
         <div class="peps-source-grid-clean">
           ${LIVE_SOURCE_IDS.map(id => sourceCardHtml(id, sourceTitle(id), id === 'groups' ? 'แสดงตามผลแบ่งสาย / Reveal Feed เท่านั้น' : 'Source สำหรับ OBS Browser')).join('')}
@@ -871,9 +875,21 @@
     `;
 
     const html = drawCard + liveCards;
-    if (holder.dataset.cleanCards === html) return;
-    holder.dataset.cleanCards = html;
-    holder.className = 'grid three';
+    const currentOk =
+      holder.dataset.cleanCardsVersion === 'v2' &&
+      holder.querySelectorAll('[data-clean-section="draw"]').length === 1 &&
+      holder.querySelectorAll('[data-clean-section="live"]').length === 1 &&
+      holder.querySelectorAll('[data-clean-copy-url]').length === 8 &&
+      !DRAW_MODES.some(mode => holder.textContent.toLowerCase().includes(`${mode} spin`) || holder.textContent.toLowerCase().includes(`${mode} source`));
+
+    if (currentOk && holder.dataset.cleanCardsHash === String(html.length)) return;
+
+    sourceCardsRenderLock = true;
+    if (sourceCardsObserver) sourceCardsObserver.disconnect();
+
+    holder.dataset.cleanCardsVersion = 'v2';
+    holder.dataset.cleanCardsHash = String(html.length);
+    holder.className = 'grid three peps-source-holder-clean';
     holder.innerHTML = html;
 
     $$('[data-clean-copy-url]', holder).forEach(btn => {
@@ -882,9 +898,47 @@
     $$('[data-clean-preview-url]', holder).forEach(btn => {
       btn.addEventListener('click', () => window.open(sourceUrl(btn.dataset.cleanPreviewUrl), '_blank'));
     });
+
+    setTimeout(() => {
+      sourceCardsRenderLock = false;
+      installSourceCardsObserver();
+    }, 0);
   }
 
-  function sourceCardHtml(id, title, desc) {
+  function queueSourceCardsRefresh(reason = 'queue') {
+    if (sourceCardsRefreshTimer) clearTimeout(sourceCardsRefreshTimer);
+    sourceCardsRefreshTimer = setTimeout(() => {
+      sourceCardsRefreshTimer = 0;
+      renderCleanSourceCards(reason);
+    }, 30);
+  }
+
+  function installSourceCardsObserver() {
+    const holder = $('#sourceCards');
+    if (!holder || sourceCardsObserver) {
+      if (holder && sourceCardsObserver) {
+        try { sourceCardsObserver.observe(holder, { childList: true, subtree: true }); } catch {}
+      }
+      return;
+    }
+
+    sourceCardsObserver = new MutationObserver(() => {
+      if (sourceCardsRenderLock) return;
+      const drawSections = holder.querySelectorAll('[data-clean-section="draw"]').length;
+      const liveSections = holder.querySelectorAll('[data-clean-section="live"]').length;
+      const copyButtons = holder.querySelectorAll('[data-clean-copy-url]').length;
+      const lowerText = (holder.textContent || '').toLowerCase();
+      const oldDrawCards = DRAW_MODES.filter(mode => lowerText.includes(mode.toLowerCase())).length;
+
+      if (drawSections !== 1 || liveSections !== 1 || copyButtons !== 8 || oldDrawCards > 2) {
+        queueSourceCardsRefresh('observer');
+      }
+    });
+
+    sourceCardsObserver.observe(holder, { childList: true, subtree: true });
+  }
+
+  function sourceCardHtml  function sourceCardHtml(id, title, desc) {
     const url = sourceUrl(id);
     return `
       <div class="peps-source-card-clean">
@@ -1113,38 +1167,81 @@
   }
 
   function removeLegacySourceDupes() {
-    // In a clean index this is mostly inert. It protects against app.js rerendering the old source list.
     const holder = $('#sourceCards');
     if (!holder) return;
-    const text = holder.textContent || '';
-    const legacyCount = DRAW_MODES.filter(name => text.toLowerCase().includes(name)).length;
-    if (legacyCount > 2 || !holder.dataset.cleanCards) renderCleanSourceCards();
+    const drawSections = holder.querySelectorAll('[data-clean-section="draw"]').length;
+    const liveSections = holder.querySelectorAll('[data-clean-section="live"]').length;
+    const copyButtons = holder.querySelectorAll('[data-clean-copy-url]').length;
+    const previewButtons = holder.querySelectorAll('[data-clean-preview-url]').length;
+    const lowerText = (holder.textContent || '').toLowerCase();
+    const oldDrawCards = DRAW_MODES.filter(mode => lowerText.includes(mode.toLowerCase())).length;
+
+    if (
+      drawSections !== 1 ||
+      liveSections !== 1 ||
+      copyButtons !== 8 ||
+      previewButtons !== 8 ||
+      oldDrawCards > 2 ||
+      holder.dataset.cleanCardsVersion !== 'v2'
+    ) {
+      renderCleanSourceCards('legacy-cleanup');
+    }
   }
 
-  function patchControlView() {
+  function patchControlView  function patchControlView() {
     injectCleanStyles();
     applyTypography();
     injectDrawSizeButton();
     attachDrawTicker();
-    renderCleanSourceCards();
+    renderCleanSourceCards('boot');
+    installSourceCardsObserver();
+
+    const refreshAfterCoreRender = () => {
+      [0, 40, 120, 280, 650, 1200].forEach(ms => setTimeout(() => {
+        removeLegacySourceDupes();
+        injectDrawSizeButton();
+        applyTypography();
+      }, ms));
+    };
 
     document.addEventListener('click', (e) => {
-      if (e.target.closest('[data-panel-target="sources"]')) {
-        setTimeout(renderCleanSourceCards, 80);
-        setTimeout(renderCleanSourceCards, 350);
+      if (
+        e.target.closest('[data-panel-target="sources"]') ||
+        e.target.closest('#saveTeams') ||
+        e.target.closest('#dedupeTeams') ||
+        e.target.closest('#sampleTeams') ||
+        e.target.closest('#saveSetup') ||
+        e.target.closest('#confirmDraw') ||
+        e.target.closest('#redraw') ||
+        e.target.closest('#undoDraw')
+      ) {
+        refreshAfterCoreRender();
       }
+
       if (e.target.closest('[data-panel-target="draw"]')) {
         setTimeout(() => {
           injectDrawSizeButton();
           applyTypography();
-        }, 120);
+        }, 80);
+      }
+    }, true);
+
+    document.addEventListener('change', (e) => {
+      if (
+        e.target.closest('#teamText') ||
+        e.target.closest('#eventName') ||
+        e.target.closest('#groupCount') ||
+        e.target.closest('#drawAnimation') ||
+        e.target.closest('#drawMethod')
+      ) {
+        refreshAfterCoreRender();
       }
     }, true);
 
     window.addEventListener('storage', (e) => {
       if (e.key === TYPO_KEY) applyTypography();
       if (e.key === STORAGE_KEY) {
-        removeLegacySourceDupes();
+        refreshAfterCoreRender();
       }
     });
 
@@ -1152,10 +1249,10 @@
       applyTypography();
       if ($('#sourceCards')) removeLegacySourceDupes();
       if ($('[data-panel="draw"].active')) injectDrawSizeButton();
-    }, 1200);
+    }, 500);
   }
 
-  if (initSourceView()) return;
+  if (initSourceView())  if (initSourceView()) return;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', patchControlView, { once: true });
@@ -1164,5 +1261,6 @@
   }
 })();
 </script>
+
 </body>
 </html>
