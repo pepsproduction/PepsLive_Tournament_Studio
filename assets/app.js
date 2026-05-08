@@ -1,4 +1,4 @@
-/* PepsLive Tournament Studio - Clean Core V9
+/* PepsLive Tournament Studio - Clean Core V10
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
@@ -8,7 +8,7 @@
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const APP_VERSION = 'Clean-Core-9.0.0';
+  const APP_VERSION = 'Clean-Core-10.0.0';
 
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
@@ -1126,16 +1126,16 @@
     $('#drawTextSettingsModal')?.remove();
 
     const controls = [
-      ['chip', 'ป้าย Style / Reveal', 8, 26],
-      ['groupLabel', 'คำว่า GROUP', 10, 34],
-      ['groupLetter', 'ตัวอักษรสาย A/B/C', 18, 62],
-      ['team', 'ชื่อทีมใน Draw Control', 34, 84],
-      ['meta', 'บรรทัด สาย / ลำดับ', 10, 28],
-      ['status', 'Progress / Status', 9, 24],
-      ['sourceTeam', 'ชื่อทีมใน OBS Source', 38, 96],
-      ['sourceMeta', 'Meta ใน OBS Source', 12, 38],
-      ['groupTitle', 'หัวตาราง Groups', 11, 26],
-      ['groupTeam', 'ชื่อทีมใน Groups Table', 11, 24]
+      ['chip', 'ป้าย Style / Reveal', 8, 26, 'Draw Control + OBS'],
+      ['groupLabel', 'คำว่า GROUP', 10, 34, 'Draw Control + OBS'],
+      ['groupLetter', 'ตัวอักษรสาย A/B/C', 18, 62, 'Draw Control + OBS'],
+      ['team', 'ชื่อทีมใน Draw Control', 34, 84, 'Draw Control'],
+      ['meta', 'บรรทัด สาย / ลำดับ', 10, 28, 'Draw Control'],
+      ['status', 'Progress / Status', 9, 24, 'Draw Control'],
+      ['sourceTeam', 'ชื่อทีมใน OBS Source', 38, 96, 'OBS Source'],
+      ['sourceMeta', 'Meta ใน OBS Source', 12, 38, 'OBS Source'],
+      ['groupTitle', 'หัวตาราง Groups', 11, 26, 'Groups Table'],
+      ['groupTeam', 'ชื่อทีมใน Groups Table', 11, 24, 'Groups Table']
     ];
 
     const modal = document.createElement('div');
@@ -1146,33 +1146,53 @@
         <div class="peps-settings-head">
           <div>
             <h3>Draw Text Size Settings</h3>
-            <p>เลื่อนแล้วดู Preview ทันที ถ้าไม่กดบันทึกจะคืนค่าล่าสุด</p>
+            <p>เลื่อนแล้วดู Preview แบบ real-time ครบทุกส่วน · Cancel จะคืนค่าล่าสุด</p>
           </div>
           <button type="button" class="iconbtn" data-close-text-modal>×</button>
         </div>
         <div class="peps-settings-body">
           <div class="peps-settings-sliders">
-            ${controls.map(([key, label, min, max]) => `
+            ${controls.map(([key, label, min, max, scope]) => `
               <div class="peps-slider">
-                <label>${esc(label)} <b data-size-value="${key}">${esc(temp[key])}px</b></label>
+                <label>
+                  <span>${esc(label)} <small>${esc(scope)}</small></span>
+                  <b data-size-value="${key}">${esc(temp[key])}px</b>
+                </label>
                 <input type="range" min="${min}" max="${max}" step="1" value="${esc(temp[key])}" data-size-key="${key}" />
               </div>
             `).join('')}
           </div>
           <div class="peps-settings-preview">
-            <div class="draw-graphic preview-graphic">
-              <div class="draw-fx"><div class="pl-wheel"></div></div>
-              <div class="draw-chip">Wheel Spin</div>
-              <div class="draw-group-badge">GROUP <b>B</b></div>
-              <div class="draw-team-name"><span>Golden Lion</span></div>
-              <div class="draw-team-sub">สาย B · ลำดับ 2</div>
-              <div class="draw-progress"><div class="draw-progress-bar" style="width:65%"></div></div>
-              <div class="draw-progress-text"><span>พร้อมแสดงผล</span><span>65%</span></div>
+            <div class="preview-section-title">Draw Control Preview</div>
+            <div class="draw-stage preview-draw-stage">
+              <div class="draw-graphic preview-graphic">
+                <div class="draw-fx"><div class="pl-wheel"></div></div>
+                <div class="draw-chip">Wheel Spin</div>
+                <div class="draw-group-badge">GROUP <b>B</b></div>
+                <div class="draw-team-name"><span>Golden Lion</span></div>
+                <div class="draw-team-sub">สาย B · ลำดับ 2</div>
+                <div class="draw-progress"><div class="draw-progress-bar" style="width:65%"></div></div>
+                <div class="draw-progress-text"><span>พร้อมแสดงผล</span><span>65%</span></div>
+              </div>
             </div>
+
+            <div class="preview-section-title">OBS Draw Animation Source Preview</div>
+            <div class="preview-source-card">
+              <div class="pl-anim-core preview-anim-core">
+                <div class="pl-anim-fx"><div class="pl-ring"></div></div>
+                <div class="draw-chip">Draw Source</div>
+                <div class="draw-group-badge">GROUP <b>C</b></div>
+                <div class="pl-anim-name"><span>Storm Rider</span></div>
+                <div class="pl-anim-meta">สาย C · ลำดับ 3</div>
+              </div>
+            </div>
+
+            <div class="preview-section-title">Groups Table Preview</div>
             <div class="pl-group-card preview-group-card">
               <div class="pl-group-title"><span>สาย B</span><span>4 ทีม</span></div>
               <div class="pl-group-row"><span class="no">1</span><span class="team">Golden Lion</span></div>
               <div class="pl-group-row"><span class="no">2</span><span class="team">Storm Rider</span></div>
+              <div class="pl-group-row"><span class="no">3</span><span class="team">Sisaket Two</span></div>
             </div>
           </div>
         </div>
@@ -1185,16 +1205,41 @@
     `;
     document.body.appendChild(modal);
 
+    const applyVarsTo = (el, values) => {
+      if (!el) return;
+      el.style.setProperty('--draw-chip-fs', `${values.chip}px`);
+      el.style.setProperty('--draw-group-label-fs', `${values.groupLabel}px`);
+      el.style.setProperty('--draw-group-letter-fs', `${values.groupLetter}px`);
+      el.style.setProperty('--draw-team-fs', `${values.team}px`);
+      el.style.setProperty('--draw-meta-fs', `${values.meta}px`);
+      el.style.setProperty('--draw-status-fs', `${values.status}px`);
+      el.style.setProperty('--source-team-fs', `${values.sourceTeam}px`);
+      el.style.setProperty('--source-meta-fs', `${values.sourceMeta}px`);
+      el.style.setProperty('--group-title-fs', `${values.groupTitle}px`);
+      el.style.setProperty('--group-team-fs', `${values.groupTeam}px`);
+    };
+
     const updatePreview = () => {
       setDrawTextSizeVars(temp);
+      applyVarsTo(modal, temp);
+      applyVarsTo($('.peps-settings-preview', modal), temp);
+
       $$('[data-size-value]', modal).forEach(el => {
         const key = el.dataset.sizeValue;
         el.textContent = `${temp[key]}px`;
       });
+
+      // Force a tiny layout refresh so Chrome/OBS preview repaints immediately while dragging.
+      const preview = $('.peps-settings-preview', modal);
+      if (preview) preview.dataset.previewTick = String(Date.now());
     };
 
     $$('[data-size-key]', modal).forEach(input => {
       input.addEventListener('input', (e) => {
+        temp[e.target.dataset.sizeKey] = Number(e.target.value);
+        updatePreview();
+      });
+      input.addEventListener('change', (e) => {
         temp[e.target.dataset.sizeKey] = Number(e.target.value);
         updatePreview();
       });
@@ -1229,7 +1274,6 @@
     updatePreview();
   }
 
-  
   function renderStepper() {
     const root = $('#stepper');
     if (!root) return;
@@ -2392,6 +2436,75 @@
         flex-wrap:wrap;
         padding:0 20px 20px;
       }
+
+      /* V10: realtime preview selectors for every Draw Text Size control */
+      .peps-settings-preview .preview-section-title{
+        color:var(--accent);
+        font-size:12px;
+        font-weight:950;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        margin:4px 0 -4px;
+      }
+      .peps-slider small{
+        color:rgba(237,245,255,.45);
+        font-size:10px;
+        margin-left:6px;
+        white-space:nowrap;
+      }
+      .preview-draw-stage{
+        min-height:500px!important;
+        border:1px solid rgba(91,231,255,.18);
+        border-radius:20px;
+        background:rgba(7,20,38,.42);
+        padding:12px;
+        overflow:hidden;
+      }
+      .preview-graphic{
+        width:100%!important;
+        height:500px!important;
+        min-height:500px!important;
+        max-height:500px!important;
+      }
+      .peps-settings-preview .draw-chip{font-size:var(--draw-chip-fs,12px)!important}
+      .peps-settings-preview .draw-group-badge{font-size:var(--draw-group-label-fs,16px)!important}
+      .peps-settings-preview .draw-group-badge b{font-size:var(--draw-group-letter-fs,30px)!important}
+      .peps-settings-preview .draw-team-name{font-size:var(--draw-team-fs,56px)!important}
+      .peps-settings-preview .draw-team-sub{font-size:var(--draw-meta-fs,14px)!important}
+      .peps-settings-preview .draw-progress-text{font-size:var(--draw-status-fs,12px)!important}
+      .preview-source-card{
+        border:1px solid rgba(91,231,255,.18);
+        border-radius:20px;
+        background:rgba(7,20,38,.42);
+        padding:12px;
+        overflow:hidden;
+      }
+      .preview-source-card .preview-anim-core{
+        width:100%!important;
+        min-height:420px!important;
+        height:420px!important;
+        max-height:420px!important;
+        box-shadow:none!important;
+      }
+      .preview-source-card .pl-anim-fx{
+        height:120px!important;
+        min-height:120px!important;
+        max-height:120px!important;
+      }
+      .preview-source-card .pl-ring{
+        width:100px!important;
+        height:100px!important;
+      }
+      .preview-source-card .pl-anim-name{
+        font-size:var(--source-team-fs,72px)!important;
+      }
+      .preview-source-card .pl-anim-meta{
+        font-size:var(--source-meta-fs,22px)!important;
+      }
+      .preview-group-card{width:100%}
+      .preview-group-card .pl-group-title{font-size:var(--group-title-fs,14px)!important}
+      .preview-group-card .pl-group-row .team{font-size:var(--group-team-fs,14px)!important}
+
       @media(max-width:860px){
         .peps-settings-body{grid-template-columns:1fr}
         .draw-inline-tool{grid-template-columns:1fr}
