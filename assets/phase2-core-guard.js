@@ -49,6 +49,7 @@
     loadAddonAssets('assets/phase3-teams-draw.css', 'assets/phase3-teams-draw.js');
     loadAddonAssets('assets/phase4-schedule.css', 'assets/phase4-schedule.js');
     loadAddonAssets('assets/phase5-scores.css', 'assets/phase5-scores.js');
+    loadAddonAssets('assets/phase55-google-sheet.css', 'assets/phase55-google-sheet.js');
     loadAddonAssets('assets/prephase6-knockout-source-fix.css', 'assets/prephase6-knockout-source-fix.js');
     loadAddonAssets('', 'assets/prephase6-knockout-generate-fix.js');
   }
