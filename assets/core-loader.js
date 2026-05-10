@@ -1,7 +1,7 @@
 /* Phase 10 Core Loader Scaffold
    Branch: core-merge-v1
    Purpose: centralize loading order before merging add-ons into core modules.
-   This scaffold is intentionally conservative and does not replace production add-ons yet.
+   Phase 10.1 routes OBS Live Sources through assets/core-live-sources.js.
 */
 (() => {
   'use strict';
@@ -12,7 +12,7 @@
     'assets/phase5-scores.js',
     'assets/phase55-google-sheet.js',
     'assets/phase6-knockout.js',
-    'assets/phase8-live-sources.js',
+    'assets/core-live-sources.js',
     'assets/prephase6-knockout-source-fix.js',
     'assets/prephase6-knockout-generate-fix.js'
   ];
