@@ -9,6 +9,7 @@
   window.__PEPSLIVE_CORE_GUARD_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
+  const CORE_ASSET_VERSION = 'phase10-livefix-20260510-2';
   const $ = (s, root = document) => root.querySelector(s);
 
   function readState() {
@@ -33,17 +34,26 @@
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
   }
 
+  function versioned(path) {
+    if (!path) return '';
+    return `${path}${path.includes('?') ? '&' : '?'}v=${encodeURIComponent(CORE_ASSET_VERSION)}`;
+  }
+
+  function isLoaded(selector, path) {
+    return !!Array.from(document.querySelectorAll(selector)).find((node) => String(node.getAttribute('href') || node.getAttribute('src') || '').startsWith(path));
+  }
+
   function loadAddonAssets(cssPath, jsPath) {
-    if (cssPath && !document.querySelector(`link[href="${cssPath}"]`)) {
+    if (cssPath && !isLoaded('link[href]', cssPath)) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = cssPath;
+      link.href = versioned(cssPath);
       document.head.appendChild(link);
     }
-    if (jsPath && !document.querySelector(`script[src="${jsPath}"]`)) {
+    if (jsPath && !isLoaded('script[src]', jsPath)) {
       const script = document.createElement('script');
       script.defer = true;
-      script.src = jsPath;
+      script.src = versioned(jsPath);
       document.body.appendChild(script);
     }
   }
