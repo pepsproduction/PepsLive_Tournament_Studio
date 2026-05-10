@@ -1,12 +1,13 @@
 /* Phase 2 Hotfix: PepsLive Tournament Studio Core Guard
    Live Sources renderer belongs to assets/app.js.
    This hotfix stops loading the old Phase 8 duplicate renderer.
+   Source/OBS views now skip phase/prephase add-ons completely to prevent duplicate paints.
 */
 (() => {
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const HOTFIX_VERSION = 'main-livefix-20260510-1';
+  const HOTFIX_VERSION = 'main-livefix-20260510-2';
   const $ = (s, root = document) => root.querySelector(s);
 
   function readState() {
@@ -29,6 +30,12 @@
   }
   function doneMatches(state) {
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
+  }
+
+  function currentSourceView() {
+    const params = new URLSearchParams(window.location.search || '');
+    const view = String(params.get('view') || '').trim();
+    return view && view !== 'control' ? view : '';
   }
 
   function versioned(path) {
@@ -58,9 +65,17 @@
   function removeOldLiveHealthPanel() {
     document.querySelector('#phase8SourceHealth')?.remove();
     document.querySelector('#coreLiveSourceHealth')?.remove();
-    document.querySelectorAll('.phase8-card').forEach((node) => {
+    document.querySelector('#phase4SourceHealth')?.remove();
+    document.querySelectorAll('.phase8-card, .phase4-card').forEach((node) => {
       const text = node.textContent || '';
-      if (text.includes('OBS Source Health') || text.includes('Phase 8 · OBS Source Health')) node.remove();
+      if (
+        text.includes('OBS Source Health') ||
+        text.includes('Phase 8 · OBS Source Health') ||
+        text.includes('Core Live Sources') ||
+        text.includes('Phase 4 · Live Source Readiness')
+      ) {
+        node.remove();
+      }
     });
   }
 
@@ -196,7 +211,13 @@
   }
 
   function install() {
-    loadPhaseAddons();
+    const sourceView = currentSourceView();
+    if (!sourceView) {
+      loadPhaseAddons();
+    } else {
+      // Source views must be painted only by app.js. Loading phase/prephase add-ons here can repaint #sourceRoot and cause flicker.
+      removeOldLiveHealthPanel();
+    }
     refresh();
     window.setInterval(refresh, 1000);
     document.addEventListener('click', () => window.setTimeout(refresh, 120));
