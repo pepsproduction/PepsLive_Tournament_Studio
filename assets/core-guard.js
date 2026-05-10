@@ -1,6 +1,7 @@
 /* Core Guard: PepsLive Tournament Studio
    Workflow guard + dashboard guard + lock/unlock controls + add-on loader.
    Replaces assets/phase2-core-guard.js.
+   Source/OBS views skip control add-ons to prevent duplicate source paints.
 */
 (() => {
   'use strict';
@@ -9,7 +10,7 @@
   window.__PEPSLIVE_CORE_GUARD_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const CORE_ASSET_VERSION = 'phase10-livefix-20260510-2';
+  const CORE_ASSET_VERSION = 'phase10-livefix-20260510-4';
   const $ = (s, root = document) => root.querySelector(s);
 
   function readState() {
@@ -34,6 +35,12 @@
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
   }
 
+  function currentSourceView() {
+    const params = new URLSearchParams(window.location.search || '');
+    const view = String(params.get('view') || '').trim();
+    return view && view !== 'control' ? view : '';
+  }
+
   function versioned(path) {
     if (!path) return '';
     return `${path}${path.includes('?') ? '&' : '?'}v=${encodeURIComponent(CORE_ASSET_VERSION)}`;
@@ -56,6 +63,23 @@
       script.src = versioned(jsPath);
       document.body.appendChild(script);
     }
+  }
+
+  function removeOldLiveHealthPanel() {
+    document.querySelector('#phase8SourceHealth')?.remove();
+    document.querySelector('#coreLiveSourceHealth')?.remove();
+    document.querySelector('#phase4SourceHealth')?.remove();
+    document.querySelectorAll('.phase8-card, .phase4-card').forEach((node) => {
+      const text = node.textContent || '';
+      if (
+        text.includes('OBS Source Health') ||
+        text.includes('Phase 8 · OBS Source Health') ||
+        text.includes('Core Live Sources') ||
+        text.includes('Phase 4 · Live Source Readiness')
+      ) {
+        node.remove();
+      }
+    });
   }
 
   function loadCoreAddons() {
@@ -181,10 +205,18 @@
     applyLocks(c);
     renderDashboard(c);
     renderHints(c);
+    removeOldLiveHealthPanel();
   }
 
   function install() {
-    loadCoreAddons();
+    const sourceView = currentSourceView();
+    if (!sourceView) {
+      loadCoreAddons();
+    } else {
+      // Source views are painted by app.js + core-live-sources.js only.
+      // Do not load control add-ons here; they can repaint sourceRoot and cause OBS flicker.
+      removeOldLiveHealthPanel();
+    }
     refresh();
     window.setInterval(refresh, 1200);
     document.addEventListener('click', () => window.setTimeout(refresh, 120));
