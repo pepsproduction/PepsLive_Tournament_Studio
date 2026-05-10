@@ -1,0 +1,25 @@
+/* Core Guard: PepsLive Tournament Studio workflow guard */
+.phase2-guard-box{
+  border:1px solid rgba(255,209,102,.45);
+  background:linear-gradient(135deg,rgba(255,209,102,.10),rgba(91,231,255,.07)),rgba(7,20,38,.72);
+  border-radius:18px;
+  padding:14px 15px;
+  margin:0 0 14px;
+  color:var(--text);
+}
+.phase2-guard-box.good{border-color:rgba(66,245,155,.45);background:linear-gradient(135deg,rgba(66,245,155,.10),rgba(91,231,255,.06)),rgba(7,20,38,.72)}
+.phase2-guard-title{font-weight:900;margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.phase2-guard-text{color:var(--muted);font-size:13px;line-height:1.55}
+.phase2-guard-list{display:grid;gap:8px;margin-top:10px}
+.phase2-guard-item{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid rgba(36,58,89,.74);border-radius:14px;background:rgba(7,20,38,.48);padding:9px 11px;color:var(--muted);font-size:12px}
+.phase2-guard-item b{color:var(--text)}
+.phase2-guard-item.done{border-color:rgba(66,245,155,.36);color:#bfffe0}
+.phase2-guard-item.locked{border-color:rgba(255,107,107,.36);color:#ffc2c2}
+.phase2-lock-note{margin-top:8px;color:#ffe3a1;font-size:12px}
+button.phase2-disabled{opacity:.48!important;cursor:not-allowed!important;filter:saturate(.45)}
+button.phase2-disabled:hover{transform:none!important}
+.phase2-toast{position:fixed;left:50%;top:22px;transform:translateX(-50%);z-index:9999;max-width:min(620px,calc(100vw - 28px));border:1px solid rgba(255,209,102,.55);background:rgba(9,24,42,.96);box-shadow:0 22px 70px rgba(0,0,0,.38);border-radius:18px;padding:13px 16px;color:#ffe3a1;font-size:14px;line-height:1.45;animation:phase2ToastIn .18s ease both}
+.phase2-toast.good{border-color:rgba(66,245,155,.55);color:#bfffe0}
+.phase2-toast.bad{border-color:rgba(255,107,107,.55);color:#ffc2c2}
+@keyframes phase2ToastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
+@media(max-width:760px){.phase2-guard-item{display:block}.phase2-guard-item span{display:block;margin-top:4px}}
