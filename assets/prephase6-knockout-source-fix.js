@@ -1,5 +1,5 @@
-/* Pre-Phase 6: Knockout Scores + OBS Source Fallback Fix V2
-   Fixes Knockout score inputs/selects losing focus by pausing auto-render while editing.
+/* Pre-Phase 6: Knockout Scores + OBS Source Fallback Fix V3
+   Fixes input focus and advances Knockout winners to the next round after saving.
 */
 (() => {
   'use strict';
@@ -26,9 +26,7 @@
     const active = document.activeElement;
     return Date.now() < editModeUntil || !!active?.closest?.('#pre6KnockoutScores');
   }
-  function touchEditMode() {
-    editModeUntil = Date.now() + 3500;
-  }
+  function touchEditMode() { editModeUntil = Date.now() + 3500; }
 
   function getKnockoutMatches(state) {
     const raw = Array.isArray(state.knockout) ? state.knockout : [];
@@ -63,7 +61,7 @@
     if (s.includes('final') && !s.includes('semi') && !s.includes('third')) return 99;
     if (s.includes('third') || s.includes('3')) return 98;
     if (s.includes('semi')) return 80;
-    if (s.includes('8')) return 40;
+    if (s.includes('quarter') || s.includes('8')) return 40;
     if (s.includes('16')) return 30;
     return 10;
   }
@@ -124,7 +122,7 @@
     }
     box.innerHTML = `
       <div class="pre6-title"><span>Knockout Scores</span><span>${matches.length} คู่</span></div>
-      <div class="pre6-text">กรอกผลแพ้ชนะของรอบ Knockout ต่อจากรอบแบ่งกลุ่ม พร้อมแยกหัวข้อแต่ละรอบชัดเจน</div>
+      <div class="pre6-text">กรอกผลแพ้ชนะของรอบ Knockout ต่อจากรอบแบ่งกลุ่ม เมื่อ Save แล้วผู้ชนะจะถูกส่งต่อไปรอบถัดไปอัตโนมัติ</div>
       ${finalTeams.length ? `<div class="pre6-final-preview">คู่ชิงที่คาด/กำหนด: ${finalTeams.map(esc).join(' vs ')}</div>` : ''}
       ${groupByRound(matches).map(([round, list]) => `
         <div class="pre6-round">
@@ -153,6 +151,7 @@
       </div>
     `;
   }
+
   function saveKnockoutScores() {
     const state = readState();
     if (!Array.isArray(state.knockout)) return;
@@ -168,11 +167,12 @@
       m.winner = winner || inferWinnerFromScores(m);
       m.status = m.winner ? 'Done' : (a !== '' || b !== '' ? 'Pending' : (m.status || 'Pending'));
     });
+    advanceKnockoutBracket(state);
     state.lastResult = findLatestKnockoutResult(state) || state.lastResult;
     writeState(state);
     editModeUntil = 0;
     lastKnockoutSignature = '';
-    toast('บันทึกผล Knockout แล้ว');
+    toast('บันทึกผล Knockout แล้ว และส่งผู้ชนะไปรอบถัดไปแล้ว');
     renderKnockoutScores(true);
   }
   function inferWinnerFromScores(m) {
@@ -181,6 +181,86 @@
     const teamB = clean(m.teamB || m.away || m.b || m.teams?.[1]);
     if (a == null || b == null || a === b) return '';
     return a > b ? teamA : teamB;
+  }
+  function winnerOf(m) {
+    if (!m) return '';
+    const winner = clean(m.winner || m.winnerTeam);
+    return winner || inferWinnerFromScores(m);
+  }
+  function loserOf(m) {
+    const winner = winnerOf(m);
+    if (!winner) return '';
+    const teamA = clean(m.teamA || m.home || m.a || m.teams?.[0]);
+    const teamB = clean(m.teamB || m.away || m.b || m.teams?.[1]);
+    if (winner === teamA) return teamB;
+    if (winner === teamB) return teamA;
+    return '';
+  }
+  function byId(state, id) {
+    const target = clean(id).toLowerCase();
+    return (state.knockout || []).find((m) => clean(m.id).toLowerCase() === target);
+  }
+  function setTeam(match, side, value, fallback) {
+    if (!match) return;
+    const next = clean(value) || fallback || '';
+    match[side] = next;
+  }
+  function advanceKnockoutBracket(state) {
+    if (!Array.isArray(state.knockout)) return;
+
+    const qf1 = byId(state, 'qf1');
+    const qf2 = byId(state, 'qf2');
+    const qf3 = byId(state, 'qf3');
+    const qf4 = byId(state, 'qf4');
+    const sf1 = byId(state, 'sf1');
+    const sf2 = byId(state, 'sf2');
+    const final = byId(state, 'final');
+    const third = byId(state, 'third');
+
+    if (sf1) {
+      setTeam(sf1, 'teamA', winnerOf(qf1), 'Winner QF1');
+      setTeam(sf1, 'teamB', winnerOf(qf2), 'Winner QF2');
+    }
+    if (sf2) {
+      setTeam(sf2, 'teamA', winnerOf(qf3), 'Winner QF3');
+      setTeam(sf2, 'teamB', winnerOf(qf4), 'Winner QF4');
+    }
+    if (final) {
+      setTeam(final, 'teamA', winnerOf(sf1), 'Winner SF1');
+      setTeam(final, 'teamB', winnerOf(sf2), 'Winner SF2');
+    }
+    if (third) {
+      setTeam(third, 'teamA', loserOf(sf1), 'Loser SF1');
+      setTeam(third, 'teamB', loserOf(sf2), 'Loser SF2');
+    }
+
+    // Generic fallback for brackets named ko1/ko2 + Final.
+    const hasNamedBracket = qf1 || qf2 || qf3 || qf4 || sf1 || sf2;
+    if (!hasNamedBracket) advanceGenericBracket(state);
+  }
+  function advanceGenericBracket(state) {
+    const normalized = getKnockoutMatches(state);
+    const grouped = groupByRound(normalized).filter(([round]) => !/final|third|3/i.test(round));
+    if (!grouped.length) return;
+    const raw = state.knockout;
+    for (let gi = 0; gi < grouped.length - 1; gi++) {
+      const current = grouped[gi][1];
+      const next = grouped[gi + 1][1];
+      next.forEach((nextMatch, ni) => {
+        const srcA = current[ni * 2];
+        const srcB = current[ni * 2 + 1];
+        if (raw[nextMatch.index]) {
+          raw[nextMatch.index].teamA = winnerOf(raw[srcA?.index]) || nextMatch.teamA || `Winner ${srcA?.id || ''}`.trim();
+          raw[nextMatch.index].teamB = winnerOf(raw[srcB?.index]) || nextMatch.teamB || `Winner ${srcB?.id || ''}`.trim();
+        }
+      });
+    }
+    const final = raw.find((m) => /final/i.test(clean(m.round || m.stage || m.name)) && !/semi/i.test(clean(m.round || m.stage || m.name)));
+    const semis = normalized.filter((m) => /semi/i.test(m.round));
+    if (final && semis.length >= 2) {
+      final.teamA = winnerOf(raw[semis[0].index]) || final.teamA || 'Winner SF1';
+      final.teamB = winnerOf(raw[semis[1].index]) || final.teamB || 'Winner SF2';
+    }
   }
   function findLatestKnockoutResult(state) {
     const done = getKnockoutMatches(state).reverse().find((m) => m.winner || clean(m.status).toLowerCase() === 'done');
