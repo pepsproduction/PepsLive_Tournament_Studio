@@ -54,7 +54,7 @@
     loadAddonAssets('assets/core-scores.css', 'assets/core-scores.js');
     loadAddonAssets('assets/core-google-sheet.css', 'assets/core-google-sheet.js');
     loadAddonAssets('assets/core-knockout.css', 'assets/core-knockout.js');
-    loadAddonAssets('assets/phase8-live-sources.css', 'assets/phase8-live-sources.js');
+    loadAddonAssets('assets/core-live-sources.css', 'assets/core-live-sources.js');
   }
 
   function getChecks() {
