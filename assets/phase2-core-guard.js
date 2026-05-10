@@ -51,11 +51,8 @@
     loadAddonAssets('assets/phase5-scores.css', 'assets/phase5-scores.js');
     loadAddonAssets('assets/phase55-google-sheet.css', 'assets/phase55-google-sheet.js');
 
-    // Phase 10: keep the old CSS for visual compatibility, but replace duplicate
-    // knockout JS layers with one canonical module.
-    loadAddonAssets('assets/phase6-knockout.css', '');
-    loadAddonAssets('assets/prephase6-knockout-source-fix.css', '');
-    loadAddonAssets('', 'assets/core-knockout.js');
+    // Phase 10.1: Knockout JS/CSS are now canonicalized.
+    loadAddonAssets('assets/core-knockout.css', 'assets/core-knockout.js');
 
     loadAddonAssets('assets/phase8-live-sources.css', 'assets/phase8-live-sources.js');
   }
