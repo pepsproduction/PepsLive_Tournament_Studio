@@ -30,19 +30,24 @@
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
   }
 
-  function loadPhase3Assets() {
-    if (!document.querySelector('link[href="assets/phase3-teams-draw.css"]')) {
+  function loadAddonAssets(cssPath, jsPath) {
+    if (cssPath && !document.querySelector(`link[href="${cssPath}"]`)) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'assets/phase3-teams-draw.css';
+      link.href = cssPath;
       document.head.appendChild(link);
     }
-    if (!document.querySelector('script[src="assets/phase3-teams-draw.js"]')) {
+    if (jsPath && !document.querySelector(`script[src="${jsPath}"]`)) {
       const script = document.createElement('script');
       script.defer = true;
-      script.src = 'assets/phase3-teams-draw.js';
+      script.src = jsPath;
       document.body.appendChild(script);
     }
+  }
+
+  function loadPhaseAddons() {
+    loadAddonAssets('assets/phase3-teams-draw.css', 'assets/phase3-teams-draw.js');
+    loadAddonAssets('assets/phase4-schedule.css', 'assets/phase4-schedule.js');
   }
 
   function getChecks() {
@@ -162,7 +167,7 @@
   }
 
   function install() {
-    loadPhase3Assets();
+    loadPhaseAddons();
     refresh();
     window.setInterval(refresh, 1200);
     document.addEventListener('click', () => window.setTimeout(refresh, 120));
