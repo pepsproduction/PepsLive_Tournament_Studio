@@ -52,7 +52,7 @@
     loadAddonAssets('assets/core-teams-draw.css', 'assets/core-teams-draw.js');
     loadAddonAssets('assets/core-schedule.css', 'assets/core-schedule.js');
     loadAddonAssets('assets/core-scores.css', 'assets/core-scores.js');
-    loadAddonAssets('assets/phase55-google-sheet.css', 'assets/phase55-google-sheet.js');
+    loadAddonAssets('assets/core-google-sheet.css', 'assets/core-google-sheet.js');
     loadAddonAssets('assets/core-knockout.css', 'assets/core-knockout.js');
     loadAddonAssets('assets/phase8-live-sources.css', 'assets/phase8-live-sources.js');
   }
