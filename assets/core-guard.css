@@ -1,4 +1,4 @@
-/* Phase 2: PepsLive Tournament Studio Core Guard */
+/* Core Guard: PepsLive Tournament Studio workflow guard */
 .phase2-guard-box{
   border:1px solid rgba(255,209,102,.45);
   background:linear-gradient(135deg,rgba(255,209,102,.10),rgba(91,231,255,.07)),rgba(7,20,38,.72);

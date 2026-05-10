@@ -1,11 +1,15 @@
-/* Phase 2: PepsLive Tournament Studio Core Guard
-   Lightweight workflow guard loaded after assets/app.js.
-   Scope: Tournament Studio only. No OBS WebSocket, no live-control features.
+/* Core Guard: PepsLive Tournament Studio
+   Workflow guard + dashboard guard + lock/unlock controls + add-on loader.
+   Replaces assets/phase2-core-guard.js.
 */
 (() => {
   'use strict';
 
+  if (window.__PEPSLIVE_CORE_GUARD_INSTALLED__) return;
+  window.__PEPSLIVE_CORE_GUARD_INSTALLED__ = true;
+
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
+  const CORE_ASSET_VERSION = 'phase10-livefix-20260510-2';
   const $ = (s, root = document) => root.querySelector(s);
 
   function readState() {
@@ -30,30 +34,37 @@
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
   }
 
+  function versioned(path) {
+    if (!path) return '';
+    return `${path}${path.includes('?') ? '&' : '?'}v=${encodeURIComponent(CORE_ASSET_VERSION)}`;
+  }
+
+  function isLoaded(selector, path) {
+    return !!Array.from(document.querySelectorAll(selector)).find((node) => String(node.getAttribute('href') || node.getAttribute('src') || '').startsWith(path));
+  }
+
   function loadAddonAssets(cssPath, jsPath) {
-    if (cssPath && !document.querySelector(`link[href="${cssPath}"]`)) {
+    if (cssPath && !isLoaded('link[href]', cssPath)) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = cssPath;
+      link.href = versioned(cssPath);
       document.head.appendChild(link);
     }
-    if (jsPath && !document.querySelector(`script[src="${jsPath}"]`)) {
+    if (jsPath && !isLoaded('script[src]', jsPath)) {
       const script = document.createElement('script');
       script.defer = true;
-      script.src = jsPath;
+      script.src = versioned(jsPath);
       document.body.appendChild(script);
     }
   }
 
-  function loadPhaseAddons() {
-    loadAddonAssets('assets/phase3-teams-draw.css', 'assets/phase3-teams-draw.js');
-    loadAddonAssets('assets/phase4-schedule.css', 'assets/phase4-schedule.js');
-    loadAddonAssets('assets/phase5-scores.css', 'assets/phase5-scores.js');
-    loadAddonAssets('assets/phase55-google-sheet.css', 'assets/phase55-google-sheet.js');
-    loadAddonAssets('assets/phase6-knockout.css', 'assets/phase6-knockout.js');
-    loadAddonAssets('assets/phase8-live-sources.css', 'assets/phase8-live-sources.js');
-    loadAddonAssets('assets/prephase6-knockout-source-fix.css', 'assets/prephase6-knockout-source-fix.js');
-    loadAddonAssets('', 'assets/prephase6-knockout-generate-fix.js');
+  function loadCoreAddons() {
+    loadAddonAssets('assets/core-teams-draw.css', 'assets/core-teams-draw.js');
+    loadAddonAssets('assets/core-schedule.css', 'assets/core-schedule.js');
+    loadAddonAssets('assets/core-scores.css', 'assets/core-scores.js');
+    loadAddonAssets('assets/core-google-sheet.css', 'assets/core-google-sheet.js');
+    loadAddonAssets('assets/core-knockout.css', 'assets/core-knockout.js');
+    loadAddonAssets('assets/core-live-sources.css', 'assets/core-live-sources.js');
   }
 
   function getChecks() {
@@ -126,7 +137,7 @@
     const allGood = c.setup && c.teams && c.drawConfirmed && c.schedule && c.scoresComplete && c.standings;
     box.classList.toggle('good', allGood);
     box.innerHTML = `
-      <div class="phase2-guard-title">Phase 2 Guard · ${allGood ? 'Core Flow พร้อมแล้ว' : 'ขั้นต่อไป: ' + step}</div>
+      <div class="phase2-guard-title">Core Guard · ${allGood ? 'Core Flow พร้อมแล้ว' : 'ขั้นต่อไป: ' + step}</div>
       <div class="phase2-guard-text">${allGood ? 'สามารถ Export หรือเปิด Live Sources แบบเบาได้' : detail}</div>
       <div class="phase2-guard-list">
         ${row('Setup', c.setup, c.setup ? 'ตั้งค่าแล้ว' : 'ยังไม่ได้บันทึก Setup')}
@@ -173,7 +184,7 @@
   }
 
   function install() {
-    loadPhaseAddons();
+    loadCoreAddons();
     refresh();
     window.setInterval(refresh, 1200);
     document.addEventListener('click', () => window.setTimeout(refresh, 120));
