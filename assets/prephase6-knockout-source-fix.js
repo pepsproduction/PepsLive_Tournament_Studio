@@ -1,5 +1,5 @@
-/* Pre-Phase 6: Knockout Scores + OBS Source Fallback Fix
-   Adds Knockout score input section to Scores panel and fallback renderer for groups/standings sources.
+/* Pre-Phase 6: Knockout Scores + OBS Source Fallback Fix V2
+   Fixes Knockout score inputs/selects losing focus by pausing auto-render while editing.
 */
 (() => {
   'use strict';
@@ -7,6 +7,8 @@
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+  let lastKnockoutSignature = '';
+  let editModeUntil = 0;
 
   function readState() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; }
@@ -20,6 +22,13 @@
   function isBye(v) { return clean(v).toUpperCase() === 'BYE'; }
   function esc(v) { return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
   function num(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+  function isEditingKnockout() {
+    const active = document.activeElement;
+    return Date.now() < editModeUntil || !!active?.closest?.('#pre6KnockoutScores');
+  }
+  function touchEditMode() {
+    editModeUntil = Date.now() + 3500;
+  }
 
   function getKnockoutMatches(state) {
     const raw = Array.isArray(state.knockout) ? state.knockout : [];
@@ -77,8 +86,10 @@
     const explicitFinal = matches.find((m) => /final/i.test(m.round) && !/semi/i.test(m.round) && !/third|3/i.test(m.round));
     if (explicitFinal && (explicitFinal.teamA || explicitFinal.teamB)) return [explicitFinal.teamA, explicitFinal.teamB].filter(Boolean);
     const semis = matches.filter((m) => /semi/i.test(m.round));
-    const winners = semis.map(predictWinner).filter(Boolean);
-    return winners.slice(0, 2);
+    return semis.map(predictWinner).filter(Boolean).slice(0, 2);
+  }
+  function knockoutSignature(matches) {
+    return JSON.stringify(matches.map((m) => [m.id, m.round, m.teamA, m.teamB, m.scoreA, m.scoreB, m.winner, m.status]));
   }
 
   function ensureKnockoutScoresBox() {
@@ -95,11 +106,16 @@
     }
     return box;
   }
-  function renderKnockoutScores() {
+  function renderKnockoutScores(force = false) {
     const box = ensureKnockoutScoresBox();
     if (!box) return;
     const state = readState();
     const matches = getKnockoutMatches(state);
+    const signature = knockoutSignature(matches);
+    if (!force && isEditingKnockout()) return;
+    if (!force && signature === lastKnockoutSignature && box.dataset.ready === '1') return;
+    lastKnockoutSignature = signature;
+    box.dataset.ready = '1';
     const finalTeams = finalPreview(matches);
     box.className = `pre6-card ${matches.length ? 'good' : 'warn'}`;
     if (!matches.length) {
@@ -122,7 +138,10 @@
     `;
   }
   function matchRow(m) {
-    const winnerOptions = ['', m.teamA, m.teamB].filter((v, i, arr) => v || i === 0).map((t) => `<option value="${esc(t)}" ${t === m.winner ? 'selected' : ''}>${t ? esc(t) : 'เลือกผู้ชนะ'}</option>`).join('');
+    const winnerOptions = ['', m.teamA, m.teamB]
+      .filter((v, i) => i === 0 || clean(v))
+      .map((t) => `<option value="${esc(t)}" ${t === m.winner ? 'selected' : ''}>${t ? esc(t) : 'เลือกผู้ชนะ'}</option>`)
+      .join('');
     return `
       <div class="pre6-match" data-ko-index="${m.index}">
         <div class="pre6-team right" title="${esc(m.teamA)}">${esc(m.teamA || 'รอทีม')}</div>
@@ -151,8 +170,10 @@
     });
     state.lastResult = findLatestKnockoutResult(state) || state.lastResult;
     writeState(state);
+    editModeUntil = 0;
+    lastKnockoutSignature = '';
     toast('บันทึกผล Knockout แล้ว');
-    renderKnockoutScores();
+    renderKnockoutScores(true);
   }
   function inferWinnerFromScores(m) {
     const a = num(m.scoreA); const b = num(m.scoreB);
@@ -172,17 +193,16 @@
     const view = params.get('view');
     if (!['groups', 'standings'].includes(view)) return;
     const root = $('#sourceRoot') || document.body;
-    const state = readState();
-    const html = view === 'groups' ? renderGroupsSource(state) : renderStandingsSource(state);
-    document.body.className = `pre6-source-body ${state.settings?.sourceBg || 'dark'}`;
-    root.classList.remove('hidden');
-    root.innerHTML = html;
     const app = $('#app');
     if (app) app.style.display = 'none';
-    setInterval(() => {
-      const next = readState();
-      root.innerHTML = view === 'groups' ? renderGroupsSource(next) : renderStandingsSource(next);
-    }, 1200);
+    const paint = () => {
+      const state = readState();
+      document.body.className = `pre6-source-body ${state.settings?.sourceBg || 'dark'}`;
+      root.classList.remove('hidden');
+      root.innerHTML = view === 'groups' ? renderGroupsSource(state) : renderStandingsSource(state);
+    };
+    paint();
+    setInterval(paint, 1200);
   }
   function renderGroupsSource(state) {
     const groups = state.groups && Object.keys(state.groups).length ? state.groups : (state.pendingGroups || {});
@@ -258,18 +278,26 @@
     document.body.appendChild(box); setTimeout(() => box.remove(), 2200);
   }
   function bind() {
+    document.addEventListener('focusin', (event) => {
+      if (event.target.closest('#pre6KnockoutScores')) touchEditMode();
+    });
+    document.addEventListener('input', (event) => {
+      if (event.target.closest('#pre6KnockoutScores')) touchEditMode();
+    });
+    document.addEventListener('change', (event) => {
+      if (event.target.closest('#pre6KnockoutScores')) touchEditMode();
+    });
     document.addEventListener('click', (event) => {
       if (event.target.closest('#pre6SaveKnockoutScores')) saveKnockoutScores();
-      setTimeout(renderKnockoutScores, 180);
     });
-    window.addEventListener('focus', renderKnockoutScores);
-    window.addEventListener('storage', renderKnockoutScores);
-    setInterval(renderKnockoutScores, 1600);
+    window.addEventListener('focus', () => renderKnockoutScores(false));
+    window.addEventListener('storage', () => renderKnockoutScores(false));
+    setInterval(() => renderKnockoutScores(false), 1600);
   }
   function install() {
     renderSourceFallback();
     bind();
-    renderKnockoutScores();
+    renderKnockoutScores(true);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
   else install();
