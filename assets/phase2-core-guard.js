@@ -30,6 +30,21 @@
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
   }
 
+  function loadPhase3Assets() {
+    if (!document.querySelector('link[href="assets/phase3-teams-draw.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'assets/phase3-teams-draw.css';
+      document.head.appendChild(link);
+    }
+    if (!document.querySelector('script[src="assets/phase3-teams-draw.js"]')) {
+      const script = document.createElement('script');
+      script.defer = true;
+      script.src = 'assets/phase3-teams-draw.js';
+      document.body.appendChild(script);
+    }
+  }
+
   function getChecks() {
     const state = readState();
     const teamCount = realTeams(state).length;
@@ -147,6 +162,7 @@
   }
 
   function install() {
+    loadPhase3Assets();
     refresh();
     window.setInterval(refresh, 1200);
     document.addEventListener('click', () => window.setTimeout(refresh, 120));
