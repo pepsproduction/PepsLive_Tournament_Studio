@@ -1,12 +1,12 @@
-/* Pre-Phase 6: Knockout Generate Fix
-   Allows Knockout generation from existing Standings even when match statuses are not all Done.
+/* Pre-Phase 6: Knockout Generate Fix V2
+   Generates Knockout from state.standings OR the visible Standings text.
+   Also reports tied teams per group without blocking generation.
 */
 (() => {
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const $ = (s, root = document) => root.querySelector(s);
-  const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
   function readState() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; }
@@ -21,11 +21,13 @@
   function esc(v) { return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
   function asNum(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n : d; }
 
-  function standingsEntries(state) {
-    const standings = state.standings && typeof state.standings === 'object' ? state.standings : {};
-    return Object.entries(standings)
-      .map(([group, rows]) => [String(group), normalizeRows(rows)])
-      .filter(([, rows]) => rows.length);
+  function normalizeGroupName(v) {
+    const s = clean(v).replace(/^สาย\s*/i, '').trim();
+    return s || clean(v) || '-';
+  }
+
+  function rowTeam(r) {
+    return clean(r.team || r.name || r.Team || r.title || r.teamName);
   }
 
   function normalizeRows(rows) {
@@ -33,27 +35,80 @@
     if (Array.isArray(rows)) list = rows.slice();
     else if (rows && typeof rows === 'object') list = Object.entries(rows).map(([team, data]) => ({ team, ...(data || {}) }));
     return list
-      .map((r) => ({
+      .map((r, i) => ({
         ...r,
-        team: clean(r.team || r.name || r.Team || r.title),
+        rank: asNum(r.rank ?? r.no ?? r.pos ?? (i + 1), i + 1),
+        team: rowTeam(r),
         pts: asNum(r.pts ?? r.points ?? r.PTS),
         gd: asNum(r.gd ?? r.diff ?? r.GD),
         gf: asNum(r.gf ?? r.for ?? r.GF),
         w: asNum(r.w ?? r.win ?? r.W)
       }))
       .filter((r) => r.team && !isBye(r.team))
-      .sort((a, b) => (b.pts - a.pts) || (b.gd - a.gd) || (b.gf - a.gf) || (b.w - a.w) || a.team.localeCompare(b.team));
+      .sort((a, b) => (a.rank - b.rank) || (b.pts - a.pts) || (b.gd - a.gd) || (b.gf - a.gf) || (b.w - a.w) || a.team.localeCompare(b.team));
   }
 
-  function qualifiersFromStandings(state) {
+  function standingsEntriesFromState(state) {
+    const standings = state.standings && typeof state.standings === 'object' ? state.standings : {};
+    const entries = Object.entries(standings)
+      .map(([group, rows]) => [normalizeGroupName(group), normalizeRows(rows)])
+      .filter(([, rows]) => rows.length);
+    return entries;
+  }
+
+  function parseVisibleStandings() {
+    const box = $('#standingsBox');
+    const text = clean(box?.innerText || '');
+    if (!text) return [];
+    const lines = text.split(/\r?\n/).map(clean).filter(Boolean);
+    const groups = [];
+    let current = null;
+    for (const line of lines) {
+      const groupMatch = line.match(/^สาย\s*([A-Zก-ฮ0-9]+)\s*$/i) || line.match(/^Group\s*([A-Z0-9]+)\s*$/i);
+      if (groupMatch) {
+        current = { group: normalizeGroupName(groupMatch[1]), rows: [] };
+        groups.push(current);
+        continue;
+      }
+      const rowMatch = line.match(/^(\d+)\.\s*(.+?)\s+(-?\d+)\s*pts?\b/i);
+      if (rowMatch && current) {
+        current.rows.push({ rank: Number(rowMatch[1]), team: clean(rowMatch[2]), pts: Number(rowMatch[3]), gd: 0, gf: 0, w: 0, fromVisible: true });
+      }
+    }
+    return groups.map((g) => [g.group, normalizeRows(g.rows)]).filter(([, rows]) => rows.length);
+  }
+
+  function standingsEntries(state) {
+    const fromState = standingsEntriesFromState(state);
+    if (fromState.length) return fromState;
+    return parseVisibleStandings();
+  }
+
+  function tieGroups(entries) {
+    const out = [];
+    for (const [group, rows] of entries) {
+      const byPts = new Map();
+      rows.forEach((r) => {
+        const key = String(r.pts);
+        if (!byPts.has(key)) byPts.set(key, []);
+        byPts.get(key).push(r);
+      });
+      byPts.forEach((list, pts) => {
+        if (list.length > 1) out.push({ group, pts: Number(pts), teams: list.map((r) => r.team), ranks: list.map((r) => r.rank) });
+      });
+    }
+    return out;
+  }
+
+  function qualifierGroups(state) {
     const perGroup = Math.max(1, Number(state.event?.qualifiersPerGroup || 2));
     return standingsEntries(state)
       .sort(([a], [b]) => a.localeCompare(b, 'th'))
-      .map(([group, rows]) => ({ group, rows: rows.slice(0, perGroup) }));
+      .map(([group, rows]) => ({ group, rows: rows.slice(0, perGroup), allRows: rows }));
   }
 
   function enoughQualifiers(state) {
-    const groups = qualifiersFromStandings(state);
+    const groups = qualifierGroups(state);
     const total = groups.reduce((sum, g) => sum + g.rows.length, 0);
     return { groups, total, ok: groups.length >= 2 && total >= 4 };
   }
@@ -67,7 +122,6 @@
     if (!q.ok) return [];
     const groups = q.groups;
 
-    // Common 4 groups x top 2 layout: A1-B2, C1-D2, B1-A2, D1-C2.
     if (groups.length >= 4 && groups.every((g) => g.rows.length >= 2)) {
       const A = groups[0], B = groups[1], C = groups[2], D = groups[3];
       const qf = [
@@ -86,7 +140,6 @@
       return ko;
     }
 
-    // Fallback generic sequential bracket.
     const flat = groups.flatMap((g) => g.rows.map((r, idx) => ({ team: r.team, seed: `${g.group}${idx + 1}` })));
     const firstRoundName = flat.length <= 4 ? 'Semi Final' : flat.length <= 8 ? 'Quarter Final' : 'Knockout Round 1';
     const first = [];
@@ -95,31 +148,6 @@
     }
     if (first.length <= 2) return [...first, makeMatch('final', 'Final', 'Winner SF1', 'Winner SF2')];
     return [...first, makeMatch('sf1', 'Semi Final', 'Winner QF1', 'Winner QF2'), makeMatch('sf2', 'Semi Final', 'Winner QF3', 'Winner QF4'), makeMatch('final', 'Final', 'Winner SF1', 'Winner SF2')];
-  }
-
-  function winnerOf(m) {
-    if (!m) return '';
-    if (clean(m.winner)) return clean(m.winner);
-    const a = Number(m.scoreA), b = Number(m.scoreB);
-    if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return '';
-    return a > b ? clean(m.teamA) : clean(m.teamB);
-  }
-  function loserOf(m) {
-    const w = winnerOf(m);
-    if (!w) return '';
-    const a = clean(m.teamA), b = clean(m.teamB);
-    return w === a ? b : a;
-  }
-  function byId(state, id) { return (state.knockout || []).find((m) => m.id === id); }
-
-  function advanceGeneratedBracket(state) {
-    if (!Array.isArray(state.knockout)) return;
-    const qf1 = byId(state, 'qf1'), qf2 = byId(state, 'qf2'), qf3 = byId(state, 'qf3'), qf4 = byId(state, 'qf4');
-    const sf1 = byId(state, 'sf1'), sf2 = byId(state, 'sf2'), final = byId(state, 'final'), third = byId(state, 'third');
-    if (sf1) { sf1.teamA = winnerOf(qf1) || sf1.teamA || 'Winner QF1'; sf1.teamB = winnerOf(qf2) || sf1.teamB || 'Winner QF2'; }
-    if (sf2) { sf2.teamA = winnerOf(qf3) || sf2.teamA || 'Winner QF3'; sf2.teamB = winnerOf(qf4) || sf2.teamB || 'Winner QF4'; }
-    if (final) { final.teamA = winnerOf(sf1) || final.teamA || 'Winner SF1'; final.teamB = winnerOf(sf2) || final.teamB || 'Winner SF2'; }
-    if (third) { third.teamA = loserOf(sf1) || third.teamA || 'Loser SF1'; third.teamB = loserOf(sf2) || third.teamB || 'Loser SF2'; }
   }
 
   function generateFromStandings() {
@@ -133,7 +161,7 @@
     state.knockout = ko;
     state.qualifierOverrides = state.qualifierOverrides || {};
     state.audit = Array.isArray(state.audit) ? state.audit : [];
-    state.audit.unshift({ at: new Date().toISOString(), action: 'fallback-generate-knockout-from-standings', data: { total: ko.length } });
+    state.audit.unshift({ at: new Date().toISOString(), action: 'fallback-generate-knockout-from-standings-v2', data: { total: ko.length, source: standingsEntriesFromState(state).length ? 'state' : 'visible' } });
     state.audit = state.audit.slice(0, 100);
     writeState(state);
     toast(`สร้าง Knockout จาก Standings แล้ว ${ko.length} คู่/ช่อง`);
@@ -162,6 +190,23 @@
     row.appendChild(btn);
   }
 
+  function renderTieBox(entries) {
+    const ties = tieGroups(entries);
+    if (!ties.length) return '<div class="pre6-final-preview">ไม่พบทีมคะแนนเท่ากันในสายเดียวกัน</div>';
+    return `
+      <div class="pre6-round">
+        <div class="pre6-round-head">ทีมคะแนนเท่ากัน แยกตามสาย</div>
+        ${ties.map((t) => `
+          <div class="pre6-match" style="grid-template-columns:120px 1fr;">
+            <div class="pre6-team">สาย ${esc(t.group)}</div>
+            <div class="pre6-text">${esc(t.teams.join(' / '))} · ${esc(t.pts)} pts · อันดับ ${esc(t.ranks.join(', '))}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="pre6-final-preview">ระบบจะสร้าง Knockout ตามอันดับที่แสดงอยู่ตอนนี้ก่อน ถ้าหน้างานตัดสินใหม่/จับฉลาก ให้แก้อันดับหรือใช้ Override ก่อนสร้างอีกครั้ง</div>
+    `;
+  }
+
   function renderHint() {
     const panel = $('[data-panel="knockout"]');
     if (!panel) return;
@@ -175,14 +220,17 @@
       else panel.prepend(box);
     }
     const state = readState();
+    const entries = standingsEntries(state);
     const q = enoughQualifiers(state);
+    const source = standingsEntriesFromState(state).length ? 'state.standings' : (entries.length ? 'visible standings' : 'none');
     box.className = `pre6-card ${q.ok ? 'good' : 'warn'}`;
     box.innerHTML = `
       <div class="pre6-title"><span>Knockout Generate Check</span><span>${q.ok ? 'พร้อมสร้าง' : 'ยังไม่พร้อม'}</span></div>
       <div class="pre6-text">
-        ${q.ok ? `พบ Standings ${q.groups.length} สาย / ทีมเข้ารอบ ${q.total} ทีม สามารถสร้าง Knockout ได้` : `พบทีมเข้ารอบ ${q.total} ทีม ต้องมีอย่างน้อย 4 ทีม`}
+        ${q.ok ? `พบ Standings ${q.groups.length} สาย / ทีมเข้ารอบ ${q.total} ทีม · แหล่งข้อมูล: ${esc(source)}` : `พบทีมเข้ารอบ ${q.total} ทีม ต้องมีอย่างน้อย 4 ทีม · แหล่งข้อมูล: ${esc(source)}`}
       </div>
-      <div class="pre6-final-preview">ถ้า Guard เดิมล็อกปุ่ม ให้ใช้ปุ่ม Generate from Standings เพื่อสร้างสายจากอันดับ Standings โดยตรง</div>
+      ${renderTieBox(entries)}
+      <div class="pre6-final-preview">ถ้าปุ่ม Generate / Refresh Knockout เดิมยังไม่ทำงาน ให้กด Generate from Standings</div>
     `;
   }
 
@@ -195,13 +243,6 @@
   function bind() {
     document.addEventListener('click', (event) => {
       if (event.target.closest('#pre6GenerateFromStandings')) generateFromStandings();
-      if (event.target.closest('#pre6SaveKnockoutScores')) {
-        setTimeout(() => {
-          const state = readState();
-          advanceGeneratedBracket(state);
-          writeState(state);
-        }, 120);
-      }
       setTimeout(refresh, 200);
     }, true);
     window.addEventListener('focus', refresh);
