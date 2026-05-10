@@ -50,6 +50,7 @@
     loadAddonAssets('assets/phase4-schedule.css', 'assets/phase4-schedule.js');
     loadAddonAssets('assets/phase5-scores.css', 'assets/phase5-scores.js');
     loadAddonAssets('assets/prephase6-knockout-source-fix.css', 'assets/prephase6-knockout-source-fix.js');
+    loadAddonAssets('', 'assets/prephase6-knockout-generate-fix.js');
   }
 
   function getChecks() {
@@ -99,7 +100,7 @@
     setButton('rebalanceSchedule', !c.drawConfirmed, 'ต้อง Confirm Draw ก่อน');
     setButton('saveScores', !c.schedule, 'ต้อง Generate Schedule ก่อน');
     setButton('markAllPending', !c.schedule, 'ต้อง Generate Schedule ก่อน');
-    setButton('generateKnockout', !c.scoresComplete, `ต้องบันทึกคะแนนให้ครบก่อน (${c.doneCount}/${c.matchCount || 0})`);
+    setButton('generateKnockout', !c.scoresComplete && !c.standings, `ต้องบันทึกคะแนนให้ครบหรือมี Standings ก่อน (${c.doneCount}/${c.matchCount || 0})`);
   }
 
   function row(name, ok, detail) {
@@ -158,7 +159,7 @@
     hintFor('draw', c.teams ? '' : 'ต้องบันทึก Teams ก่อน จึงจะสุ่มสายได้');
     hintFor('schedule', c.drawConfirmed ? '' : 'ต้อง Confirm Draw ก่อน จึงจะสร้าง Schedule ได้');
     hintFor('scores', c.schedule ? '' : 'ต้อง Generate Schedule ก่อน จึงจะบันทึกคะแนนได้');
-    hintFor('knockout', c.scoresComplete ? '' : `ต้องบันทึกคะแนนให้ครบก่อน จึงจะสร้าง Knockout ได้ (${c.doneCount}/${c.matchCount || 0})`);
+    hintFor('knockout', (c.scoresComplete || c.standings) ? '' : `ต้องบันทึกคะแนนให้ครบหรือมี Standings ก่อน จึงจะสร้าง Knockout ได้ (${c.doneCount}/${c.matchCount || 0})`);
   }
 
   function refresh() {
