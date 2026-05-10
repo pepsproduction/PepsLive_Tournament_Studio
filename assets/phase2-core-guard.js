@@ -1,11 +1,12 @@
-/* Phase 2: PepsLive Tournament Studio Core Guard
-   Lightweight workflow guard loaded after assets/app.js.
-   Scope: Tournament Studio only. No OBS WebSocket, no live-control features.
+/* Phase 2 Hotfix: PepsLive Tournament Studio Core Guard
+   Live Sources renderer belongs to assets/app.js.
+   This hotfix stops loading the old Phase 8 duplicate renderer.
 */
 (() => {
   'use strict';
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
+  const HOTFIX_VERSION = 'main-livefix-20260510-1';
   const $ = (s, root = document) => root.querySelector(s);
 
   function readState() {
@@ -30,19 +31,37 @@
     return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done');
   }
 
+  function versioned(path) {
+    if (!path) return '';
+    return `${path}${path.includes('?') ? '&' : '?'}v=${encodeURIComponent(HOTFIX_VERSION)}`;
+  }
+
+  function isLoaded(selector, path) {
+    return !!Array.from(document.querySelectorAll(selector)).find((node) => String(node.getAttribute('href') || node.getAttribute('src') || '').startsWith(path));
+  }
+
   function loadAddonAssets(cssPath, jsPath) {
-    if (cssPath && !document.querySelector(`link[href="${cssPath}"]`)) {
+    if (cssPath && !isLoaded('link[href]', cssPath)) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = cssPath;
+      link.href = versioned(cssPath);
       document.head.appendChild(link);
     }
-    if (jsPath && !document.querySelector(`script[src="${jsPath}"]`)) {
+    if (jsPath && !isLoaded('script[src]', jsPath)) {
       const script = document.createElement('script');
       script.defer = true;
-      script.src = jsPath;
+      script.src = versioned(jsPath);
       document.body.appendChild(script);
     }
+  }
+
+  function removeOldLiveHealthPanel() {
+    document.querySelector('#phase8SourceHealth')?.remove();
+    document.querySelector('#coreLiveSourceHealth')?.remove();
+    document.querySelectorAll('.phase8-card').forEach((node) => {
+      const text = node.textContent || '';
+      if (text.includes('OBS Source Health') || text.includes('Phase 8 · OBS Source Health')) node.remove();
+    });
   }
 
   function loadPhaseAddons() {
@@ -51,7 +70,10 @@
     loadAddonAssets('assets/phase5-scores.css', 'assets/phase5-scores.js');
     loadAddonAssets('assets/phase55-google-sheet.css', 'assets/phase55-google-sheet.js');
     loadAddonAssets('assets/phase6-knockout.css', 'assets/phase6-knockout.js');
-    loadAddonAssets('assets/phase8-live-sources.css', 'assets/phase8-live-sources.js');
+
+    // IMPORTANT: Do not load assets/phase8-live-sources.js anymore.
+    // app.js is the single canonical renderer for Live Sources and OBS source URLs.
+
     loadAddonAssets('assets/prephase6-knockout-source-fix.css', 'assets/prephase6-knockout-source-fix.js');
     loadAddonAssets('', 'assets/prephase6-knockout-generate-fix.js');
   }
@@ -170,12 +192,13 @@
     applyLocks(c);
     renderDashboard(c);
     renderHints(c);
+    removeOldLiveHealthPanel();
   }
 
   function install() {
     loadPhaseAddons();
     refresh();
-    window.setInterval(refresh, 1200);
+    window.setInterval(refresh, 1000);
     document.addEventListener('click', () => window.setTimeout(refresh, 120));
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', refresh);
