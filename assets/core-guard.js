@@ -65,6 +65,30 @@
     }
   }
 
+  // Global Toast Utility
+  window.pepsToast = function(message, type = 'info') {
+    let stack = document.querySelector('.peps-toast-stack');
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.className = 'peps-toast-stack';
+      document.body.appendChild(stack);
+    }
+    const toast = document.createElement('div');
+    toast.className = `peps-toast ${type}`;
+    const icons = { info: '💬', success: '✅', warn: '⚠️', error: '❌' };
+    const icon = icons[type] || icons.info;
+    toast.innerHTML = `<div class="peps-toast-icon">${icon}</div><div class="peps-toast-content"><div class="peps-toast-desc">${escapeHtml(message)}</div></div>`;
+    stack.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 400);
+    }, 5000);
+  };
+
+  function escapeHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
   function removeOldLiveHealthPanel() {
     document.querySelector('#phase8SourceHealth')?.remove();
     document.querySelector('#coreLiveSourceHealth')?.remove();
@@ -88,7 +112,6 @@
     loadAddonAssets('assets/core-scores.css', 'assets/core-scores.js');
     loadAddonAssets('assets/core-google-sheet.css', 'assets/core-google-sheet.js');
     loadAddonAssets('assets/core-knockout.css', 'assets/core-knockout.js');
-    loadAddonAssets('assets/core-live-sources.css', 'assets/core-live-sources.js');
   }
 
   function getChecks() {
@@ -149,30 +172,7 @@
     const panel = $('[data-panel="dashboard"]');
     if (!panel) return;
     let box = $('#phase2GuardBox');
-    if (!box) {
-      box = document.createElement('section');
-      box.id = 'phase2GuardBox';
-      box.className = 'phase2-guard-box';
-      const head = panel.querySelector('.panel-head');
-      if (head) head.insertAdjacentElement('afterend', box);
-      else panel.prepend(box);
-    }
-    const [step, detail] = currentStep(c);
-    const allGood = c.setup && c.teams && c.drawConfirmed && c.schedule && c.scoresComplete && c.standings;
-    box.classList.toggle('good', allGood);
-    box.innerHTML = `
-      <div class="phase2-guard-title">Core Guard · ${allGood ? 'Core Flow พร้อมแล้ว' : 'ขั้นต่อไป: ' + step}</div>
-      <div class="phase2-guard-text">${allGood ? 'สามารถ Export หรือเปิด Live Sources แบบเบาได้' : detail}</div>
-      <div class="phase2-guard-list">
-        ${row('Setup', c.setup, c.setup ? 'ตั้งค่าแล้ว' : 'ยังไม่ได้บันทึก Setup')}
-        ${row('Teams', c.teams, c.teams ? c.teamCount + ' ทีม' : 'ยังไม่มีทีม')}
-        ${row('Draw', c.drawConfirmed, c.drawConfirmed ? 'Confirm แล้ว ' + c.confirmedTeamCount + ' ทีม' : 'ยังไม่ Confirm')}
-        ${row('Schedule', c.schedule, c.schedule ? c.matchCount + ' คู่' : 'ยังไม่มีตารางแข่ง')}
-        ${row('Scores', c.scoresComplete, c.matchCount ? c.doneCount + '/' + c.matchCount + ' คู่' : 'ยังไม่มีคะแนน')}
-        ${row('Standings', c.standings, c.standings ? 'มีตารางคะแนนแล้ว' : 'ยังไม่มี Standings')}
-      </div>
-      <div class="phase2-lock-note">ปุ่มที่ยังไม่ถึงขั้นจะถูกปิดไว้ เพื่อกันข้อมูลข้ามขั้นหรือค้างจากรอบก่อน</div>
-    `;
+    if (box) box.remove(); // Health panel is removed in favor of Toast UX
   }
 
   function hintFor(panelName, message) {

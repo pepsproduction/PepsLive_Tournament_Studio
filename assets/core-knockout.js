@@ -342,47 +342,11 @@
     };
   }
 
-  function healthItem(text, type) { return `<div class="phase6-item ${type || ''}">${esc(text)}</div>`; }
-
-  function ensureKnockoutHealthBox() {
-    const panel = $('[data-panel="knockout"]');
-    if (!panel) return null;
-    let box = $('#coreKnockoutHealth') || $('#phase6KnockoutHealth');
-    if (!box) {
-      box = document.createElement('section');
-      box.id = 'coreKnockoutHealth';
-      box.className = 'phase6-card';
-      const head = panel.querySelector('.panel-head');
-      if (head) head.insertAdjacentElement('afterend', box);
-      else panel.prepend(box);
-    }
-    box.id = 'coreKnockoutHealth';
-    return box;
-  }
-
-  function renderHealth() {
-    const box = ensureKnockoutHealthBox();
-    if (!box) return;
-    const state = readState();
-    const h = analyzeKnockout(state);
-    const good = h.count && !h.byes.length && !h.duplicates.length;
-
-    box.className = `phase6-card ${good ? 'good' : 'warn'}`;
-    box.innerHTML = `
-      <div class="phase6-title"><span>Core Knockout · Health</span><span class="phase6-badge ${good ? 'good' : 'warn'}">${good ? 'Bracket OK' : 'ต้องตรวจ'}</span></div>
-      <div class="phase6-metrics">
-        <div class="phase6-metric"><small>Matches</small><b>${h.count}</b></div>
-        <div class="phase6-metric"><small>BYE</small><b>${h.byes.length}</b></div>
-        <div class="phase6-metric"><small>Duplicate</small><b>${h.duplicates.length}</b></div>
-        <div class="phase6-metric"><small>Final Ready</small><b>${h.finalReady ? 'YES' : 'NO'}</b></div>
-      </div>
-      <div class="phase6-list">
-        ${h.count ? healthItem(`มี Knockout ${h.count} คู่/ช่อง`, 'good') : healthItem('ยังไม่มี Knockout', 'warn')}
-        ${h.byes.length ? healthItem(`พบ BYE ใน Knockout: ${h.byes.join(', ')}`, 'bad') : healthItem('ไม่พบ BYE ใน Knockout', 'good')}
-        ${h.duplicates.length ? healthItem(`พบทีมซ้ำในรอบแรก: ${h.duplicates.join(', ')}`, 'bad') : healthItem('ไม่พบทีมซ้ำในรอบแรก', 'good')}
-        ${h.placeholders.length ? healthItem(`ยังมีช่องรอผล: ${h.placeholders.slice(0, 6).join(', ')}`, 'warn') : healthItem('ไม่มีช่องรอผลค้าง', 'good')}
-      </div>
-    `;
+  function removeOldPanels() {
+    const p1 = $('#coreKnockoutHealth');
+    if (p1) p1.remove();
+    const p2 = $('#phase6KnockoutHealth');
+    if (p2) p2.remove();
   }
 
   function ensureTieResolverBox() {
@@ -393,9 +357,9 @@
       box = document.createElement('section');
       box.id = 'coreTieResolver';
       box.className = 'phase6-card';
-      const health = $('#coreKnockoutHealth');
-      if (health) health.insertAdjacentElement('afterend', box);
-      else panel.appendChild(box);
+      const head = panel.querySelector('.panel-head');
+      if (head) head.insertAdjacentElement('afterend', box);
+      else panel.prepend(box);
     }
     box.id = 'coreTieResolver';
     return box;
@@ -703,7 +667,6 @@
     lastKnockoutSignature = '';
     toast('บันทึกผล Knockout แล้ว และส่งผู้ชนะไปรอบถัดไปแล้ว');
     renderKnockoutScores(true);
-    renderHealth();
   }
 
   function findLatestKnockoutResult(state) {
@@ -733,13 +696,7 @@
   }
 
   function toast(message) {
-    const old = $('.core-ko-toast') || $('.phase6-toast') || $('.pre6-toast');
-    if (old) old.remove();
-    const box = document.createElement('div');
-    box.className = 'pre6-toast core-ko-toast';
-    box.textContent = message;
-    document.body.appendChild(box);
-    setTimeout(() => box.remove(), 2400);
+    if (window.pepsToast) window.pepsToast(message, 'info');
   }
 
   // ---------------------------------------------------------------------------
@@ -803,10 +760,10 @@
   }
 
   function refresh() {
-    ensureCoreButtons();
-    renderHealth();
+    removeOldPanels();
     renderTieResolver();
-    renderKnockoutScores(false);
+    renderKnockoutScores();
+    ensureCoreButtons();
   }
 
   function install() {

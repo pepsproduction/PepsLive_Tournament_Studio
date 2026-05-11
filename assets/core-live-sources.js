@@ -99,7 +99,7 @@
     if (mode === 'slot') return '<div class="slot-visual"><div class="slot-top">JACKPOT</div><div class="slot-frame"><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ff2f7e;--chip2:#c000ff">777</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">BAR</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#14d955;--chip2:#0b8032">WIN</div><div class="slot-chip" style="--chip1:#ff8c00;--chip2:#cc2900">777</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#c000ff;--chip2:#6600cc">BAR</div><div class="slot-chip" style="--chip1:#ff3b30;--chip2:#99140d">WIN</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ffd400;--chip2:#cc8800">WIN</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">777</div></div></div></div></div>';
     if (mode === 'card') return '<div class="card-visual"><div class="card-fan"><div class="card-suit">♠</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♠</div></div><div class="card-fan"><div class="card-suit" style="color:#ff3b30">♥</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end;color:#ff3b30">♥</div></div><div class="card-fan"><div class="card-suit">♣</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♣</div></div></div>';
     if (mode === 'lottery') return '<div class="lottery-visual"><div class="lottery-stand"></div><div class="lottery-base"></div><div class="lottery-cage"><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">45</div><div class="ball-mini red">08</div><div class="ball-mini blue">67</div><div class="ball-mini red">33</div><div class="ball-mini blue">91</div></div></div></div>';
-    if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
+    if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div><div class="glitch-hline" style="--gi:4"></div><div class="glitch-hline" style="--gi:5"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
     if (mode === 'galaxy') return '<div class="galaxy-visual"><div class="galaxy-disk"></div><div class="galaxy-arm arm1"></div><div class="galaxy-arm arm2"></div><div class="galaxy-core"></div><div class="galaxy-star" style="--gd:0deg;--gr:40px;--gi:1"></div><div class="galaxy-star" style="--gd:72deg;--gr:60px;--gi:2"></div><div class="galaxy-star" style="--gd:144deg;--gr:80px;--gi:3"></div><div class="galaxy-star" style="--gd:216deg;--gr:50px;--gi:4"></div><div class="galaxy-star" style="--gd:288deg;--gr:70px;--gi:5"></div></div>';
     if (mode === 'crystal') return '<div class="crystal-visual"><div class="crystal-glow-bg"></div><div class="crystal-orb"><div class="crystal-inner"></div><div class="crystal-shine"></div><div class="crystal-spark" style="--ci:1"></div><div class="crystal-spark" style="--ci:2"></div><div class="crystal-spark" style="--ci:3"></div></div><div class="crystal-stand"></div><div class="crystal-base"></div></div>';
     if (mode === 'plasma') return '<div class="plasma-visual"><div class="plasma-ring ring1"></div><div class="plasma-ring ring2"></div><div class="plasma-ring ring3"></div><div class="plasma-core"></div><div class="plasma-arc" style="--pa:0deg"></div><div class="plasma-arc" style="--pa:120deg"></div><div class="plasma-arc" style="--pa:240deg"></div></div>';
@@ -277,6 +277,36 @@
     const state = readState();
     applySourceBody(state);
     const root = sourceRoot();
+    
+    if (view === 'draw-animation') {
+      const live = state.drawLive || {};
+      const current = live.current || live.pendingItem || null;
+      const feed = Array.isArray(live.feed) ? live.feed : [];
+      const latest = live.waiting ? { team: 'READY', group: '-', slot: '-' } : (current || feed[0] || { team: 'READY', group: '-', slot: '-' });
+      const mode = state.settings?.drawAnimation || 'wheel';
+      const waiting = !!live.waiting;
+      const running = !!live.running;
+      const animState = (waiting || running) ? 'active' : (live.current ? 'result' : 'idle');
+      
+      const sig = `draw-animation|${mode}`;
+      if (lastSignature !== sig || !root.querySelector('.pl-anim-core')) {
+        root.innerHTML = renderDrawAnimation(state);
+        lastSignature = sig;
+      } else {
+        const core = root.querySelector('.pl-anim-core');
+        if (core) {
+          core.className = `pl-anim-core draw-graphic ${animState} mode-${esc(mode)}`;
+          const badge = core.querySelector('.draw-group-badge b');
+          if (badge) badge.textContent = latest.group || '-';
+          const nameSpan = core.querySelector('.pl-anim-name span');
+          if (nameSpan) nameSpan.textContent = latest.team || 'READY';
+          const meta = core.querySelector('.pl-anim-meta');
+          if (meta) meta.textContent = waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${latest.group || '-'} · ลำดับ ${latest.slot || '-'}`;
+        }
+      }
+      return;
+    }
+
     const html = renderByView(view, state);
     const signature = `${view}|${JSON.stringify(state.drawLive || {})}|${JSON.stringify(state.groups || {})}|${JSON.stringify(state.pendingGroups || {})}|${JSON.stringify(state.matches || [])}|${JSON.stringify(state.standings || {})}|${JSON.stringify(state.knockout || [])}|${JSON.stringify(state.lastResult || {})}`;
     if (signature !== lastSignature) {

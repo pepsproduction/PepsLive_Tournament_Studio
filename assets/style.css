@@ -420,25 +420,30 @@ body.ui-compact .grid{gap:10px!important}
 .draw-graphic.result .ball-mini:nth-child(odd){animation:ballPop .5s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes ballPop{from{transform:scale(0) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
 
-/* ─── GLITCH CYBER ─────────────────────────────────────────── */
-.glitch-visual{position:relative;width:min(500px,92%);height:170px;margin:0 auto 12px;display:grid;place-items:center;border:1px solid rgba(255,90,0,.35);border-radius:18px;overflow:hidden;background:#050505}
-.glitch-scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.18) 2px,rgba(0,0,0,.18) 4px);pointer-events:none;border-radius:18px}
-.glitch-lines{position:absolute;inset:0;pointer-events:none}
-.glitch-hline{position:absolute;left:0;right:0;height:2px;background:rgba(255,90,0,.7);animation:glitchLine calc(1.8s + var(--gi)*.4s) infinite;top:calc(var(--gi)*18% + 10%)}
-.glitch-text{font-family:"Chakra Petch",monospace;font-size:52px;font-weight:900;color:#ff5a00;letter-spacing:.12em;position:relative;animation:glitchBase 2.8s infinite;text-shadow:0 0 18px rgba(255,90,0,.7)}
-.glitch-text::before{content:attr(data-text);position:absolute;left:3px;top:0;color:#08c3ff;animation:glitchR 2.8s infinite;clip-path:polygon(0 20%,100% 20%,100% 40%,0 40%)}
-.glitch-text::after{content:attr(data-text);position:absolute;left:-3px;top:0;color:#ff2f7e;animation:glitchL 2.8s infinite;clip-path:polygon(0 60%,100% 60%,100% 80%,0 80%)}
-.glitch-corner{position:absolute;width:14px;height:14px;border-color:rgba(255,90,0,.8);border-style:solid}
+/* ─── GLITCH CYBER (MATRIX RAIN) ─────────────────────────────── */
+.glitch-visual{position:relative;width:min(500px,92%);height:170px;margin:0 auto 12px;display:grid;place-items:center;border:1px solid rgba(0,255,100,.35);border-radius:18px;overflow:hidden;background:#020b05;box-shadow:inset 0 0 40px rgba(0,255,100,.08)}
+.glitch-scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.3) 2px,rgba(0,0,0,.3) 4px);pointer-events:none;border-radius:18px;z-index:2}
+.glitch-lines{position:absolute;inset:0;pointer-events:none;z-index:1}
+/* Matrix code rain effect using content and translate */
+.glitch-hline{position:absolute;top:-20%;width:20px;color:rgba(0,255,100,.8);font-family:monospace;font-size:14px;font-weight:bold;text-align:center;text-shadow:0 0 5px #00ff64;animation:matrixRain calc(1s + var(--gi)*.5s) linear infinite;opacity:.6}
+.glitch-hline::before{content:"1\A 0\A 1\A 1\A 0\A 1\A 0\A 0\A 1\A 1\A 0";white-space:pre}
+.glitch-hline:nth-child(1){left:10%;animation-delay:0s}
+.glitch-hline:nth-child(2){left:30%;animation-delay:.3s}
+.glitch-hline:nth-child(3){left:50%;animation-delay:.1s}
+.glitch-hline:nth-child(4){left:70%;animation-delay:.5s}
+.glitch-hline:nth-child(5){left:90%;animation-delay:.2s}
+@keyframes matrixRain{0%{transform:translateY(-50%)}100%{transform:translateY(150%)}}
+
+.glitch-text{font-family:"Chakra Petch",monospace;font-size:52px;font-weight:900;color:#00ff64;letter-spacing:.12em;position:relative;z-index:3;text-shadow:0 0 18px rgba(0,255,100,.7)}
+.glitch-corner{position:absolute;width:14px;height:14px;border-color:rgba(0,255,100,.8);border-style:solid;z-index:3}
 .glitch-corner.tl{top:8px;left:8px;border-width:2px 0 0 2px}
 .glitch-corner.tr{top:8px;right:8px;border-width:2px 2px 0 0}
 .glitch-corner.bl{bottom:8px;left:8px;border-width:0 0 2px 2px}
 .glitch-corner.br{bottom:8px;right:8px;border-width:0 2px 2px 0}
-.draw-graphic.active .glitch-text{animation-duration:.9s;color:#ff8a2a}
-.draw-graphic.result .glitch-visual{border-color:rgba(255,90,0,.8);box-shadow:0 0 30px rgba(255,90,0,.3)}
-@keyframes glitchBase{0%,88%,100%{transform:translate(0)}89%{transform:translate(-3px,1px)}91%{transform:translate(3px,-1px)}93%{transform:translate(-2px,2px)}95%{transform:translate(2px,0)}}
-@keyframes glitchR{0%,88%,100%{opacity:0}89%,93%{opacity:1;transform:translate(4px,0)}91%{opacity:1;transform:translate(-3px,0)}}
-@keyframes glitchL{0%,90%,100%{opacity:0}91%,95%{opacity:1;transform:translate(-4px,0)}}
-@keyframes glitchLine{0%,100%{opacity:0;transform:scaleX(0) translateX(-40%)}48%{opacity:.8;transform:scaleX(1) translateX(0)}50%{opacity:0}52%{opacity:.6;transform:scaleX(.6) translateX(20%)}}
+.draw-graphic.active .glitch-hline{animation-duration:calc(.4s + var(--gi)*.2s);opacity:.9}
+.draw-graphic.active .glitch-text{color:#fff;text-shadow:0 0 20px #00ff64, 0 0 40px #00ff64}
+.draw-graphic.result .glitch-visual{border-color:rgba(0,255,100,.9);box-shadow:0 0 30px rgba(0,255,100,.4),inset 0 0 50px rgba(0,255,100,.2)}
+.draw-graphic.result .glitch-text{color:#fff;text-shadow:0 0 30px #00ff64}
 
 /* ─── GALAXY SPIRAL ────────────────────────────────────────── */
 .galaxy-visual{position:relative;width:220px;height:220px;margin:0 auto 12px}

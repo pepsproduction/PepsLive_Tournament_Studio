@@ -97,94 +97,11 @@
     return `${time} สนาม ${court}`;
   }
 
-  function row(text, type = '') {
-    return `<div class="phase4-item ${type}">${escapeHtml(text)}</div>`;
-  }
-  function escapeHtml(v) {
-    return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-  }
-
-  function ensureScheduleBox() {
-    const panel = $('[data-panel="schedule"]');
-    if (!panel) return;
-    if (!$('#phase4ScheduleHealth')) {
-      const box = document.createElement('section');
-      box.id = 'phase4ScheduleHealth';
-      box.className = 'phase4-card';
-      const controls = panel.querySelector('.card.compact');
-      if (controls) controls.insertAdjacentElement('afterend', box);
-      else panel.prepend(box);
-    }
-  }
-
-  function renderScheduleHealth() {
-    ensureScheduleBox();
-    const box = $('#phase4ScheduleHealth');
-    if (!box) return;
-    const h = scheduleHealth();
-    const ok = h.scheduleReady && h.byes.length === 0 && h.clashes.length === 0 && h.drawConfirmed;
-    const bad = h.byes.length > 0 || !h.drawConfirmed;
-    box.className = `phase4-card ${ok ? 'good' : (bad ? 'bad' : 'warn')}`;
-    box.innerHTML = `
-      <div class="phase4-title">
-        <span>Core Schedule · Schedule Health</span>
-        <span class="phase4-badge ${ok ? 'good' : 'warn'}">${ok ? 'ตารางพร้อมใช้งาน' : 'ต้องตรวจตาราง'}</span>
-      </div>
-      <div class="phase4-text">ตรวจความพร้อมของตารางแข่งหลัง Generate Schedule โดยไม่แก้อัลกอริทึมหลัก</div>
-      <div class="phase4-metrics">
-        <div class="phase4-metric"><small>คู่แข่งจริง</small><b>${h.real.length}</b></div>
-        <div class="phase4-metric"><small>คู่ที่มี BYE</small><b>${h.byes.length}</b></div>
-        <div class="phase4-metric"><small>จำนวนสนาม</small><b>${h.courts.size || Number(h.state.event?.courtCount || 0)}</b></div>
-        <div class="phase4-metric"><small>เวลาเริ่ม-จบ</small><b>${formatTime(h.start)}-${formatTime(h.end)}</b></div>
-      </div>
-      <div class="phase4-list">
-        ${h.drawConfirmed ? row(`Schedule สร้างจาก Draw ที่ Confirm แล้ว (${h.confirmed} ทีม)`, 'good') : row('ยังไม่พบ Draw ที่ Confirm แล้ว ห้ามใช้ Schedule นี้เป็นผลจริง', 'bad')}
-        ${h.scheduleReady ? row(`มีตารางแข่งจริง ${h.real.length} คู่`, 'good') : row('ยังไม่มี Schedule ให้ตรวจ', 'warn')}
-        ${h.byes.length ? row(`พบคู่ที่มี BYE ${h.byes.length} คู่ ควรตรวจว่าไม่ถูกนำไปแข่งจริง`, 'bad') : row('ไม่พบ BYE ในคู่แข่งจริง', 'good')}
-        ${h.clashes.length ? row(`พบทีมที่แข่งติดกัน ${h.clashes.length} รายการ`, 'warn') : row('ไม่พบทีมแข่งติดกันตามเงื่อนไขพื้นฐาน', 'good')}
-        ${h.scoreTouched ? row('มีคะแนนเดิมอยู่ ถ้า Rebuild Random อาจทำให้ผลเดิมไม่ตรงคู่แข่ง', 'warn') : row('ยังไม่มีคะแนนเดิมค้างในตาราง', 'good')}
-        ${h.clashes.map((x) => row(x, 'warn')).join('')}
-      </div>
-    `;
-  }
-
-  function ensureSourceBox() {
-    const panel = $('[data-panel="sources"]');
-    if (!panel) return;
-    if (!$('#phase4SourceHealth')) {
-      const box = document.createElement('section');
-      box.id = 'phase4SourceHealth';
-      box.className = 'phase4-card';
-      const head = panel.querySelector('.panel-head');
-      if (head) head.insertAdjacentElement('afterend', box);
-      else panel.prepend(box);
-    }
-  }
-
-  function renderSourceHealth() {
-    ensureSourceBox();
-    const box = $('#phase4SourceHealth');
-    if (!box) return;
-    const h = scheduleHealth();
-    box.className = `phase4-card ${h.scheduleReady ? 'good' : 'warn'}`;
-    box.innerHTML = `
-      <div class="phase4-title"><span>Core Schedule · Live Source Readiness</span><span class="phase4-badge ${h.scheduleReady ? 'good' : 'warn'}">${h.scheduleReady ? 'พร้อมเปิด Source' : 'ยังไม่พร้อม'}</span></div>
-      <div class="phase4-list">
-        ${h.scheduleReady ? row('Schedule Source มีข้อมูลสำหรับแสดงผล', 'good') : row('Schedule Source ยังไม่มีข้อมูล ควร Generate Schedule ก่อน', 'warn')}
-        ${h.done ? row('Latest Result Source มีผลล่าสุด', 'good') : row('Latest Result Source จะสมบูรณ์หลังบันทึกคะแนน', 'warn')}
-        ${h.drawConfirmed ? row('Groups Source ใช้ผล Draw ที่ Confirm แล้ว', 'good') : row('Groups Source ยังไม่มีผล Confirm', 'warn')}
-      </div>
-    `;
-  }
-
-  function toast(message) {
-    const old = $('.phase4-toast');
-    if (old) old.remove();
-    const box = document.createElement('div');
-    box.className = 'phase4-toast';
-    box.textContent = message;
-    document.body.appendChild(box);
-    setTimeout(() => box.remove(), 2400);
+  function removeOldPanels() {
+    const p1 = $('#phase4ScheduleHealth');
+    if (p1) p1.remove();
+    const p2 = $('#phase4SourceHealth');
+    if (p2) p2.remove();
   }
 
   function warnBeforeRebuild(event) {
@@ -196,12 +113,11 @@
     if (ok) return;
     event.preventDefault();
     event.stopPropagation();
-    toast('ยกเลิก Rebuild Random เพื่อรักษาคะแนนเดิม');
+    if (window.pepsToast) window.pepsToast('ยกเลิก Rebuild Random เพื่อรักษาคะแนนเดิม', 'info');
   }
 
   function refresh() {
-    renderScheduleHealth();
-    renderSourceHealth();
+    removeOldPanels();
   }
 
   function install() {

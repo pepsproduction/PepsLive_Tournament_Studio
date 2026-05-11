@@ -262,9 +262,7 @@
     toast(message || 'คัดลอกแล้ว');
   }
   function toast(message) {
-    const old = $('.phase55-toast'); if (old) old.remove();
-    const box = document.createElement('div'); box.className = 'phase55-toast'; box.textContent = message;
-    document.body.appendChild(box); setTimeout(() => box.remove(), 2300);
+    if (window.pepsToast) window.pepsToast(message, 'info');
   }
   function bind() {
     document.addEventListener('click', (event) => {
