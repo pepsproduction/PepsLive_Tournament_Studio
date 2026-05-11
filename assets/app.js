@@ -1456,6 +1456,12 @@
     if (status) status.textContent = waiting ? 'RUNNING' : 'READY';
     const nameSpan = core.querySelector('.draw-team-name span');
     if (nameSpan) nameSpan.textContent = item.team || 'READY';
+    const cardGroup = core.querySelector('[data-card-group]');
+    if (cardGroup) cardGroup.textContent = `GROUP ${item.group || '-'}`;
+    const cardTeam = core.querySelector('[data-card-team]');
+    if (cardTeam) cardTeam.textContent = item.team || 'READY';
+    const cardSlot = core.querySelector('[data-card-slot]');
+    if (cardSlot) cardSlot.textContent = `ลำดับ ${item.slot || '-'}`;
     const sub = core.querySelector('.draw-subtitle');
     if (sub) sub.textContent = waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${item.group || '-'} · ลำดับ ${item.slot || '-'}`;
     const bar = core.querySelector('.draw-progress-bar');
@@ -1560,6 +1566,17 @@
   }
 
   function drawFxRefined(mode, drawState = state) {
+    if (mode === 'card') {
+      const live = drawState?.drawLive || {};
+      const feed = Array.isArray(live.feed) ? live.feed : [];
+      const item = live.current || live.pendingItem || feed[0] || { team: 'READY', group: '-', slot: '-' };
+      const safeTeam = esc(item.team || 'READY');
+      const safeGroup = esc(item.group || '-');
+      const safeSlot = esc(item.slot || '-');
+      const deckCards = Array.from({ length: 10 }, (_, i) => `<i class="deck-card" style="--ci:${i}"></i>`).join('');
+      const flyingCards = Array.from({ length: 8 }, (_, i) => `<i class="shuffle-card" style="--si:${i}"></i>`).join('');
+      return `<div class="card-visual peps-card-deck"><div class="card-table-glow"></div><div class="deck-stack">${deckCards}</div><div class="shuffle-stream">${flyingCards}</div><div class="deal-path"></div><div class="reveal-card"><div class="card-code">PL</div><div class="reveal-group" data-card-group>GROUP ${safeGroup}</div><div class="reveal-team" data-card-team>${safeTeam}</div><div class="reveal-slot" data-card-slot>ลำดับ ${safeSlot}</div></div></div>`;
+    }
     if (mode === 'slot') {
       const groupItems = repeatedFxItems(letters(drawState?.event?.groupCount || 4), 14).map(g => `<div class="slot-chip">สาย ${esc(g)}</div>`).join('');
       const sourceTeams = Array.isArray(drawState?.teams) && drawState.teams.length ? drawState.teams : ['Golden Lion', 'Wild Cats', 'Blue Shark', 'Peps United', 'Thunder 3x3', 'Sky Runner'];

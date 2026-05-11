@@ -187,7 +187,7 @@
 .peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:var(--draw-status-fs,18px)!important;line-height:1.1!important;margin-top:5px!important}
 .peps-draw-preview-stage .wheel-visual{width:150px!important;height:150px!important;margin:0!important}
 .peps-draw-preview-stage .slot-visual{width:520px!important;max-width:none!important;height:134px!important;max-height:170px!important;margin:0!important}
-.peps-draw-preview-stage .card-visual{width:306px!important;height:154px!important;margin:0!important}
+.peps-draw-preview-stage .card-visual{width:380px!important;height:178px!important;margin:0!important}
 .peps-draw-preview-stage .lottery-visual{width:220px!important;height:162px!important;margin:0!important}
 .peps-draw-preview-stage .glitch-visual{width:min(330px,92%)!important;height:124px!important;margin:0!important}
 .peps-draw-preview-stage .galaxy-visual,

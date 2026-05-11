@@ -180,6 +180,17 @@
   }
 
   function drawFxRefined(mode, state = readState()) {
+    if (mode === 'card') {
+      const live = state?.drawLive || {};
+      const feed = Array.isArray(live.feed) ? live.feed : [];
+      const item = live.current || live.pendingItem || feed[0] || { team: 'READY', group: '-', slot: '-' };
+      const safeTeam = esc(item.team || 'READY');
+      const safeGroup = esc(item.group || '-');
+      const safeSlot = esc(item.slot || '-');
+      const deckCards = Array.from({ length: 10 }, (_, i) => `<i class="deck-card" style="--ci:${i}"></i>`).join('');
+      const flyingCards = Array.from({ length: 8 }, (_, i) => `<i class="shuffle-card" style="--si:${i}"></i>`).join('');
+      return `<div class="card-visual peps-card-deck"><div class="card-table-glow"></div><div class="deck-stack">${deckCards}</div><div class="shuffle-stream">${flyingCards}</div><div class="deal-path"></div><div class="reveal-card"><div class="card-code">PL</div><div class="reveal-group" data-card-group>GROUP ${safeGroup}</div><div class="reveal-team" data-card-team>${safeTeam}</div><div class="reveal-slot" data-card-slot>ลำดับ ${safeSlot}</div></div></div>`;
+    }
     if (mode === 'slot') {
       const groupItems = repeatedFxItems(letters(state?.event?.groupCount || 4), 14).map((g) => `<div class="slot-chip">สาย ${esc(g)}</div>`).join('');
       const sourceTeams = Array.isArray(state?.teams) && state.teams.length ? state.teams : ['Golden Lion', 'Wild Cats', 'Blue Shark', 'Peps United', 'Thunder 3x3', 'Sky Runner'];
@@ -234,6 +245,9 @@
     set('[data-draw-group]', item.group || '-');
     set('[data-draw-status]', live.waiting ? 'RUNNING' : 'READY');
     set('[data-draw-team]', item.team || 'READY');
+    set('[data-card-group]', `GROUP ${item.group || '-'}`);
+    set('[data-card-team]', item.team || 'READY');
+    set('[data-card-slot]', `ลำดับ ${item.slot || '-'}`);
     set('[data-draw-sub]', live.waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${item.group || '-'} · ลำดับ ${item.slot || '-'}`);
     set('[data-draw-caption]', live.waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล');
     set('[data-draw-pct]', `${progress}%`);
