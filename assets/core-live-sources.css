@@ -31,3 +31,35 @@
 #coreSourceRoot .draw-source-card .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:20px!important;margin-top:6px!important}
 #coreSourceRoot .draw-source-card .wheel-visual{width:160px!important;height:160px!important;margin:0!important}
 #coreSourceRoot .draw-source-card .slot-visual{width:min(420px,92%)!important;max-height:150px!important;margin:0!important}
+
+/* Phase 10.25: keep Draw Animation Source labels on the same center axis as FX and team name. */
+#coreSourceRoot .draw-source-card,
+#coreSourceRoot .draw-source-card .draw-layout{
+  grid-template-columns:minmax(0,1fr)!important;
+}
+#coreSourceRoot .draw-source-card .draw-header-zone{
+  grid-template-columns:max-content!important;
+  justify-content:center!important;
+  align-content:center!important;
+  justify-items:center!important;
+  align-items:center!important;
+  width:100%!important;
+  max-width:100%!important;
+  text-align:center!important;
+}
+#coreSourceRoot .draw-source-card .draw-style-label,
+#coreSourceRoot .draw-source-card .draw-group-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  justify-self:center!important;
+}
+#coreSourceRoot .draw-source-card .draw-result-zone{
+  grid-template-columns:minmax(0,1fr)!important;
+  width:100%!important;
+  justify-items:center!important;
+  text-align:center!important;
+}
+#coreSourceRoot .draw-source-card .draw-team-name{
+  justify-self:center!important;
+}

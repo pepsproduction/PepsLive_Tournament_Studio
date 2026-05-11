@@ -30,16 +30,26 @@
   box-shadow:none!important;
   padding:26px 30px 18px!important;
   display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr!important;
+  align-content:stretch!important;
+  justify-content:stretch!important;
   align-items:stretch!important;
+  justify-items:stretch!important;
   overflow:hidden!important;
+  box-sizing:border-box!important;
 }
 .peps-draw-preview-stage .draw-layout{
   display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
   grid-template-rows:150px auto minmax(126px,1fr) 48px!important;
   gap:10px!important;
   place-items:center!important;
+  align-content:stretch!important;
   width:100%!important;
   height:100%!important;
+  min-height:0!important;
+  box-sizing:border-box!important;
 }
 .peps-draw-preview-stage .draw-fx-zone{
   grid-row:1!important;
@@ -64,8 +74,16 @@
 .peps-draw-preview-stage .draw-header-zone{
   grid-row:2!important;
   display:grid!important;
+  grid-template-columns:max-content!important;
   gap:10px!important;
+  justify-content:center!important;
+  align-content:center!important;
+  justify-items:center!important;
+  align-items:center!important;
   place-items:center!important;
+  width:100%!important;
+  max-width:100%!important;
+  text-align:center!important;
   z-index:4!important;
 }
 .peps-draw-preview-stage .draw-status-text{display:none!important}
@@ -80,6 +98,10 @@
   padding:8px 15px!important;
   line-height:1!important;
   white-space:nowrap!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  justify-self:center!important;
 }
 .peps-draw-preview-stage .draw-group-pill,
 .peps-draw-preview-stage .draw-group-badge{
@@ -93,15 +115,23 @@
   line-height:1!important;
   white-space:nowrap!important;
   text-transform:uppercase!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  justify-self:center!important;
 }
 .peps-draw-preview-stage .draw-result-zone{
   grid-row:3!important;
   position:relative!important;
   z-index:5!important;
   display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
   place-items:center!important;
+  justify-items:center!important;
   gap:16px!important;
   align-self:center!important;
+  width:100%!important;
+  text-align:center!important;
 }
 .peps-draw-preview-stage .draw-team-name{
   grid-row:auto!important;
@@ -118,6 +148,7 @@
   min-height:0!important;
   max-height:none!important;
   display:block!important;
+  justify-self:center!important;
 }
 .peps-draw-preview-stage .draw-team-name span{
   display:-webkit-box!important;
