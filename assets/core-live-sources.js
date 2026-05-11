@@ -1,11 +1,11 @@
-/* Core Live Sources: stable OBS source renderer + draw layout hotfix */
+/* Core Live Sources: stable OBS source renderer + draw layout sync */
 (() => {
   'use strict';
   if (window.__PEPSLIVE_CORE_LIVE_SOURCES_INSTALLED__) return;
   window.__PEPSLIVE_CORE_LIVE_SOURCES_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const SOURCE_VIEWS = ['draw-animation','groups','schedule','standings','knockout','lower-third','next-match','latest-result'];
+  const SOURCE_VIEWS = ['draw-animation', 'groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
   const $ = (s, root = document) => root.querySelector(s);
   let lastSignature = '';
   let lastDrawSignature = '';
@@ -13,7 +13,7 @@
   const currentView = () => new URLSearchParams(location.search).get('view') || '';
   const isObsSourceView = () => SOURCE_VIEWS.includes(currentView());
   const clean = (v) => String(v ?? '').trim();
-  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   const isBye = (v) => clean(v).toUpperCase() === 'BYE';
   const asNum = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
   const readState = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch { return {}; } };
@@ -56,33 +56,76 @@
   const knockout = (state) => Array.isArray(state.knockout) ? state.knockout : [];
   const realMatches = (state) => matches(state).filter((m) => !isBye(teamOf(m, 'teamA')) && !isBye(teamOf(m, 'teamB')));
 
+  function letters(count) {
+    return Array.from({ length: Math.max(1, Math.min(26, Number(count) || 4)) }, (_, i) => String.fromCharCode(65 + i));
+  }
+
+  function hasGroups(groups) {
+    return Object.values(groups || {}).some((arr) => Array.isArray(arr) && arr.some((t) => clean(t) && !isBye(t)));
+  }
+
+  function groupsFromRevealFeed(state) {
+    const groupKeys = letters(state.event?.groupCount || 4);
+    const groups = Object.fromEntries(groupKeys.map((g) => [g, []]));
+    const feed = Array.isArray(state.drawLive?.feed) ? [...state.drawLive.feed].reverse() : [];
+    feed.forEach((item) => {
+      if (!item || !item.group || item.group === 'ALL') return;
+      if (!groups[item.group]) groups[item.group] = [];
+      groups[item.group][Math.max(0, Number(item.slot || 1) - 1)] = item.team || '';
+    });
+    return groups;
+  }
+
   function groupsForDisplay(state) {
-    if (state.groups && Object.keys(state.groups).length) return state.groups;
-    if (state.pendingGroups && Object.keys(state.pendingGroups).length) return state.pendingGroups;
-    return {};
+    if (hasGroups(state.groups)) return state.groups;
+    if (state.settings?.drawMethod === 'instant-all' && state.pendingComplete && hasGroups(state.pendingGroups)) return state.pendingGroups;
+    return groupsFromRevealFeed(state);
+  }
+
+  function effectiveGroupColumns(state, availableWidth = window.innerWidth) {
+    const requested = Math.max(1, Math.min(10, Number(state.settings?.groupColumns || 4) || 4));
+    const byWidth = Math.max(1, Math.floor(Number(availableWidth || 1280) / 310));
+    return Math.max(1, Math.min(requested, byWidth));
   }
 
   function modeLabel(mode) {
-    return ({wheel:'Wheel Spin',slot:'Slot Reveal',card:'Card Draw',lottery:'Lottery Ball',glitch:'Glitch Cyber',galaxy:'Galaxy Spiral',crystal:'Crystal Oracle',plasma:'Plasma Arc',vortex:'Vortex Portal',winner:'Winner Reveal'}[mode] || mode || 'Wheel Spin');
+    return ({ wheel: 'Wheel Spin', slot: 'Slot Reveal', card: 'Card Draw', lottery: 'Lottery Ball', glitch: 'Glitch Cyber', galaxy: 'Galaxy Spiral', crystal: 'Crystal Oracle', plasma: 'Plasma Arc', vortex: 'Vortex Portal', winner: 'Winner Reveal' }[mode] || mode || 'Wheel Spin');
   }
 
   function drawFx(mode) {
-    if (mode === 'slot') return `<div class="peps-slot-visual"><div class="peps-slot-window"><div class="peps-slot-track"><b>สาย A</b><b>สาย B</b><b>สาย C</b><b>สาย D</b><b>สาย A</b></div></div><div class="peps-slot-window"><div class="peps-slot-track team"><b>Golden Lion</b><b>Wild Cats</b><b>Blue Fox</b><b>Red Bull</b><b>Golden Lion</b></div></div></div>`;
-    if (mode === 'card') return `<div class="card-visual"><div class="card-fan"></div><div class="card-fan"></div><div class="card-fan"></div></div>`;
-    if (mode === 'lottery') return `<div class="lottery-visual"><div class="lottery-cage"><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">45</div><div class="ball-mini red">08</div></div></div><div class="lottery-stand"></div><div class="lottery-base"></div></div>`;
-    if (mode === 'glitch') return `<div class="glitch-visual"><div class="glitch-lines"><div class="glitch-hline"></div><div class="glitch-hline"></div><div class="glitch-hline"></div></div><div class="glitch-text">MATRIX</div></div>`;
-    if (mode === 'galaxy') return `<div class="galaxy-visual"><div class="galaxy-core"></div><div class="galaxy-star"></div><div class="galaxy-star"></div><div class="galaxy-star"></div></div>`;
-    if (mode === 'crystal') return `<div class="crystal-visual"><div class="crystal-orb"></div><div class="crystal-base"></div></div>`;
-    if (mode === 'plasma') return `<div class="plasma-visual"><div class="plasma-ring ring1"></div><div class="plasma-ring ring2"></div><div class="plasma-core"></div></div>`;
-    if (mode === 'vortex') return `<div class="vortex-visual"><div class="vortex-tunnel"><div class="vortex-layer"></div><div class="vortex-layer"></div><div class="vortex-layer"></div></div><div class="vortex-eye"></div></div>`;
-    if (mode === 'winner') return `<div class="winner-visual"><div class="winner-trophy">🏆</div></div>`;
-    return `<div class="wheel-visual"><div class="wheel-pointer"></div></div>`;
+    if (mode === 'wheel') return '<div class="wheel-visual"><div class="wheel-rotor"></div><div class="wheel-pointer"></div><div class="wheel-pulse-ring"></div><div class="wheel-dots"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i></div></div>';
+    if (mode === 'slot') return '<div class="slot-visual peps-slot-machine"><div class="slot-frame"><div class="slot-reel slot-reel-group"><div class="slot-reel-track"><div class="slot-chip">สาย A</div><div class="slot-chip">สาย B</div><div class="slot-chip">สาย C</div><div class="slot-chip">สาย D</div><div class="slot-chip">สาย A</div><div class="slot-chip">สาย B</div></div></div><div class="slot-reel slot-reel-team"><div class="slot-reel-track"><div class="slot-chip">Golden Lion</div><div class="slot-chip">Wild Cats</div><div class="slot-chip">Blue Shark</div><div class="slot-chip">Peps United</div><div class="slot-chip">Thunder 3x3</div><div class="slot-chip">Sky Runner</div></div></div></div><div class="slot-shine"></div></div>';
+    if (mode === 'card') return '<div class="card-visual"><div class="card-fan"><div class="card-suit">S</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">S</div></div><div class="card-fan"><div class="card-suit" style="color:#ff3b30">H</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end;color:#ff3b30">H</div></div><div class="card-fan"><div class="card-suit">C</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">C</div></div></div>';
+    if (mode === 'lottery') return '<div class="lottery-visual"><div class="lottery-stand"></div><div class="lottery-base"></div><div class="lottery-cage"><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">45</div><div class="ball-mini red">08</div><div class="ball-mini blue">67</div><div class="ball-mini red">33</div><div class="ball-mini blue">91</div></div></div></div>';
+    if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div><div class="glitch-hline" style="--gi:4"></div><div class="glitch-hline" style="--gi:5"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
+    if (mode === 'galaxy') return '<div class="galaxy-visual"><div class="galaxy-disk"></div><div class="galaxy-arm arm1"></div><div class="galaxy-arm arm2"></div><div class="galaxy-core"></div><div class="galaxy-star" style="--gd:0deg;--gr:40px;--gi:1"></div><div class="galaxy-star" style="--gd:72deg;--gr:60px;--gi:2"></div><div class="galaxy-star" style="--gd:144deg;--gr:80px;--gi:3"></div><div class="galaxy-star" style="--gd:216deg;--gr:50px;--gi:4"></div><div class="galaxy-star" style="--gd:288deg;--gr:70px;--gi:5"></div></div>';
+    if (mode === 'crystal') return '<div class="crystal-visual"><div class="crystal-glow-bg"></div><div class="crystal-orb"><div class="crystal-inner"></div><div class="crystal-shine"></div><div class="crystal-spark" style="--ci:1"></div><div class="crystal-spark" style="--ci:2"></div><div class="crystal-spark" style="--ci:3"></div></div><div class="crystal-stand"></div><div class="crystal-base"></div></div>';
+    if (mode === 'plasma') return '<div class="plasma-visual"><div class="plasma-ring ring1"></div><div class="plasma-ring ring2"></div><div class="plasma-ring ring3"></div><div class="plasma-core"></div><div class="plasma-arc" style="--pa:0deg"></div><div class="plasma-arc" style="--pa:120deg"></div><div class="plasma-arc" style="--pa:240deg"></div></div>';
+    if (mode === 'vortex') return '<div class="vortex-visual"><div class="vortex-tunnel"><div class="vortex-layer" style="--vl:1"></div><div class="vortex-layer" style="--vl:2"></div><div class="vortex-layer" style="--vl:3"></div><div class="vortex-layer" style="--vl:4"></div><div class="vortex-layer" style="--vl:5"></div></div><div class="vortex-eye"></div></div>';
+    if (mode === 'winner') return '<div class="winner-visual"><div class="winner-trophy">WIN</div><div class="winner-sparks"></div></div>';
+    return '<div class="pl-ring"></div>';
+  }
+
+  function drawTickerItem(state) {
+    const teams = Array.isArray(state.teams) && state.teams.length ? state.teams : ['READY'];
+    const groups = letters(state.event?.groupCount || 4);
+    const live = state.drawLive || {};
+    const duration = Math.max(1000, Math.max(1, Math.min(20, Number(state.settings?.drawDuration || 5))) * 1000);
+    const left = live.revealEndsAt ? Math.max(0, live.revealEndsAt - Date.now()) : duration;
+    const progress = 1 - Math.min(1, left / duration);
+    const interval = 32 + Math.round(progress * progress * 260);
+    const tick = Math.floor(Date.now() / interval);
+    return {
+      team: teams[tick % teams.length],
+      group: groups[(tick * 3) % groups.length],
+      slot: ((tick * 5) % Math.max(1, Math.ceil(teams.length / groups.length))) + 1
+    };
   }
 
   function drawLatest(state) {
     const live = state.drawLive || {};
     const feed = Array.isArray(live.feed) ? live.feed : [];
-    if (live.waiting) return { team: 'READY', group: '-', slot: '-' };
+    if (live.waiting) return drawTickerItem(state);
     return live.current || live.pendingItem || feed[0] || { team: 'READY', group: '-', slot: '-' };
   }
 
@@ -92,7 +135,7 @@
     const mode = state.settings?.drawAnimation || 'wheel';
     const progress = live.total ? Math.round(((live.progress || 0) / live.total) * 100) : 0;
     const animState = (live.waiting || live.running) ? 'active' : (live.current ? 'result' : 'idle');
-    return `<div class="peps-draw-card ${animState} draw-style-${esc(mode)}"><div class="peps-draw-layout"><div class="peps-draw-header"><div class="peps-style-label">${esc(modeLabel(mode))}</div><div class="peps-group-pill">GROUP <b data-draw-group>${esc(item.group || '-')}</b></div><div class="peps-status" data-draw-status>${live.waiting ? 'RUNNING' : 'READY'}</div></div><div class="peps-fx-zone"><div class="peps-fx-scale">${drawFx(mode)}</div></div><div class="peps-result"><div class="peps-team" data-draw-team>${esc(item.team || 'READY')}</div><div class="peps-sub" data-draw-sub>${live.waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div></div><div class="peps-progress"><div class="peps-progress-track"><div class="peps-progress-bar" data-draw-bar style="width:${progress}%"></div></div><div class="peps-progress-meta"><span data-draw-caption>${live.waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span><span data-draw-pct>${progress}%</span></div></div></div></div>`;
+    return `<div class="pl-anim-source"><div class="draw-graphic draw-source-card ${animState} draw-style-${esc(mode)} draw-context-source"><div class="draw-layout"><div class="draw-header-zone"><div class="draw-style-label">${esc(modeLabel(mode))}</div><div class="draw-group-pill">GROUP <b data-draw-group>${esc(item.group || '-')}</b></div><div class="draw-status-text" data-draw-status>${live.waiting ? 'RUNNING' : 'READY'}</div></div><div class="draw-fx-zone"><div class="draw-fx-scale">${drawFx(mode)}</div></div><div class="draw-result-zone"><div class="draw-team-name"><span data-draw-team>${esc(item.team || 'READY')}</span></div><div class="draw-subtitle" data-draw-sub>${live.waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div></div><div class="draw-progress-zone"><div class="draw-progress-track"><div class="draw-progress-bar" data-draw-bar style="width:${progress}%"></div></div><div class="draw-progress-meta"><span data-draw-caption>${live.waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span><span data-draw-pct>${progress}%</span></div></div></div></div></div>`;
   }
 
   function updateDrawText(root, state) {
@@ -103,7 +146,7 @@
     set('[data-draw-group]', item.group || '-');
     set('[data-draw-status]', live.waiting ? 'RUNNING' : 'READY');
     set('[data-draw-team]', item.team || 'READY');
-    set('[data-draw-sub]', live.waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${item.group || '-'} · ลำดับ ${item.slot || '-'}`);
+    set('[data-draw-sub]', live.waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${item.group || '-'} · ลำดับ ${item.slot || '-'}`);
     set('[data-draw-caption]', live.waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล');
     set('[data-draw-pct]', `${progress}%`);
     const bar = root.querySelector('[data-draw-bar]');
@@ -112,11 +155,11 @@
 
   function renderGroups(state) {
     const groups = groupsForDisplay(state);
-    const entries = Object.entries(groups);
+    const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event?.groupCount || 4);
+    const maxRows = Math.max(1, ...keys.map((g) => (groups[g] || []).length), Math.ceil(Math.max(1, (state.teams || []).length) / Math.max(1, keys.length)));
+    const cols = effectiveGroupColumns(state, Math.min(1500, window.innerWidth * 0.96));
     const eventName = state.event?.name || 'PepsLive Tournament';
-    const hasData = entries.some(([, teams]) => Array.isArray(teams) && teams.length > 0);
-    if (!hasData) return shell('Groups Table', eventName, `<div class="phase8-panel-grid"><div class="phase8-panel"><h2>รอผลแบ่งสาย</h2><div class="phase8-list"><div class="phase8-row"><span class="time">A</span><span class="main">Waiting for Draw Result</span><span class="meta">ว่าง</span></div><div class="phase8-row"><span class="time">B</span><span class="main">Waiting for Draw Result</span><span class="meta">ว่าง</span></div><div class="phase8-row"><span class="time">C</span><span class="main">Waiting for Draw Result</span><span class="meta">ว่าง</span></div><div class="phase8-row"><span class="time">D</span><span class="main">Waiting for Draw Result</span><span class="meta">ว่าง</span></div></div></div></div>`);
-    return shell('Groups Table', eventName, `<div class="phase8-panel-grid">${entries.map(([group, teams]) => `<div class="phase8-panel"><h2>สาย ${esc(group)}</h2><table class="phase8-table"><thead><tr><th>#</th><th>Team</th><th>Note</th></tr></thead><tbody>${(teams || []).filter((t) => clean(t)).map((t, i) => `<tr><td>${i + 1}</td><td class="team">${esc(t)}</td><td>${isBye(t) ? 'BYE' : ''}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`);
+    return `<div class="pl-groups-source"><div class="pl-groups-board"><div class="pl-groups-head"><div><h1>${esc(eventName)}</h1><p>Groups Table · Reveal Feed / Confirm Result</p></div></div><div class="pl-groups-grid phase8-groups-grid" style="--groups-cols:${cols};grid-template-columns:repeat(${cols},minmax(180px,1fr));">${keys.map((group) => `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(group)}</span><span>${(groups[group] || []).filter(Boolean).length} ทีม</span></div>${Array.from({ length: maxRows }, (_, i) => { const team = (groups[group] || [])[i] || ''; return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team">${esc(team || 'รอผลสุ่ม')}</span></div>`; }).join('')}</div>`).join('')}</div></div></div>`;
   }
 
   function renderSchedule(state) { const list = realMatches(state); if (!list.length) return empty('Schedule', 'ยังไม่มีตารางแข่ง ให้ Generate Schedule ก่อน'); return shell('Schedule', state.event?.name || 'PepsLive Tournament', `<div class="phase8-panel"><table class="phase8-table"><thead><tr><th>Time</th><th>Court</th><th>Group</th><th>Team A</th><th>Team B</th><th>Status</th></tr></thead><tbody>${list.map((m) => `<tr><td>${esc(m.time || m.startTime || '')}</td><td>${esc(m.court || m.field || '')}</td><td>${esc(m.group || '')}</td><td class="team">${esc(teamOf(m, 'teamA'))}</td><td class="team">${esc(teamOf(m, 'teamB'))}</td><td>${esc(m.status || 'Pending')}</td></tr>`).join('')}</tbody></table></div>`); }
@@ -138,16 +181,26 @@
       const mode = state.settings?.drawAnimation || 'wheel'; const live = state.drawLive || {}; const item = drawLatest(state);
       const progress = live.total ? Math.round(((live.progress || 0) / live.total) * 100) : 0;
       const animState = (live.waiting || live.running) ? 'active' : (live.current ? 'result' : 'idle');
-      const structureSig = `draw|${mode}|${animState}`; const textSig = `${item.team}|${item.group}|${item.slot}|${progress}|${live.waiting ? 1 : 0}`;
-      if (lastSignature !== structureSig || !root.querySelector('.peps-draw-card')) { root.innerHTML = renderDrawAnimation(state); lastSignature = structureSig; lastDrawSignature = textSig; }
+      const structureSig = `draw|${mode}|${animState}`;
+      const textSig = `${item.team}|${item.group}|${item.slot}|${progress}|${live.waiting ? 1 : 0}`;
+      if (lastSignature !== structureSig || !root.querySelector('.draw-source-card')) { root.innerHTML = renderDrawAnimation(state); lastSignature = structureSig; lastDrawSignature = textSig; }
       else if (lastDrawSignature !== textSig) { updateDrawText(root, state); lastDrawSignature = textSig; }
       return;
     }
-    const signature = `${view}|${JSON.stringify(state.groups || {})}|${JSON.stringify(state.pendingGroups || {})}|${JSON.stringify(state.matches || [])}|${JSON.stringify(state.standings || {})}|${JSON.stringify(state.knockout || [])}|${JSON.stringify(state.lastResult || {})}`;
+    const signature = `${view}|${JSON.stringify(groupsForDisplay(state))}|${JSON.stringify(state.matches || [])}|${JSON.stringify(state.standings || {})}|${JSON.stringify(state.knockout || [])}|${JSON.stringify(state.lastResult || {})}|${state.settings?.groupColumns || 4}|${state.event?.name || ''}`;
     if (signature !== lastSignature) { root.innerHTML = renderByView(view, state); lastSignature = signature; }
   }
 
-  function installSourceView() { paintSource(); const delay = currentView() === 'draw-animation' ? 250 : 1000; const tick = () => { paintSource(); setTimeout(tick, delay); }; setTimeout(tick, delay); window.addEventListener('storage', paintSource); window.addEventListener('focus', paintSource); window.addEventListener('peps:draw-style-changed', () => { lastSignature = ''; lastDrawSignature = ''; paintSource(); }); }
+  function installSourceView() {
+    paintSource();
+    const delay = currentView() === 'draw-animation' ? 250 : 1000;
+    const tick = () => { paintSource(); setTimeout(tick, delay); };
+    setTimeout(tick, delay);
+    window.addEventListener('storage', paintSource);
+    window.addEventListener('focus', paintSource);
+    window.addEventListener('resize', () => { lastSignature = ''; paintSource(); });
+    window.addEventListener('peps:draw-style-changed', () => { lastSignature = ''; lastDrawSignature = ''; paintSource(); });
+  }
   function installControlCleanup() { removeDuplicateHealthPanel(); window.addEventListener('focus', removeDuplicateHealthPanel); window.addEventListener('storage', removeDuplicateHealthPanel); document.addEventListener('click', () => setTimeout(removeDuplicateHealthPanel, 120)); setInterval(removeDuplicateHealthPanel, 1000); }
   function install() { if (isObsSourceView()) installSourceView(); else installControlCleanup(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();

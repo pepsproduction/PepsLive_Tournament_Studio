@@ -83,7 +83,6 @@
     hintFor('draw', c.teams ? '' : 'ต้องบันทึก Teams ก่อน จึงจะสุ่มสายได้'); hintFor('schedule', c.drawConfirmed ? '' : 'ต้อง Confirm Draw ก่อน จึงจะสร้าง Schedule ได้'); hintFor('scores', c.schedule ? '' : 'ต้อง Generate Schedule ก่อน จึงจะบันทึกคะแนนได้'); hintFor('knockout', (c.scoresComplete || c.standings) ? '' : `ต้องบันทึกคะแนนให้ครบหรือมี Standings ก่อน จึงจะสร้าง Knockout ได้ (${c.doneCount}/${c.matchCount || 0})`);
   }
 
-  function pepsSlotVisual() { return `<div class="peps-slot-visual peps-control-slot-visual"><div class="peps-slot-window"><div class="peps-slot-track"><b>สาย A</b><b>สาย B</b><b>สาย C</b><b>สาย D</b><b>สาย A</b></div></div><div class="peps-slot-window"><div class="peps-slot-track team"><b>Golden Lion</b><b>Wild Cats</b><b>Blue Fox</b><b>Red Bull</b><b>Golden Lion</b></div></div></div>`; }
   function syncDrawControlPreview() {
     if (currentSourceView()) return;
     const stage = document.getElementById('drawStage'); if (!stage) return;
@@ -92,7 +91,6 @@
     document.documentElement.style.setProperty('--draw-fx-scale', String(Math.max(.45, Math.min(1.15, scale))));
     stage.querySelectorAll('.draw-graphic,.draw-source-card').forEach((graphic) => { Array.from(graphic.classList).forEach((name) => { if (name.startsWith('draw-style-') || name.startsWith('mode-')) graphic.classList.remove(name); }); graphic.classList.add('peps-control-draw-card', `draw-style-${style}`, `mode-${style}`); });
     const label = stage.querySelector('.draw-style-label,.draw-chip'); if (label) label.textContent = ({ wheel:'Wheel Spin', slot:'Slot Reveal', card:'Card Draw', lottery:'Lottery Ball', glitch:'Glitch Cyber', galaxy:'Galaxy Spiral', crystal:'Crystal Oracle', plasma:'Plasma Arc', vortex:'Vortex Portal', winner:'Winner Reveal' }[style] || style);
-    if (style === 'slot') { const fxZone = stage.querySelector('.draw-fx-zone') || stage.querySelector('.draw-fx') || stage.querySelector('.draw-result-content')?.previousElementSibling; if (fxZone && !fxZone.querySelector('.peps-slot-visual')) fxZone.innerHTML = `<div class="draw-fx-scale">${pepsSlotVisual()}</div>`; }
     if (state.settings?.drawAnimation !== style || state.settings?.drawAnimationScale !== scale) { writeState({ ...state, settings: { ...(state.settings || {}), drawAnimation: style, drawAnimationScale: scale } }); window.dispatchEvent(new CustomEvent('peps:draw-style-changed', { detail: { style } })); }
   }
   function installDrawControlPreviewHotfix() {

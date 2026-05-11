@@ -1497,7 +1497,7 @@
 
   function drawFx(mode) {
     if (mode === 'wheel') return '<div class="wheel-visual"><div class="wheel-rotor"></div><div class="wheel-pointer"></div><div class="wheel-pulse-ring"></div><div class="wheel-dots"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i></div></div>';
-    if (mode === 'slot') return '<div class="slot-visual"><div class="slot-top">JACKPOT</div><div class="slot-frame"><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ff2f7e;--chip2:#c000ff">777</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">BAR</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#14d955;--chip2:#0b8032">WIN</div><div class="slot-chip" style="--chip1:#ff8c00;--chip2:#cc2900">777</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#c000ff;--chip2:#6600cc">BAR</div><div class="slot-chip" style="--chip1:#ff3b30;--chip2:#99140d">WIN</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ffd400;--chip2:#cc8800">WIN</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">777</div></div></div></div></div>';
+    if (mode === 'slot') return '<div class="slot-visual peps-slot-machine"><div class="slot-frame"><div class="slot-reel slot-reel-group"><div class="slot-reel-track"><div class="slot-chip">สาย A</div><div class="slot-chip">สาย B</div><div class="slot-chip">สาย C</div><div class="slot-chip">สาย D</div><div class="slot-chip">สาย A</div><div class="slot-chip">สาย B</div></div></div><div class="slot-reel slot-reel-team"><div class="slot-reel-track"><div class="slot-chip">Golden Lion</div><div class="slot-chip">Wild Cats</div><div class="slot-chip">Blue Shark</div><div class="slot-chip">Peps United</div><div class="slot-chip">Thunder 3x3</div><div class="slot-chip">Sky Runner</div></div></div></div><div class="slot-shine"></div></div>';
     if (mode === 'card') return '<div class="card-visual"><div class="card-fan"><div class="card-suit">♠</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♠</div></div><div class="card-fan"><div class="card-suit" style="color:#ff3b30">♥</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end;color:#ff3b30">♥</div></div><div class="card-fan"><div class="card-suit">♣</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♣</div></div></div>';
     if (mode === 'lottery') return '<div class="lottery-visual"><div class="lottery-stand"></div><div class="lottery-base"></div><div class="lottery-cage"><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">45</div><div class="ball-mini red">08</div><div class="ball-mini blue">67</div><div class="ball-mini red">33</div><div class="ball-mini blue">91</div></div></div></div>';
     if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div><div class="glitch-hline" style="--gi:4"></div><div class="glitch-hline" style="--gi:5"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
@@ -1788,21 +1788,7 @@
   }
 
   function renderDrawSource(root) {
-    const live = state.drawLive || {};
-    const item = live.waiting ? tickerItem() : (live.current || live.pendingItem || (live.feed || [])[0] || { team: 'READY', group: '-', slot: '-' });
-    const mode = state.settings.drawAnimation || 'wheel';
-
-    root.innerHTML = `
-      <div class="pl-anim-source">
-        <div class="pl-anim-core">
-          <div class="pl-anim-fx">${drawFx(mode)}</div>
-          <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
-          <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
-          <div class="pl-anim-name"><span>${esc(item.team || 'READY')}</span></div>
-          <div class="pl-anim-meta">${live.waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
-        </div>
-      </div>
-    `;
+    root.innerHTML = `<div class="pl-anim-source">${drawVisualHtml('source')}</div>`;
   }
 
   function renderGroupsSource(root) {

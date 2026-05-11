@@ -1,19 +1,162 @@
 /* Phase 10.23: Draw Control Preview + Source visual order */
-.peps-draw-preview-stage{min-height:520px!important;padding:0!important;border:1px solid rgba(255,102,31,.28)!important;border-radius:22px!important;background:linear-gradient(180deg,rgba(24,24,24,.96),rgba(18,18,18,.94))!important;display:grid!important;place-items:center!important;overflow:hidden!important}
-.peps-draw-preview-stage .draw-graphic,.peps-draw-preview-stage .draw-source-card,.peps-draw-preview-stage .peps-control-draw-card{width:100%!important;min-height:520px!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:28px 30px!important;display:grid!important;align-items:stretch!important;overflow:hidden!important}
-.peps-draw-preview-stage .draw-layout,.peps-draw-preview-stage .peps-control-layout{display:grid!important;grid-template-rows:170px auto auto auto!important;gap:12px!important;place-items:center!important;width:100%!important;height:100%!important}
-.peps-draw-preview-stage .draw-header-zone{display:grid!important;grid-template-rows:auto auto auto!important;gap:8px!important;place-items:center!important;align-self:start!important;z-index:4!important}
-.peps-draw-preview-stage .draw-style-label,.peps-draw-preview-stage .draw-chip{order:1!important;font-size:13px!important;font-weight:900!important;color:#ffc7a8!important;border:1px solid rgba(255,102,31,.42)!important;background:rgba(255,102,31,.12)!important;border-radius:999px!important;padding:8px 15px!important;line-height:1!important;white-space:nowrap!important}
-.peps-draw-preview-stage .draw-group-pill,.peps-draw-preview-stage .draw-group-badge{order:2!important;font-size:18px!important;letter-spacing:.06em!important;color:#ffd8c3!important;border:1px solid rgba(255,102,31,.45)!important;background:rgba(255,102,31,.13)!important;border-radius:999px!important;padding:13px 28px!important;line-height:1!important;white-space:nowrap!important;text-transform:uppercase!important}
-.peps-draw-preview-stage .draw-status-text,.peps-draw-preview-stage .draw-big{order:3!important;font-size:clamp(38px,5vw,56px)!important;font-weight:950!important;line-height:1!important;letter-spacing:.05em!important;color:rgba(255,255,255,.86)!important;text-align:center!important}
-.peps-draw-preview-stage .draw-fx-zone,.peps-draw-preview-stage .draw-fx{position:relative!important;z-index:1!important;display:grid!important;place-items:center!important;width:100%!important;height:165px!important;overflow:hidden!important;pointer-events:none!important;align-self:start!important}
-.peps-draw-preview-stage .draw-fx-scale{display:grid!important;place-items:center!important;transform:scale(var(--draw-fx-scale,.72))!important;transform-origin:center!important;max-width:100%!important;max-height:100%!important}
-.peps-draw-preview-stage .draw-result-zone,.peps-draw-preview-stage .draw-result-content{position:relative!important;z-index:5!important;display:grid!important;place-items:center!important;gap:10px!important;align-self:center!important}
-.peps-draw-preview-stage .draw-team-name,.peps-draw-preview-stage .pl-anim-name{font-size:clamp(38px,5.1vw,56px)!important;font-weight:950!important;line-height:1.04!important;color:#fff!important;text-align:center!important;text-shadow:0 9px 28px rgba(0,0,0,.48)!important;margin:0!important}
-.peps-draw-preview-stage .draw-subtitle,.peps-draw-preview-stage .pl-anim-meta{font-size:clamp(18px,2.4vw,24px)!important;font-weight:800!important;color:rgba(255,255,255,.68)!important;text-align:center!important;margin:0!important}
-.peps-draw-preview-stage .draw-progress-zone{position:relative!important;z-index:5!important;width:92%!important;align-self:end!important}.peps-draw-preview-stage .draw-progress-track{height:11px!important;border-radius:999px!important;background:rgba(255,255,255,.10)!important;overflow:hidden!important}.peps-draw-preview-stage .draw-progress-bar{height:100%!important;background:linear-gradient(90deg,#ff6a00,#ff9d2e)!important}.peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:20px!important;margin-top:6px!important}
-.peps-draw-preview-stage .wheel-visual{width:150px!important;height:150px!important;margin:0!important}.peps-draw-preview-stage .slot-visual,.peps-draw-preview-stage .peps-slot-visual{width:min(390px,92%)!important;max-height:145px!important;margin:0!important}.peps-draw-preview-stage .card-visual{width:260px!important;height:145px!important;margin:0!important}.peps-draw-preview-stage .lottery-visual{width:190px!important;height:190px!important;margin:0!important}
-.peps-control-slot-visual,.peps-slot-visual{display:grid!important;grid-template-columns:1fr 1.55fr!important;gap:14px!important;align-items:center!important}.peps-slot-window{height:78px!important;border-radius:18px!important;border:1px solid rgba(255,106,0,.42)!important;background:rgba(0,0,0,.48)!important;overflow:hidden!important;box-shadow:inset 0 0 22px rgba(255,106,0,.10)!important}.peps-slot-track{display:grid!important;gap:8px!important;padding:8px!important;animation:pepsSlotSmooth 1.7s linear infinite!important;will-change:transform!important}.active .peps-slot-track,.peps-draw-card.active .peps-slot-track,.draw-graphic.active .peps-slot-track{animation-duration:.46s!important}.peps-slot-track b{height:30px!important;border-radius:999px!important;display:grid!important;place-items:center!important;background:linear-gradient(135deg,#ff6a00,#ffb347)!important;color:#141414!important;font-weight:950!important;font-size:13px!important}.peps-slot-track.team b{font-size:12px!important;background:linear-gradient(135deg,#5be7ff,#ff5bbd)!important;color:#06101d!important}
-@keyframes pepsSlotSmooth{0%{transform:translate3d(0,-52px,0)}100%{transform:translate3d(0,52px,0)}}
-.phase8-groups-grid{display:grid!important;gap:16px!important;grid-template-columns:repeat(var(--groups-cols,4),minmax(0,1fr))!important}.phase8-group-wait{min-height:130px;display:grid;place-items:center;color:#bcd3ed;background:rgba(255,255,255,.035);border:1px dashed rgba(91,231,255,.25);border-radius:16px}
-@media(max-width:760px){.peps-draw-preview-stage .draw-layout{grid-template-rows:150px auto auto auto!important}.peps-draw-preview-stage .draw-team-name,.peps-draw-preview-stage .pl-anim-name{font-size:36px!important}.phase8-groups-grid{grid-template-columns:1fr!important}}
+.peps-draw-preview-stage{
+  min-height:520px!important;
+  margin-top:34px!important;
+  padding:0!important;
+  border:1px solid rgba(255,102,31,.28)!important;
+  border-radius:22px!important;
+  background:linear-gradient(180deg,rgba(28,28,28,.98),rgba(17,17,17,.96))!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:visible!important;
+  position:relative!important;
+}
+.peps-draw-preview-stage::before{
+  content:'DRAW CONTROL PREVIEW';
+  position:absolute;
+  left:0;
+  top:-36px;
+  color:#ff6a00;
+  font:900 12px/1 "Chakra Petch",Prompt,system-ui,sans-serif;
+  letter-spacing:.08em;
+}
+.peps-draw-preview-stage .draw-graphic,
+.peps-draw-preview-stage .draw-source-card,
+.peps-draw-preview-stage .peps-control-draw-card{
+  width:100%!important;
+  min-height:520px!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  padding:26px 30px 18px!important;
+  display:grid!important;
+  align-items:stretch!important;
+  overflow:hidden!important;
+}
+.peps-draw-preview-stage .draw-layout{
+  display:grid!important;
+  grid-template-rows:150px auto minmax(126px,1fr) 48px!important;
+  gap:10px!important;
+  place-items:center!important;
+  width:100%!important;
+  height:100%!important;
+}
+.peps-draw-preview-stage .draw-fx-zone{
+  grid-row:1!important;
+  position:relative!important;
+  z-index:1!important;
+  display:grid!important;
+  place-items:center!important;
+  width:100%!important;
+  height:150px!important;
+  overflow:hidden!important;
+  pointer-events:none!important;
+  align-self:start!important;
+}
+.peps-draw-preview-stage .draw-fx-scale{
+  display:grid!important;
+  place-items:center!important;
+  transform:scale(var(--draw-fx-scale,.72))!important;
+  transform-origin:center!important;
+  max-width:100%!important;
+  max-height:100%!important;
+}
+.peps-draw-preview-stage .draw-header-zone{
+  grid-row:2!important;
+  display:grid!important;
+  gap:10px!important;
+  place-items:center!important;
+  z-index:4!important;
+}
+.peps-draw-preview-stage .draw-status-text{display:none!important}
+.peps-draw-preview-stage .draw-style-label,
+.peps-draw-preview-stage .draw-chip{
+  font-size:13px!important;
+  font-weight:900!important;
+  color:#ffc7a8!important;
+  border:1px solid rgba(255,102,31,.48)!important;
+  background:rgba(255,102,31,.12)!important;
+  border-radius:999px!important;
+  padding:8px 15px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+.peps-draw-preview-stage .draw-group-pill,
+.peps-draw-preview-stage .draw-group-badge{
+  font-size:18px!important;
+  letter-spacing:.06em!important;
+  color:#ffd8c3!important;
+  border:1px solid rgba(255,102,31,.5)!important;
+  background:rgba(255,102,31,.13)!important;
+  border-radius:999px!important;
+  padding:13px 28px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  text-transform:uppercase!important;
+}
+.peps-draw-preview-stage .draw-result-zone{
+  grid-row:3!important;
+  position:relative!important;
+  z-index:5!important;
+  display:grid!important;
+  place-items:center!important;
+  gap:16px!important;
+  align-self:center!important;
+}
+.peps-draw-preview-stage .draw-team-name{
+  grid-row:auto!important;
+  order:1!important;
+  font-size:clamp(36px,4.6vw,52px)!important;
+  font-weight:950!important;
+  line-height:1.04!important;
+  color:#fff!important;
+  text-align:center!important;
+  text-shadow:0 9px 28px rgba(0,0,0,.48)!important;
+  margin:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  display:block!important;
+}
+.peps-draw-preview-stage .draw-team-name span{
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:2!important;
+  overflow:hidden!important;
+  overflow-wrap:anywhere!important;
+}
+.peps-draw-preview-stage .draw-subtitle{
+  grid-row:auto!important;
+  order:2!important;
+  font-size:clamp(18px,2.4vw,24px)!important;
+  font-weight:800!important;
+  color:rgba(255,255,255,.68)!important;
+  text-align:center!important;
+  margin:0!important;
+}
+.peps-draw-preview-stage .draw-progress-zone{
+  grid-row:4!important;
+  position:relative!important;
+  z-index:5!important;
+  width:92%!important;
+  align-self:center!important;
+}
+.peps-draw-preview-stage .draw-progress-track{height:11px!important;border-radius:999px!important;background:rgba(255,255,255,.10)!important;overflow:hidden!important}
+.peps-draw-preview-stage .draw-progress-bar{height:100%!important;background:linear-gradient(90deg,#ff6a00,#ff9d2e)!important}
+.peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:18px!important;margin-top:5px!important}
+.peps-draw-preview-stage .wheel-visual{width:150px!important;height:150px!important;margin:0!important}
+.peps-draw-preview-stage .slot-visual{width:min(410px,92%)!important;max-height:150px!important;margin:0!important}
+.peps-draw-preview-stage .card-visual{width:260px!important;height:145px!important;margin:0!important}
+.peps-draw-preview-stage .lottery-visual{width:190px!important;height:190px!important}
+
+.phase8-groups-grid{display:grid!important;gap:16px!important;grid-template-columns:repeat(var(--groups-cols,4),minmax(0,1fr))!important}
+.phase8-group-wait{min-height:130px;display:grid;place-items:center;color:#bcd3ed;background:rgba(255,255,255,.035);border:1px dashed rgba(91,231,255,.25);border-radius:16px}
+@media(max-width:760px){
+  .peps-draw-preview-stage{min-height:460px!important}
+  .peps-draw-preview-stage .draw-graphic{min-height:460px!important;padding:20px 18px 16px!important}
+  .peps-draw-preview-stage .draw-layout{grid-template-rows:145px auto minmax(130px,1fr) auto!important}
+  .peps-draw-preview-stage .draw-fx-zone{height:145px!important}
+  .peps-draw-preview-stage .draw-team-name{font-size:36px!important}
+  .phase8-groups-grid{grid-template-columns:1fr!important}
+}
