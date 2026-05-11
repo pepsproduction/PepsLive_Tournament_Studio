@@ -1383,3 +1383,251 @@ body.ui-compact .grid{gap:10px!important}
 @keyframes vortexPortalSpinDeep{to{transform:translate(-50%,-50%) rotateX(58deg) rotate(360deg)}}
 @keyframes vortexPortalSpinCore{to{transform:rotateX(58deg) rotate(360deg)}}
 
+/* Phase 10.30: targeted fixes for Slot, Card, Lottery, and Crystal only. */
+.peps-draw-preview-stage .draw-layout,
+#coreSourceRoot .draw-source-card .draw-layout{
+  grid-template-rows:170px auto minmax(126px,1fr) 48px!important;
+}
+.peps-draw-preview-stage .draw-fx-zone,
+#coreSourceRoot .draw-source-card .draw-fx-zone{
+  height:170px!important;
+  min-height:170px!important;
+  max-height:170px!important;
+}
+.draw-fx-zone .slot-visual,
+.draw-fx-zone .card-visual,
+.draw-fx-zone .lottery-visual,
+.draw-fx-zone .crystal-visual{
+  max-height:170px!important;
+}
+#coreSourceRoot .draw-source-card{
+  width:min(860px,96vw)!important;
+}
+
+.draw-style-slot .draw-fx-zone{
+  overflow:visible!important;
+}
+.draw-style-slot .draw-fx-scale{
+  width:520px!important;
+  max-width:none!important;
+  transform:scale(.78)!important;
+}
+.slot-visual.peps-slot-panel.peps-slot-wide{
+  width:520px!important;
+  max-width:none!important;
+  height:134px!important;
+  padding:12px!important;
+  overflow:hidden!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-frame{
+  grid-template-columns:minmax(128px,.72fr) minmax(248px,1.45fr)!important;
+  gap:12px!important;
+  height:100%!important;
+  min-width:0!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-reel{
+  height:96px!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  border-radius:16px!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-reel-label{
+  top:8px!important;
+  left:12px!important;
+  letter-spacing:.12em!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-reel-track{
+  top:-78px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:8px!important;
+  padding:30px 9px 9px!important;
+  animation:pepsSlotDropSmooth 1.55s linear infinite!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-chip{
+  flex:0 0 29px!important;
+  height:29px!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-reel-team .slot-chip{
+  justify-content:center!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+}
+.peps-slot-panel.peps-slot-wide .slot-center-line{
+  left:14px!important;
+  right:14px!important;
+  height:34px!important;
+}
+.draw-graphic.idle .peps-slot-panel.peps-slot-wide .slot-reel-track,
+.draw-source-card.idle .peps-slot-panel.peps-slot-wide .slot-reel-track{
+  animation-duration:2.05s!important;
+}
+.draw-graphic.active .peps-slot-panel.peps-slot-wide .slot-reel-track,
+.draw-source-card.active .peps-slot-panel.peps-slot-wide .slot-reel-track{
+  animation-duration:.30s!important;
+  filter:saturate(1.18)!important;
+}
+.draw-graphic.result .peps-slot-panel.peps-slot-wide .slot-reel-track,
+.draw-source-card.result .peps-slot-panel.peps-slot-wide .slot-reel-track{
+  animation-duration:1.15s!important;
+}
+@keyframes pepsSlotDropSmooth{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(0,37px,0)}
+}
+
+.card-visual.peps-card-table{
+  width:306px!important;
+  height:154px!important;
+}
+.peps-card-table .card-orbit{inset:18px 40px!important}
+.peps-card-table .card-fan:nth-of-type(3){left:40px!important;top:22px!important}
+.peps-card-table .card-fan:nth-of-type(4){left:110px!important;top:8px!important}
+.peps-card-table .card-fan:nth-of-type(5){left:180px!important;top:22px!important}
+.draw-graphic.active .peps-card-table .card-fan:nth-of-type(3),
+.draw-source-card.active .peps-card-table .card-fan:nth-of-type(3){
+  animation:cardShuffleLeftNatural .82s cubic-bezier(.44,0,.2,1) infinite!important;
+}
+.draw-graphic.active .peps-card-table .card-fan:nth-of-type(4),
+.draw-source-card.active .peps-card-table .card-fan:nth-of-type(4){
+  animation:cardShuffleCenterNatural .82s cubic-bezier(.44,0,.2,1) infinite!important;
+}
+.draw-graphic.active .peps-card-table .card-fan:nth-of-type(5),
+.draw-source-card.active .peps-card-table .card-fan:nth-of-type(5){
+  animation:cardShuffleRightNatural .82s cubic-bezier(.44,0,.2,1) infinite!important;
+}
+.draw-graphic.idle .peps-card-table .card-fan,
+.draw-source-card.idle .peps-card-table .card-fan{
+  animation:cardIdleFloatNatural 2.4s ease-in-out infinite alternate!important;
+}
+@keyframes cardShuffleLeftNatural{
+  0%,100%{transform:translate3d(0,0,0) rotateZ(-18deg) rotateY(0deg)}
+  28%{transform:translate3d(54px,-14px,0) rotateZ(-5deg) rotateY(22deg)}
+  62%{transform:translate3d(118px,5px,0) rotateZ(13deg) rotateY(-16deg)}
+}
+@keyframes cardShuffleCenterNatural{
+  0%,100%{transform:translate3d(0,0,0) rotateZ(0deg) rotateY(0deg) scale(1)}
+  34%{transform:translate3d(-66px,9px,0) rotateZ(-15deg) rotateY(-18deg) scale(.97)}
+  68%{transform:translate3d(66px,-15px,0) rotateZ(14deg) rotateY(18deg) scale(1.04)}
+}
+@keyframes cardShuffleRightNatural{
+  0%,100%{transform:translate3d(0,0,0) rotateZ(18deg) rotateY(0deg)}
+  26%{transform:translate3d(-54px,-13px,0) rotateZ(5deg) rotateY(-22deg)}
+  60%{transform:translate3d(-118px,6px,0) rotateZ(-13deg) rotateY(16deg)}
+}
+@keyframes cardIdleFloatNatural{
+  from{translate:0 0}
+  to{translate:0 -6px}
+}
+
+.lottery-visual.peps-lottery-machine.peps-lottery-groups{
+  width:220px!important;
+  height:162px!important;
+}
+.peps-lottery-groups .lottery-glass,
+.peps-lottery-groups .lottery-cage{
+  left:22px!important;
+  top:0!important;
+  width:132px!important;
+  height:132px!important;
+}
+.peps-lottery-groups .ball-cloud{
+  inset:22px!important;
+  overflow:hidden!important;
+}
+.peps-lottery-groups .ball-mini{
+  bottom:auto!important;
+  margin:0!important;
+  color:#17110c!important;
+  line-height:1!important;
+  animation:lotteryGroupOrbit 1.35s ease-in-out infinite alternate!important;
+}
+.peps-lottery-groups .ball-mini.blue{
+  background:radial-gradient(circle at 30% 25%,#fff,#ececec 42%,#707070)!important;
+}
+.peps-lottery-groups .ball-mini.orange{
+  background:radial-gradient(circle at 30% 25%,#fff,#ffb36f 42%,#ff6a00)!important;
+}
+.peps-lottery-groups .lottery-chute{
+  right:15px!important;
+  top:72px!important;
+}
+.peps-lottery-groups .lottery-chute span{
+  display:grid!important;
+  place-items:center!important;
+  color:#20100a!important;
+  font:950 11px/1 "Chakra Petch",system-ui,sans-serif!important;
+}
+.peps-lottery-groups .lottery-stand{left:69px!important;bottom:7px!important}
+.peps-lottery-groups .lottery-base{left:39px!important;bottom:-8px!important;width:104px!important}
+@keyframes lotteryGroupOrbit{
+  from{transform:translate3d(-2px,4px,0) rotate(-12deg)}
+  to{transform:translate3d(4px,-5px,0) rotate(18deg)}
+}
+
+.crystal-visual.peps-crystal-oracle{
+  width:210px!important;
+  height:168px!important;
+  transform-style:preserve-3d!important;
+}
+.crystal-visual.peps-crystal-oracle::before,
+.crystal-visual.peps-crystal-oracle::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  border-radius:50%;
+  pointer-events:none;
+}
+.crystal-visual.peps-crystal-oracle::before{
+  width:156px;
+  height:156px;
+  margin:-82px 0 0 -78px;
+  border:1px solid rgba(255,138,42,.22);
+  box-shadow:0 0 24px rgba(255,106,0,.18);
+  transform:rotateX(66deg);
+  animation:crystalRingSpin 3s linear infinite;
+}
+.crystal-visual.peps-crystal-oracle::after{
+  width:124px;
+  height:124px;
+  margin:-66px 0 0 -62px;
+  border:1px solid rgba(0,215,255,.18);
+  transform:rotateX(66deg) rotateZ(35deg);
+  animation:crystalRingSpin 2.2s linear infinite reverse;
+}
+.peps-crystal-oracle .crystal-orb{
+  width:136px!important;
+  height:136px!important;
+  animation:crystalOracleFloat 1.85s ease-in-out infinite alternate, crystalHueShift 5.4s linear infinite!important;
+}
+.peps-crystal-oracle .crystal-inner{
+  animation-duration:2.2s!important;
+}
+.peps-crystal-oracle .crystal-prism{
+  animation:crystalFacet 1.2s ease-in-out infinite alternate, crystalPrismTilt 2.6s ease-in-out infinite!important;
+}
+.peps-crystal-oracle .crystal-spark{
+  animation:crystalSparkOrbit calc(1.15s + var(--ci)*.14s) linear infinite!important;
+}
+.draw-graphic.active .peps-crystal-oracle .crystal-orb,
+.draw-source-card.active .peps-crystal-oracle .crystal-orb{
+  animation:crystalOracleFloat .62s ease-in-out infinite alternate, crystalHueShift 1.8s linear infinite!important;
+}
+@keyframes crystalOracleFloat{
+  from{transform:translate3d(0,3px,0) rotateZ(-3deg) scale(.98)}
+  to{transform:translate3d(0,-9px,0) rotateZ(3deg) scale(1.04)}
+}
+@keyframes crystalHueShift{to{filter:hue-rotate(42deg) saturate(1.18)}}
+@keyframes crystalRingSpin{to{transform:rotateX(66deg) rotateZ(360deg)}}
+@keyframes crystalPrismTilt{
+  0%,100%{transform:skewX(-4deg) scale(.98)}
+  50%{transform:skewX(5deg) scale(1.05)}
+}
+@keyframes crystalSparkOrbit{
+  to{transform:rotate(calc(var(--ci)*70deg + 360deg)) translateX(66px)}
+}
+

@@ -7,7 +7,7 @@
   window.__PEPSLIVE_CORE_GUARD_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const CORE_ASSET_VERSION = 'phase10-29-20260511-1';
+  const CORE_ASSET_VERSION = 'phase10-30-20260511-1';
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 

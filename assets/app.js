@@ -1441,13 +1441,15 @@
 
     let core = node.querySelector('.draw-graphic');
     // If the mode changed or no core exists, we must rewrite innerHTML.
-    if (!core || !core.classList.contains(`draw-style-${mode}`)) {
+    const fxSignature = `${mode}|${state.event?.groupCount || 4}|${(state.teams || []).length}`;
+    if (!core || !core.classList.contains(`draw-style-${mode}`) || core.dataset.fxSignature !== fxSignature) {
       node.innerHTML = drawVisualHtml(context);
       return;
     }
 
     // Otherwise, fast update text nodes to preserve CSS animations
     core.className = `draw-graphic draw-source-card ${animState} draw-style-${esc(mode)} draw-context-${esc(context)}`;
+    core.dataset.fxSignature = fxSignature;
     const badge = core.querySelector('.draw-group-pill b');
     if (badge) badge.textContent = item.group || '-';
     const status = core.querySelector('.draw-status-text');
@@ -1475,7 +1477,7 @@
     const animState = (waiting || running) ? 'active' : (live.current ? 'result' : 'idle');
 
     return `
-      <div class="draw-graphic draw-source-card ${animState} draw-style-${esc(mode)} draw-context-${esc(context)}">
+      <div class="draw-graphic draw-source-card ${animState} draw-style-${esc(mode)} draw-context-${esc(context)}" data-fx-signature="${esc(`${mode}|${state.event?.groupCount || 4}|${(state.teams || []).length}`)}">
         <div class="draw-layout">
           <div class="draw-header-zone">
             <div class="draw-style-label">${esc(sourceModeLabel(mode))}</div>
@@ -1485,7 +1487,7 @@
 
           <div class="draw-fx-zone">
             <div class="draw-fx-scale">
-              ${drawFx(mode)}
+              ${drawFx(mode, state)}
             </div>
           </div>
 
@@ -1535,6 +1537,42 @@
     return '<div class="pl-ring"></div>';
   }
   drawFx = drawFxEnhanced;
+
+  function repeatedFxItems(items, minItems = 12) {
+    const cleanItems = (Array.isArray(items) ? items : []).map(v => String(v || '').trim()).filter(Boolean);
+    const base = cleanItems.length ? cleanItems : ['-'];
+    const target = Math.max(minItems, base.length * 3);
+    return Array.from({ length: target }, (_, i) => base[i % base.length]);
+  }
+
+  function lotteryBallMarkup(drawState) {
+    const groupLetters = letters(drawState?.event?.groupCount || 4);
+    const size = groupLetters.length > 14 ? 17 : groupLetters.length > 8 ? 20 : 25;
+    const radiusX = groupLetters.length > 10 ? 36 : 34;
+    const radiusY = groupLetters.length > 10 ? 27 : 31;
+    const center = 43;
+    return groupLetters.map((g, i) => {
+      const angle = (-Math.PI / 2) + ((Math.PI * 2 * i) / groupLetters.length);
+      const left = Math.round(center - (size / 2) + Math.cos(angle) * radiusX);
+      const top = Math.round(center - (size / 2) + Math.sin(angle) * radiusY);
+      return `<div class="ball-mini ${i % 2 ? 'blue' : 'orange'}" style="left:${left}px;top:${top}px;width:${size}px;height:${size}px;font-size:${Math.max(9, Math.round(size * .43))}px;animation-delay:${(i * .09).toFixed(2)}s">${esc(g)}</div>`;
+    }).join('');
+  }
+
+  function drawFxRefined(mode, drawState = state) {
+    if (mode === 'slot') {
+      const groupItems = repeatedFxItems(letters(drawState?.event?.groupCount || 4), 14).map(g => `<div class="slot-chip">สาย ${esc(g)}</div>`).join('');
+      const sourceTeams = Array.isArray(drawState?.teams) && drawState.teams.length ? drawState.teams : ['Golden Lion', 'Wild Cats', 'Blue Shark', 'Peps United', 'Thunder 3x3', 'Sky Runner'];
+      const teamItems = repeatedFxItems(sourceTeams.slice(0, Math.max(6, Math.min(10, sourceTeams.length))), 14).map(t => `<div class="slot-chip">${esc(t)}</div>`).join('');
+      return `<div class="slot-visual peps-slot-machine peps-slot-panel peps-slot-wide"><div class="slot-frame"><div class="slot-reel slot-reel-group"><div class="slot-reel-label">GROUP</div><div class="slot-reel-track">${groupItems}</div></div><div class="slot-reel slot-reel-team"><div class="slot-reel-label">TEAM</div><div class="slot-reel-track">${teamItems}</div></div></div><div class="slot-center-line"></div><div class="slot-shine"></div></div>`;
+    }
+    if (mode === 'lottery') {
+      const currentGroup = drawState?.drawLive?.current?.group || drawState?.drawLive?.pendingItem?.group || letters(drawState?.event?.groupCount || 4)[0] || 'A';
+      return `<div class="lottery-visual peps-lottery-machine peps-lottery-groups"><div class="lottery-glass"></div><div class="lottery-cage"><div class="ball-cloud">${lotteryBallMarkup(drawState)}</div></div><div class="lottery-chute"><span>${esc(currentGroup)}</span></div><div class="lottery-stand"></div><div class="lottery-base"></div></div>`;
+    }
+    return drawFxEnhanced(mode);
+  }
+  drawFx = drawFxRefined;
 
   function sourceModeLabel(mode) {
     return ({

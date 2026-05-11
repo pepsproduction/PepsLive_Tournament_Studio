@@ -66,10 +66,10 @@
 
 /* Phase 10.26: Draw Animation Source mirrors Draw Control geometry. */
 #coreSourceRoot .draw-source-card{
-  width:min(760px,94vw)!important;
-  height:min(520px,92vh)!important;
-  min-height:min(520px,92vh)!important;
-  max-height:520px!important;
+  width:min(860px,96vw)!important;
+  height:min(560px,92vh)!important;
+  min-height:min(560px,92vh)!important;
+  max-height:560px!important;
   border:1px solid rgba(255,102,31,.28)!important;
   border-radius:22px!important;
   background:linear-gradient(180deg,rgba(28,28,28,.98),rgba(17,17,17,.96))!important;
@@ -85,7 +85,7 @@
 }
 #coreSourceRoot .draw-source-card .draw-layout{
   grid-template-columns:minmax(0,1fr)!important;
-  grid-template-rows:150px auto minmax(126px,1fr) 48px!important;
+  grid-template-rows:170px auto minmax(126px,1fr) 48px!important;
   gap:10px!important;
   align-content:stretch!important;
   width:100%!important;
@@ -94,8 +94,8 @@
   padding:24px!important;
 }
 #coreSourceRoot .draw-source-card .draw-fx-zone{
-  height:150px!important;
-  min-height:150px!important;
+  height:170px!important;
+  min-height:170px!important;
 }
 #coreSourceRoot .draw-source-card .draw-header-zone{
   margin-top:10px!important;
@@ -137,11 +137,12 @@
   width:150px!important;
   height:150px!important;
 }
-#coreSourceRoot .draw-source-card .slot-visual{width:min(390px,92%)!important;height:126px!important}
-#coreSourceRoot .draw-source-card .card-visual{width:250px!important;height:142px!important}
-#coreSourceRoot .draw-source-card .lottery-visual{width:184px!important;height:146px!important}
+#coreSourceRoot .draw-source-card .slot-visual{width:520px!important;max-width:none!important;height:134px!important}
+#coreSourceRoot .draw-source-card .card-visual{width:306px!important;height:154px!important}
+#coreSourceRoot .draw-source-card .lottery-visual{width:220px!important;height:162px!important}
 #coreSourceRoot .draw-source-card .glitch-visual{width:min(330px,92%)!important;height:124px!important}
 #coreSourceRoot .draw-source-card .galaxy-visual,
 #coreSourceRoot .draw-source-card .crystal-visual,
 #coreSourceRoot .draw-source-card .plasma-visual,
 #coreSourceRoot .draw-source-card .vortex-visual{width:190px!important;height:150px!important}
+#coreSourceRoot .draw-source-card .crystal-visual{width:210px!important;height:168px!important}

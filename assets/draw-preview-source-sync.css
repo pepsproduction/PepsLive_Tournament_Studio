@@ -1,6 +1,6 @@
 /* Phase 10.23: Draw Control Preview + Source visual order */
 .peps-draw-preview-stage{
-  min-height:520px!important;
+  min-height:550px!important;
   margin-top:34px!important;
   padding:0!important;
   border:1px solid rgba(255,102,31,.28)!important;
@@ -24,7 +24,7 @@
 .peps-draw-preview-stage .draw-source-card,
 .peps-draw-preview-stage .peps-control-draw-card{
   width:100%!important;
-  min-height:520px!important;
+  min-height:550px!important;
   border:0!important;
   background:transparent!important;
   box-shadow:none!important;
@@ -42,7 +42,7 @@
 .peps-draw-preview-stage .draw-layout{
   display:grid!important;
   grid-template-columns:minmax(0,1fr)!important;
-  grid-template-rows:150px auto minmax(126px,1fr) 48px!important;
+  grid-template-rows:170px auto minmax(126px,1fr) 48px!important;
   gap:10px!important;
   place-items:center!important;
   align-content:stretch!important;
@@ -59,9 +59,9 @@
   display:grid!important;
   place-items:center!important;
   width:100%!important;
-  height:150px!important;
-  min-height:150px!important;
-  max-height:150px!important;
+  height:170px!important;
+  min-height:170px!important;
+  max-height:170px!important;
   overflow:hidden!important;
   pointer-events:none!important;
   align-self:start!important;
@@ -186,14 +186,15 @@
 .peps-draw-preview-stage .draw-progress-bar{height:100%!important;background:linear-gradient(90deg,#ff6a00,#ff9d2e)!important}
 .peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:var(--draw-status-fs,18px)!important;line-height:1.1!important;margin-top:5px!important}
 .peps-draw-preview-stage .wheel-visual{width:150px!important;height:150px!important;margin:0!important}
-.peps-draw-preview-stage .slot-visual{width:min(390px,92%)!important;height:126px!important;max-height:150px!important;margin:0!important}
-.peps-draw-preview-stage .card-visual{width:250px!important;height:142px!important;margin:0!important}
-.peps-draw-preview-stage .lottery-visual{width:184px!important;height:146px!important;margin:0!important}
+.peps-draw-preview-stage .slot-visual{width:520px!important;max-width:none!important;height:134px!important;max-height:170px!important;margin:0!important}
+.peps-draw-preview-stage .card-visual{width:306px!important;height:154px!important;margin:0!important}
+.peps-draw-preview-stage .lottery-visual{width:220px!important;height:162px!important;margin:0!important}
 .peps-draw-preview-stage .glitch-visual{width:min(330px,92%)!important;height:124px!important;margin:0!important}
 .peps-draw-preview-stage .galaxy-visual,
 .peps-draw-preview-stage .crystal-visual,
 .peps-draw-preview-stage .plasma-visual,
 .peps-draw-preview-stage .vortex-visual{width:190px!important;height:150px!important;margin:0!important}
+.peps-draw-preview-stage .crystal-visual{width:210px!important;height:168px!important}
 
 .phase8-groups-grid{display:grid!important;gap:16px!important;grid-template-columns:repeat(var(--groups-cols,4),minmax(0,1fr))!important}
 .phase8-group-wait{min-height:130px;display:grid;place-items:center;color:#bcd3ed;background:rgba(255,255,255,.035);border:1px dashed rgba(91,231,255,.25);border-radius:16px}
