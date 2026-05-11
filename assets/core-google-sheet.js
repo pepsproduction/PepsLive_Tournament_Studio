@@ -1,8 +1,12 @@
-/* Phase 5.5: Google Sheet Data Structure Exporter
+/* Core Google Sheet: Tournament Database Exporter
+   Replaces assets/phase55-google-sheet.js.
    Builds a Tournament Database payload and sends it to Apps Script webhook.
 */
 (() => {
   'use strict';
+
+  if (window.__PEPSLIVE_CORE_GOOGLE_SHEET_INSTALLED__) return;
+  window.__PEPSLIVE_CORE_GOOGLE_SHEET_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const $ = (s, root = document) => root.querySelector(s);
@@ -153,10 +157,10 @@
       })),
       Knockout_Flow: knockoutFlowRows(knockout),
       Final_Result: finalResultRows(knockout, exportedAt),
-      Export_Log: [{ ExportedAt: exportedAt, Sheets: SHEET_NAMES.join(', '), Version: 'Phase 5.5', EventName: event.name || '', Note: 'Tournament database export' }]
+      Export_Log: [{ ExportedAt: exportedAt, Sheets: SHEET_NAMES.join(', '), Version: 'Core Google Sheet', EventName: event.name || '', Note: 'Tournament database export' }]
     };
 
-    return { action: 'writeTournamentDatabase', version: 'phase5.5', exportedAt, eventName: event.name || '', sheets };
+    return { action: 'writeTournamentDatabase', version: 'core-google-sheet', exportedAt, eventName: event.name || '', sheets };
   }
 
   function findTeamGroup(groups, team) {
@@ -211,7 +215,7 @@
     const sheetCounts = Object.fromEntries(Object.entries(payload.sheets).map(([k, v]) => [k, Array.isArray(v) ? v.length : 0]));
     box.className = 'phase55-card good';
     box.innerHTML = `
-      <div class="phase55-title"><span>Phase 5.5 · Google Sheet Database</span><span class="phase55-badge good">${SHEET_NAMES.length} Sheets</span></div>
+      <div class="phase55-title"><span>Core Google Sheet · Tournament Database</span><span class="phase55-badge good">${SHEET_NAMES.length} Sheets</span></div>
       <div class="phase55-text">ส่งออกข้อมูลการแข่งขันแบบแยกหมวด เพื่อใช้ Google Sheet เป็น Tournament Database</div>
       <div class="phase55-metrics">
         <div class="phase55-metric"><small>Teams</small><b>${sheetCounts.Teams || 0}</b></div>
@@ -227,7 +231,7 @@
         <button class="btn" type="button" id="phase55CopyPayload">Copy Payload JSON</button>
         <button class="btn" type="button" id="phase55CopyScriptUrl">Copy Apps Script Template Path</button>
       </div>
-      <pre class="phase55-code">${esc(JSON.stringify({ action: payload.action, sheets: sheetCounts }, null, 2))}</pre>
+      <pre class="phase55-code">${esc(JSON.stringify({ action: payload.action, version: payload.version, sheets: sheetCounts }, null, 2))}</pre>
     `;
   }
 
