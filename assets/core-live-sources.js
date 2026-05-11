@@ -130,13 +130,34 @@
     // We use the same layout class as app.js so that it inherits the CSS
     return `
       <div class="pl-anim-source">
-        <div class="pl-anim-core draw-graphic ${animState} mode-${esc(mode)}" style="background:transparent;box-shadow:none;border:none">
-          <div class="draw-fx-zone">${drawFx(mode)}</div>
-          <div class="draw-result-content">
-            <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
-            <div class="draw-group-badge">GROUP <b>${esc(latest.group || '-')}</b></div>
-            <div class="pl-anim-name" style="margin-top:12px"><span>${esc(latest.team || 'READY')}</span></div>
-            <div class="pl-anim-meta" style="margin-top:8px">${waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(latest.group || '-')} · ลำดับ ${esc(latest.slot || '-')}`}</div>
+        <div class="draw-graphic draw-source-card ${animState} draw-style-${esc(mode)}" style="background:transparent;box-shadow:none;border:none">
+          <div class="draw-layout">
+            <div class="draw-header-zone">
+              <div class="draw-style-label">${esc(sourceModeLabel(mode))}</div>
+              <div class="draw-group-pill">GROUP <b>${esc(latest.group || '-')}</b></div>
+              <div class="draw-status-text">${waiting ? 'RUNNING' : 'READY'}</div>
+            </div>
+
+            <div class="draw-fx-zone">
+              <div class="draw-fx-scale">
+                ${drawFx(mode)}
+              </div>
+            </div>
+
+            <div class="draw-result-zone">
+              <div class="draw-team-name"><span>${esc(latest.team || 'READY')}</span></div>
+              <div class="draw-subtitle">${waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(latest.group || '-')} · ลำดับ ${esc(latest.slot || '-')}`}</div>
+            </div>
+
+            <div class="draw-progress-zone">
+              <div class="draw-progress-track">
+                <div class="draw-progress-bar" style="width:${progress}%"></div>
+              </div>
+              <div class="draw-progress-meta">
+                <span>${waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span>
+                <span>${progress}%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -351,7 +372,7 @@
         if (root) {
           const core = root.querySelector('.draw-graphic');
           if (core) {
-            core.className = `pl-anim-core draw-graphic active mode-${e.detail.style}`;
+            // Force a full re-render of the animation source to update zones
             root.innerHTML = renderDrawAnimation(readState());
           }
         }

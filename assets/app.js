@@ -209,7 +209,7 @@
         sourceBg: 'dark',
         fontScale: 1,
         drawAnimation: 'wheel',
-        drawAnimationScale: 0.85,
+        drawAnimationScale: 0.80,
         drawMethod: 'auto-sequence',
         drawDuration: 5,
         randomizeSchedule: true,
@@ -1428,26 +1428,27 @@
 
     let core = node.querySelector('.draw-graphic');
     // If the mode changed or no core exists, we must rewrite innerHTML.
-    if (!core || !core.classList.contains(`mode-${mode}`)) {
+    if (!core || !core.classList.contains(`draw-style-${mode}`)) {
       node.innerHTML = drawVisualHtml(context);
       return;
     }
 
     // Otherwise, fast update text nodes to preserve CSS animations
-    core.className = `draw-graphic ${animState} mode-${esc(mode)} draw-context-${esc(context)}`;
-    const badge = core.querySelector('.draw-group-badge b');
+    core.className = `draw-graphic draw-source-card ${animState} draw-style-${esc(mode)} draw-context-${esc(context)}`;
+    const badge = core.querySelector('.draw-group-pill b');
     if (badge) badge.textContent = item.group || '-';
+    const status = core.querySelector('.draw-status-text');
+    if (status) status.textContent = waiting ? 'RUNNING' : 'READY';
     const nameSpan = core.querySelector('.draw-team-name span');
     if (nameSpan) nameSpan.textContent = item.team || 'READY';
-    const sub = core.querySelector('.draw-team-sub');
+    const sub = core.querySelector('.draw-subtitle');
     if (sub) sub.textContent = waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${item.group || '-'} · ลำดับ ${item.slot || '-'}`;
     const bar = core.querySelector('.draw-progress-bar');
     if (bar) bar.style.width = `${progress}%`;
-    const txt = core.querySelectorAll('.draw-progress-text span');
-    if (txt.length === 2) {
-      txt[0].textContent = waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล';
-      txt[1].textContent = `${progress}%`;
-    }
+    const meta = core.querySelector('.draw-progress-meta span:last-child');
+    if (meta) meta.textContent = `${progress}%`;
+    const metaLabel = core.querySelector('.draw-progress-meta span:first-child');
+    if (metaLabel) metaLabel.textContent = waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล';
   }
 
   function drawVisualHtml(context = 'control') {
@@ -1461,17 +1462,34 @@
     const animState = (waiting || running) ? 'active' : (live.current ? 'result' : 'idle');
 
     return `
-      <div class="draw-graphic ${animState} mode-${esc(mode)} draw-context-${esc(context)}">
-        <div class="draw-fx-zone">${drawFx(mode)}</div>
-        <div class="draw-result-content">
-          <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
-          <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
-          <div class="draw-team-name"><span>${esc(item.team || 'READY')}</span></div>
-          <div class="draw-team-sub">${waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
-          <div class="draw-progress">
-            <div class="draw-progress-track"><div class="draw-progress-bar" style="width:${progress}%"></div></div>
+      <div class="draw-graphic draw-source-card ${animState} draw-style-${esc(mode)} draw-context-${esc(context)}">
+        <div class="draw-layout">
+          <div class="draw-header-zone">
+            <div class="draw-style-label">${esc(sourceModeLabel(mode))}</div>
+            <div class="draw-group-pill">GROUP <b>${esc(item.group || '-')}</b></div>
+            <div class="draw-status-text">${waiting ? 'RUNNING' : 'READY'}</div>
           </div>
-          <div class="draw-progress-text"><span>${waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span><span>${progress}%</span></div>
+
+          <div class="draw-fx-zone">
+            <div class="draw-fx-scale">
+              ${drawFx(mode)}
+            </div>
+          </div>
+
+          <div class="draw-result-zone">
+            <div class="draw-team-name"><span>${esc(item.team || 'READY')}</span></div>
+            <div class="draw-subtitle">${waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
+          </div>
+
+          <div class="draw-progress-zone">
+            <div class="draw-progress-track">
+              <div class="draw-progress-bar" style="width:${progress}%"></div>
+            </div>
+            <div class="draw-progress-meta">
+              <span>${waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span>
+              <span>${progress}%</span>
+            </div>
+          </div>
         </div>
       </div>
     `;

@@ -9,14 +9,6 @@ button,input,textarea,select{font:inherit}button{border:0;background:transparent
 
 
 .draw-stage.cinematic{padding:18px;background:radial-gradient(circle at 50% 0%,rgba(91,231,255,.09),transparent 46%),linear-gradient(180deg,rgba(7,20,38,.92),rgba(7,20,38,.74));}
-.draw-graphic{position:relative;width:min(760px,96%);padding:18px 18px 22px;border:1px solid rgba(91,231,255,.26);border-radius:28px;background:linear-gradient(135deg,rgba(8,18,32,.96),rgba(20,33,58,.92));box-shadow:0 26px 80px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04);overflow:hidden}
-.draw-graphic::before{content:'';position:absolute;inset:-20% -5% auto auto;width:220px;height:220px;background:radial-gradient(circle,rgba(91,231,255,.18),transparent 60%);filter:blur(8px)}
-.draw-graphic::after{content:'';position:absolute;left:-60px;bottom:-80px;width:220px;height:220px;background:radial-gradient(circle,rgba(255,91,189,.14),transparent 60%);filter:blur(8px)}
-.draw-graphic.mode-wheel .draw-emblem,.draw-graphic.mode-slot .draw-emblem,.draw-graphic.mode-card .draw-emblem,.draw-graphic.mode-lottery .draw-emblem{display:flex;gap:14px;align-items:center;justify-content:center;margin-bottom:10px}
-.draw-ring{width:70px;height:70px;border-radius:50%;border:6px solid rgba(91,231,255,.18);border-top-color:var(--accent);border-right-color:rgba(255,91,189,.85);animation:spinFast 1.2s linear infinite;box-shadow:0 0 30px rgba(91,231,255,.2)}
-.draw-slots{display:flex;flex-direction:column;gap:8px;width:120px}.draw-slots span{height:12px;border-radius:999px;background:linear-gradient(90deg,rgba(91,231,255,.14),rgba(255,91,189,.4),rgba(91,231,255,.14));animation:scan 1.1s linear infinite}.draw-cardfx{width:82px;height:58px;border-radius:16px;background:linear-gradient(135deg,rgba(91,231,255,.32),rgba(255,91,189,.24));border:1px solid rgba(255,255,255,.18);transform:rotate(-10deg);box-shadow:0 10px 30px rgba(0,0,0,.24);animation:flipin .7s ease both}.draw-ballfx{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 30% 25%,#fff,var(--accent) 38%,#14748b);color:#07111f;font-weight:900;box-shadow:0 18px 34px rgba(91,231,255,.24);animation:bounce .8s ease infinite alternate}
-.draw-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}.draw-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(91,231,255,.24);border-radius:999px;background:rgba(255,255,255,.03);padding:8px 12px;font-size:12px;color:#cce7ff}.draw-chip b{color:#fff}
-.draw-hero{display:grid;gap:10px;justify-items:center;text-align:center}.draw-group-badge{padding:10px 18px;border-radius:999px;background:linear-gradient(135deg,rgba(91,231,255,.18),rgba(255,91,189,.16));border:1px solid rgba(91,231,255,.22);font-size:16px;letter-spacing:.08em;text-transform:uppercase}.draw-group-badge b{font-size:28px;padding-left:6px}.draw-team-name{font-size:clamp(30px,4.5vw,52px);font-weight:950;line-height:1.05;text-wrap:balance;text-shadow:0 8px 32px rgba(0,0,0,.35)}.draw-team-sub{font-size:14px;color:var(--muted)}.draw-progress{margin-top:18px}.draw-progress-track{height:12px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;border:1px solid rgba(91,231,255,.12)}.draw-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 18px rgba(91,231,255,.28)}.draw-progress-text{display:flex;justify-content:space-between;margin-top:8px;color:#cfe4ff;font-size:12px}.reveal-feed{margin-top:14px;display:grid;gap:8px}.reveal-item{display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:center;padding:10px 12px;border:1px solid rgba(91,231,255,.14);border-radius:14px;background:rgba(7,20,38,.44)}.reveal-item .idx{height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(91,231,255,.2),rgba(255,91,189,.15));font-weight:900}.reveal-item .line1{font-size:13px;color:#dcedff}.reveal-item .line2{font-size:12px;color:var(--muted)}.draw-hint{margin-top:8px;color:var(--muted);font-size:12px;text-align:center}
 .srcbody.transparent{background:transparent}.src-draw-stage{border:none;background:transparent;min-height:auto;margin:0}.src-draw-stage .draw-graphic{width:min(980px,94vw)}
 /* === OBS Source: Animation-only transparent output === */
 .src-anim-view{
@@ -27,46 +19,19 @@ button,input,textarea,select{font:inherit}button{border:0;background:transparent
   min-height:100vh;
   padding:0;
 }
+.src-anim-view{
+  background:transparent!important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  padding:0;
+}
 .src-anim-graphic{
-  /* No outer wrapper background — the draw-graphic itself is the output */
   background:transparent!important;
   border:none!important;
   box-shadow:none!important;
-  backdrop-filter:none!important;
   width:min(860px,96vw);
-  padding:18px 24px 28px;
-}
-.src-anim-graphic::before,.src-anim-graphic::after{display:none!important}
-/* Keep the animation coloring but remove the card border/bg */
-.src-anim-graphic.mode-wheel,
-.src-anim-graphic.mode-slot,
-.src-anim-graphic.mode-card,
-.src-anim-graphic.mode-lottery,
-.src-anim-graphic.mode-glitch,
-.src-anim-graphic.mode-galaxy,
-.src-anim-graphic.mode-crystal,
-.src-anim-graphic.mode-plasma,
-.src-anim-graphic.mode-vortex{
-  background:transparent!important;
-  border:none!important;
-  box-shadow:none!important;
-}
-.src-anim-hero{
-  display:grid;
-  gap:14px;
-  justify-items:center;
-  text-align:center;
-  margin-top:22px;
-}
-.src-anim-hero .draw-group-badge{
-  font-size:18px;
-}
-.src-anim-hero .draw-team-name{
-  font-size:clamp(38px,6vw,72px);
-  font-weight:950;
-  line-height:1.05;
-  text-wrap:balance;
-  text-shadow:0 8px 32px rgba(0,0,0,.35);
 }
 /* Locked source cards (no data yet) */
 .source-card.src-locked{
@@ -549,35 +514,160 @@ body.ui-compact .grid{gap:10px!important}
 @keyframes pepsToastSlideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes pepsToastSlideOut{to{transform:translateX(100%);opacity:0;margin-top:-60px}}
 
-/* ─── PHASE 10.20 OVERLAP FIXES ─────────────────────────────── */
-.draw-fx-zone {
-  position: absolute;
-  z-index: 1;
-  pointer-events: none;
+/* ─── PHASE 10.21 LOCKED LAYOUT SYSTEM ─────────────────────── */
+.draw-graphic {
+  position: relative;
   overflow: hidden;
-  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important; /* Managed by grid gap */
+  min-height: 400px;
+}
+
+.draw-layout {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: clamp(8px, 1.5vh, 16px);
+  align-items: center;
+  padding: 24px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.draw-header-zone,
+.draw-result-zone,
+.draw-progress-zone {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  text-align: center;
+}
+
+.draw-header-zone {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.draw-style-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.draw-group-pill {
+  background: rgba(0, 215, 255, 0.1);
+  border: 1px solid rgba(0, 215, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.draw-status-text {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted);
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.draw-fx-zone {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: scale(var(--draw-fx-scale, 0.85));
-  will-change: transform;
-}
-.draw-result-content {
-  position: relative;
-  z-index: 5;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  min-height: 180px;
   width: 100%;
 }
-.draw-graphic .draw-group-badge, .draw-graphic .draw-team-name, .draw-graphic .draw-team-sub {
-  position: relative;
-  z-index: 10;
-  text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+
+.draw-fx-scale {
+  transform: scale(var(--draw-fx-scale, 0.8));
+  transform-origin: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
 }
 
-/* ─── SLOT REVEAL SMOOTHNESS ────────────────────────────────── */
-@keyframes slotRoll{from{transform:translate3d(0, 0, 0)}to{transform:translate3d(0, 44px, 0)}}
-.draw-graphic.active .slot-reel-track{animation-timing-function:linear;will-change:transform;}
+.draw-fx-zone * {
+  pointer-events: none;
+}
+
+.draw-result-zone {
+  margin-top: 4px;
+}
+
+.draw-team-name {
+  font-size: 42px;
+  font-weight: 950;
+  color: #fff;
+  line-height: 1.1;
+  text-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.draw-subtitle {
+  font-size: 16px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.draw-progress-zone {
+  margin-top: 8px;
+}
+
+.draw-progress-track {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.draw-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  box-shadow: 0 0 10px rgba(0,215,255,0.3);
+  transition: width 0.3s ease;
+}
+
+.draw-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ─── PER-STYLE SIZE LIMITS ────────────────────────────────── */
+.draw-style-wheel .wheel-visual { max-width: 220px; max-height: 220px; margin: 0; }
+.draw-style-slot .slot-visual { max-width: 440px; max-height: 150px; margin: 0; }
+.draw-style-card .card-visual { max-width: 360px; max-height: 170px; margin: 0; }
+.draw-style-lottery .lottery-visual { max-width: 300px; max-height: 220px; margin: 0; }
+.draw-style-glitch .glitch-visual { width: 100%; height: 100%; }
+.draw-style-galaxy .draw-ring { max-width: 260px; max-height: 220px; }
+.draw-style-crystal .draw-crystal-orb { max-width: 260px; max-height: 220px; }
+.draw-style-plasma .draw-plasma-arc { max-width: 300px; max-height: 220px; }
+.draw-style-vortex .draw-vortex-portal { max-width: 280px; max-height: 220px; }
+.draw-style-winner .draw-winner-fx { max-width: 340px; max-height: 220px; }
+
+/* Remove old conflicting 10.20 overrides */
+.draw-graphic .draw-group-badge, .draw-graphic .draw-team-name, .draw-graphic .draw-team-sub {
+  position: static;
+  z-index: auto;
+  text-shadow: none;
+}
+.draw-result-content { display: none !important; }
 
