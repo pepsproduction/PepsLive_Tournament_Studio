@@ -63,3 +63,69 @@
 #coreSourceRoot .draw-source-card .draw-team-name{
   justify-self:center!important;
 }
+
+/* Phase 10.26: Draw Animation Source mirrors Draw Control geometry. */
+#coreSourceRoot .draw-source-card{
+  width:min(760px,94vw)!important;
+  height:min(520px,92vh)!important;
+  min-height:min(520px,92vh)!important;
+  max-height:520px!important;
+  border:1px solid rgba(255,102,31,.28)!important;
+  border-radius:22px!important;
+  background:linear-gradient(180deg,rgba(28,28,28,.98),rgba(17,17,17,.96))!important;
+  padding:26px 30px 18px!important;
+  box-sizing:border-box!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr!important;
+  align-content:stretch!important;
+  justify-content:stretch!important;
+  align-items:stretch!important;
+  justify-items:stretch!important;
+}
+#coreSourceRoot .draw-source-card .draw-layout{
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:150px auto minmax(126px,1fr) 48px!important;
+  gap:10px!important;
+  align-content:stretch!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:24px!important;
+}
+#coreSourceRoot .draw-source-card .draw-fx-zone{
+  height:150px!important;
+  min-height:150px!important;
+}
+#coreSourceRoot .draw-source-card .draw-header-zone{
+  margin-top:10px!important;
+  padding:0 0 8px!important;
+  border-bottom:1px solid rgba(255,255,255,.06)!important;
+}
+#coreSourceRoot .draw-source-card .draw-group-pill b{
+  margin-left:.32em!important;
+}
+#coreSourceRoot .draw-source-card .draw-result-zone{
+  gap:16px!important;
+}
+#coreSourceRoot .draw-source-card .draw-team-name{
+  font-size:clamp(36px,4.6vw,52px)!important;
+  line-height:1.04!important;
+  width:min(680px,96%)!important;
+}
+#coreSourceRoot .draw-source-card .draw-subtitle{
+  font-size:clamp(18px,2.4vw,24px)!important;
+  color:rgba(255,255,255,.68)!important;
+}
+#coreSourceRoot .draw-source-card .draw-progress-zone{
+  width:92%!important;
+  align-self:center!important;
+}
+#coreSourceRoot .draw-source-card .draw-progress-meta{
+  font-size:18px!important;
+  margin-top:5px!important;
+}
+#coreSourceRoot .draw-source-card .wheel-visual{
+  width:150px!important;
+  height:150px!important;
+}

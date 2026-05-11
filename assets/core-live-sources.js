@@ -6,11 +6,15 @@
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const SOURCE_VIEWS = ['draw-animation', 'groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
+  const DRAW_SOURCE_ALIASES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex', 'winner'];
   const $ = (s, root = document) => root.querySelector(s);
   let lastSignature = '';
   let lastDrawSignature = '';
 
-  const currentView = () => new URLSearchParams(location.search).get('view') || '';
+  const currentView = () => {
+    const view = new URLSearchParams(location.search).get('view') || '';
+    return DRAW_SOURCE_ALIASES.includes(view) ? 'draw-animation' : view;
+  };
   const isObsSourceView = () => SOURCE_VIEWS.includes(currentView());
   const clean = (v) => String(v ?? '').trim();
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));

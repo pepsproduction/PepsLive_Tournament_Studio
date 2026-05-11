@@ -49,6 +49,7 @@
   width:100%!important;
   height:100%!important;
   min-height:0!important;
+  padding:24px!important;
   box-sizing:border-box!important;
 }
 .peps-draw-preview-stage .draw-fx-zone{
@@ -59,6 +60,8 @@
   place-items:center!important;
   width:100%!important;
   height:150px!important;
+  min-height:150px!important;
+  max-height:150px!important;
   overflow:hidden!important;
   pointer-events:none!important;
   align-self:start!important;
@@ -85,6 +88,7 @@
   max-width:100%!important;
   text-align:center!important;
   z-index:4!important;
+  margin-top:10px!important;
 }
 .peps-draw-preview-stage .draw-status-text{display:none!important}
 .peps-draw-preview-stage .draw-style-label,
@@ -102,6 +106,10 @@
   align-items:center!important;
   justify-content:center!important;
   justify-self:center!important;
+}
+.peps-draw-preview-stage .draw-group-pill b,
+.peps-draw-preview-stage .draw-group-badge b{
+  margin-left:.32em!important;
 }
 .peps-draw-preview-stage .draw-group-pill,
 .peps-draw-preview-stage .draw-group-badge{
@@ -187,7 +195,7 @@
   .peps-draw-preview-stage{min-height:460px!important}
   .peps-draw-preview-stage .draw-graphic{min-height:460px!important;padding:20px 18px 16px!important}
   .peps-draw-preview-stage .draw-layout{grid-template-rows:145px auto minmax(130px,1fr) auto!important}
-  .peps-draw-preview-stage .draw-fx-zone{height:145px!important}
+  .peps-draw-preview-stage .draw-fx-zone{height:145px!important;min-height:145px!important;max-height:145px!important}
   .peps-draw-preview-stage .draw-team-name{font-size:36px!important}
   .phase8-groups-grid{grid-template-columns:1fr!important}
 }
