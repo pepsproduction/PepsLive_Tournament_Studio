@@ -131,11 +131,13 @@
     return `
       <div class="pl-anim-source">
         <div class="pl-anim-core draw-graphic ${animState} mode-${esc(mode)}" style="background:transparent;box-shadow:none;border:none">
-          <div class="draw-fx">${drawFx(mode)}</div>
-          <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
-          <div class="draw-group-badge">GROUP <b>${esc(latest.group || '-')}</b></div>
-          <div class="pl-anim-name" style="margin-top:12px"><span>${esc(latest.team || 'READY')}</span></div>
-          <div class="pl-anim-meta" style="margin-top:8px">${waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(latest.group || '-')} · ลำดับ ${esc(latest.slot || '-')}`}</div>
+          <div class="draw-fx-zone">${drawFx(mode)}</div>
+          <div class="draw-result-content">
+            <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
+            <div class="draw-group-badge">GROUP <b>${esc(latest.group || '-')}</b></div>
+            <div class="pl-anim-name" style="margin-top:12px"><span>${esc(latest.team || 'READY')}</span></div>
+            <div class="pl-anim-meta" style="margin-top:8px">${waiting ? 'กำลังสุ่มรายชื่อและสาย...' : `สาย ${esc(latest.group || '-')} · ลำดับ ${esc(latest.slot || '-')}`}</div>
+          </div>
         </div>
       </div>
     `;
@@ -145,7 +147,8 @@
     const groups = groupsForDisplay(state);
     const entries = Object.entries(groups);
     const eventName = state.event?.name || 'PepsLive Tournament';
-    if (!entries.length) return empty('Groups Table', 'ยังไม่มีผลแบ่งสาย ให้ Confirm Draw ก่อน');
+    const hasData = entries.some(([_, teams]) => Array.isArray(teams) && teams.length > 0);
+    if (!hasData) return empty('Groups Table', 'ยังไม่มีผลแบ่งสาย ให้ Confirm Draw ก่อน');
     return shell('Groups Table', eventName, `<div class="phase8-panel-grid">${entries.map(([group, teams]) => `
       <div class="phase8-panel"><h2>สาย ${esc(group)}</h2><table class="phase8-table"><thead><tr><th>#</th><th>Team</th><th>Note</th></tr></thead><tbody>
         ${(teams || []).filter((t) => clean(t)).map((t, i) => `<tr><td>${i + 1}</td><td class="team">${esc(t)}</td><td>${isBye(t) ? 'BYE' : ''}</td></tr>`).join('')}
@@ -313,6 +316,10 @@
       root.innerHTML = html;
       lastSignature = signature;
     }
+    
+    if (state.settings && state.settings.drawAnimationScale) {
+      document.documentElement.style.setProperty('--draw-fx-scale', state.settings.drawAnimationScale);
+    }
   }
 
   function installSourceView() {
@@ -338,6 +345,24 @@
     
     window.addEventListener('storage', paintSource);
     window.addEventListener('focus', paintSource);
+    window.addEventListener('peps:draw-style-changed', (e) => {
+      if (e.detail && e.detail.style) {
+        const root = document.getElementById('coreSourceRoot');
+        if (root) {
+          const core = root.querySelector('.draw-graphic');
+          if (core) {
+            core.className = `pl-anim-core draw-graphic active mode-${e.detail.style}`;
+            root.innerHTML = renderDrawAnimation(readState());
+          }
+        }
+      }
+    });
+    
+    // Apply animation scale
+    const s = readState();
+    if (s.settings && s.settings.drawAnimationScale) {
+      document.documentElement.style.setProperty('--draw-fx-scale', s.settings.drawAnimationScale);
+    }
   }
 
   function installControlCleanup() {

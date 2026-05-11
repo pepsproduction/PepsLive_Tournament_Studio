@@ -89,6 +89,19 @@
     return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
 
+  // Action Guard for double-click protection
+  window.pepsActionLocks = {};
+  window.pepsActionGuard = function(actionKey, ms = 1000) {
+    const now = Date.now();
+    const last = window.pepsActionLocks[actionKey] || 0;
+    if (now - last < ms) {
+      if (window.pepsToast) window.pepsToast('กำลังทำรายการอยู่ / กรุณารอสักครู่', 'warn');
+      return false;
+    }
+    window.pepsActionLocks[actionKey] = now;
+    return true;
+  };
+
   function removeOldLiveHealthPanel() {
     document.querySelector('#phase8SourceHealth')?.remove();
     document.querySelector('#coreLiveSourceHealth')?.remove();
