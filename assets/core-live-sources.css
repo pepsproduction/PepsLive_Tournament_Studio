@@ -137,3 +137,11 @@
   width:150px!important;
   height:150px!important;
 }
+#coreSourceRoot .draw-source-card .slot-visual{width:min(390px,92%)!important;height:126px!important}
+#coreSourceRoot .draw-source-card .card-visual{width:250px!important;height:142px!important}
+#coreSourceRoot .draw-source-card .lottery-visual{width:184px!important;height:146px!important}
+#coreSourceRoot .draw-source-card .glitch-visual{width:min(330px,92%)!important;height:124px!important}
+#coreSourceRoot .draw-source-card .galaxy-visual,
+#coreSourceRoot .draw-source-card .crystal-visual,
+#coreSourceRoot .draw-source-card .plasma-visual,
+#coreSourceRoot .draw-source-card .vortex-visual{width:190px!important;height:150px!important}

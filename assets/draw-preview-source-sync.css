@@ -186,9 +186,14 @@
 .peps-draw-preview-stage .draw-progress-bar{height:100%!important;background:linear-gradient(90deg,#ff6a00,#ff9d2e)!important}
 .peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:var(--draw-status-fs,18px)!important;line-height:1.1!important;margin-top:5px!important}
 .peps-draw-preview-stage .wheel-visual{width:150px!important;height:150px!important;margin:0!important}
-.peps-draw-preview-stage .slot-visual{width:min(410px,92%)!important;max-height:150px!important;margin:0!important}
-.peps-draw-preview-stage .card-visual{width:260px!important;height:145px!important;margin:0!important}
-.peps-draw-preview-stage .lottery-visual{width:190px!important;height:190px!important}
+.peps-draw-preview-stage .slot-visual{width:min(390px,92%)!important;height:126px!important;max-height:150px!important;margin:0!important}
+.peps-draw-preview-stage .card-visual{width:250px!important;height:142px!important;margin:0!important}
+.peps-draw-preview-stage .lottery-visual{width:184px!important;height:146px!important;margin:0!important}
+.peps-draw-preview-stage .glitch-visual{width:min(330px,92%)!important;height:124px!important;margin:0!important}
+.peps-draw-preview-stage .galaxy-visual,
+.peps-draw-preview-stage .crystal-visual,
+.peps-draw-preview-stage .plasma-visual,
+.peps-draw-preview-stage .vortex-visual{width:190px!important;height:150px!important;margin:0!important}
 
 .phase8-groups-grid{display:grid!important;gap:16px!important;grid-template-columns:repeat(var(--groups-cols,4),minmax(0,1fr))!important}
 .phase8-group-wait{min-height:130px;display:grid;place-items:center;color:#bcd3ed;background:rgba(255,255,255,.035);border:1px dashed rgba(91,231,255,.25);border-radius:16px}
