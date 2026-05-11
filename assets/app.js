@@ -209,6 +209,7 @@
         sourceBg: 'dark',
         fontScale: 1,
         drawAnimation: 'wheel',
+        drawAnimationScale: 0.85,
         drawMethod: 'auto-sequence',
         drawDuration: 5,
         randomizeSchedule: true,
@@ -372,6 +373,7 @@
     on($('#drawAnimation'), 'change', e => {
       state.settings.drawAnimation = e.target.value;
       saveState('draw-animation');
+      window.dispatchEvent(new CustomEvent("peps:draw-style-changed", { detail: { style: e.target.value } }));
     });
     on($('#drawMethod'), 'change', e => {
       state.settings.drawMethod = e.target.value;
@@ -442,6 +444,12 @@
     on($('#fontScale'), 'input', e => {
       state.settings.fontScale = Number(e.target.value || 1);
       scheduleSave('font-scale');
+    });
+    on($('#drawAnimationScale'), 'input', e => {
+      state.settings.drawAnimationScale = Number(e.target.value || 0.85);
+      setText($('#drawAnimationScaleValue'), state.settings.drawAnimationScale.toFixed(2));
+      document.documentElement.style.setProperty('--draw-fx-scale', state.settings.drawAnimationScale);
+      scheduleSave('draw-animation-scale');
     });
     on($('#sidebarWidth'), 'input', e => updateRangeSetting('sidebarWidth', e.target.value, 220, 430, 'sidebarWidthValue'));
     on($('#appMaxWidth'), 'input', e => updateRangeSetting('appMaxWidth', e.target.value, 1100, 1900, 'appMaxWidthValue'));
@@ -524,6 +532,9 @@
     setValue($('#sheetId'), state.webhook.sheetId);
     setValue($('#sourceBg'), state.settings.sourceBg);
     setValue($('#fontScale'), state.settings.fontScale);
+    setValue($('#drawAnimationScale'), state.settings.drawAnimationScale || 0.85);
+    setText($('#drawAnimationScaleValue'), (state.settings.drawAnimationScale || 0.85).toFixed(2));
+    document.documentElement.style.setProperty('--draw-fx-scale', state.settings.drawAnimationScale || 0.85);
     setValue($('#sidebarWidth'), state.settings.sidebarWidth);
     setText($('#sidebarWidthValue'), state.settings.sidebarWidth);
     setValue($('#appMaxWidth'), state.settings.appMaxWidth);
@@ -547,6 +558,7 @@
   }
 
   function saveSetupFromForm() {
+    if (window.pepsActionGuard && !window.pepsActionGuard('saveSetup', 1000)) return;
     state.event.name = $('#eventName')?.value.trim() || 'PepsLive Tournament';
     state.event.sport = $('#sportType')?.value || 'Custom';
     state.event.preset = $('#preset')?.value || 'custom';
@@ -592,6 +604,7 @@
   }
 
   function saveTeamsFromText() {
+    if (window.pepsActionGuard && !window.pepsActionGuard('saveTeams', 1000)) return;
     state.teams = uniqueTeams(parseTeams($('#teamText')?.value || ''));
     setValue($('#teamText'), state.teams.join('\n'));
     resetTournamentDerivedData();
@@ -682,6 +695,7 @@
   }
 
   function startDraw() {
+    if (window.pepsActionGuard && !window.pepsActionGuard('startDraw', 1000)) return;
     if (state.drawLive?.waiting) {
       toast('กำลังเล่นอนิเมชั่นอยู่ รอก่อน', 'warn');
       return;
@@ -823,6 +837,7 @@
   }
 
   function confirmDraw() {
+    if (window.pepsActionGuard && !window.pepsActionGuard('confirmDraw', 1000)) return;
     if (!state.pendingGroups) {
       toast('ยังไม่มีผลสุ่มให้ยืนยัน', 'warn');
       return;
@@ -900,6 +915,7 @@
   }
 
   function generateSchedule() {
+    if (window.pepsActionGuard && !window.pepsActionGuard('generateSchedule', 1000)) return;
     const groups = getDisplayGroups(true);
     if (!hasGroups(groups)) {
       toast('ต้อง Confirm ผลแบ่งสายก่อนสร้างตาราง', 'warn');
@@ -1446,15 +1462,17 @@
 
     return `
       <div class="draw-graphic ${animState} mode-${esc(mode)} draw-context-${esc(context)}">
-        <div class="draw-fx">${drawFx(mode)}</div>
-        <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
-        <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
-        <div class="draw-team-name"><span>${esc(item.team || 'READY')}</span></div>
-        <div class="draw-team-sub">${waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
-        <div class="draw-progress">
-          <div class="draw-progress-bar" style="width:${progress}%"></div>
+        <div class="draw-fx-zone">${drawFx(mode)}</div>
+        <div class="draw-result-content">
+          <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
+          <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
+          <div class="draw-team-name"><span>${esc(item.team || 'READY')}</span></div>
+          <div class="draw-team-sub">${waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${esc(item.group || '-')} · ลำดับ ${esc(item.slot || '-')}`}</div>
+          <div class="draw-progress">
+            <div class="draw-progress-track"><div class="draw-progress-bar" style="width:${progress}%"></div></div>
+          </div>
+          <div class="draw-progress-text"><span>${waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span><span>${progress}%</span></div>
         </div>
-        <div class="draw-progress-text"><span>${waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล'}</span><span>${progress}%</span></div>
       </div>
     `;
   }
