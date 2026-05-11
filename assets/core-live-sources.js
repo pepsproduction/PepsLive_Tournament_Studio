@@ -5,8 +5,11 @@
   window.__PEPSLIVE_CORE_LIVE_SOURCES_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
+  const DRAW_TEXT_PREVIEW_KEY = 'pepsliveDrawTextPreview';
   const SOURCE_VIEWS = ['draw-animation', 'groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
   const DRAW_SOURCE_ALIASES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex', 'winner'];
+  const DEFAULT_DRAW_TEXT_SIZES = { chip: 13, groupLabel: 18, groupLetter: 18, team: 52, meta: 22, status: 18, sourceTeam: 52, sourceMeta: 22, groupTitle: 14, groupTeam: 14 };
+  const LEGACY_DRAW_TEXT_DEFAULTS = { chip: 12, groupLabel: 16, groupLetter: 30, team: 56, meta: 14, status: 12, sourceTeam: 72, sourceMeta: 22, groupTitle: 14, groupTeam: 14 };
   const $ = (s, root = document) => root.querySelector(s);
   let lastSignature = '';
   let lastDrawSignature = '';
@@ -21,6 +24,7 @@
   const isBye = (v) => clean(v).toUpperCase() === 'BYE';
   const asNum = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
   const readState = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch { return {}; } };
+  const readTextPreview = () => { try { return JSON.parse(localStorage.getItem(DRAW_TEXT_PREVIEW_KEY) || 'null'); } catch { return null; } };
   const teamOf = (m, side) => clean(m?.[side] || m?.[side === 'teamA' ? 'home' : 'away'] || m?.teams?.[side === 'teamA' ? 0 : 1] || '');
   const scoreOf = (m, key) => { const v = m?.[key]; return v === '' || v == null ? '' : asNum(v); };
   const isDone = (m) => String(m?.status || '').toLowerCase() === 'done';
@@ -50,6 +54,36 @@
     document.body.className = `phase8-body ${bg}`;
     document.documentElement.style.background = bg === 'green' ? '#00b140' : (bg === 'transparent' ? 'transparent' : '#061426');
     document.documentElement.style.setProperty('--draw-fx-scale', String(Math.max(.45, Math.min(1.15, Number(state.settings?.drawAnimationScale || .72)))));
+    applyDrawTextVars(state);
+  }
+
+  function normalizeDrawTextSizes(values = {}) {
+    const looksLegacyDefault = Object.keys(LEGACY_DRAW_TEXT_DEFAULTS).every((key) => Number(values?.[key]) === LEGACY_DRAW_TEXT_DEFAULTS[key]);
+    const normalized = looksLegacyDefault ? { ...DEFAULT_DRAW_TEXT_SIZES } : { ...DEFAULT_DRAW_TEXT_SIZES, ...values };
+    normalized.sourceTeam = normalized.team;
+    normalized.sourceMeta = normalized.meta;
+    return normalized;
+  }
+
+  function drawTextSizes(state) {
+    const saved = state.settings?.drawTextSizes || {};
+    const preview = readTextPreview();
+    return normalizeDrawTextSizes(preview ? { ...saved, ...preview } : saved);
+  }
+
+  function applyDrawTextVars(state) {
+    const sizes = drawTextSizes(state);
+    const root = document.documentElement;
+    root.style.setProperty('--draw-chip-fs', `${sizes.chip}px`);
+    root.style.setProperty('--draw-group-label-fs', `${sizes.groupLabel}px`);
+    root.style.setProperty('--draw-group-letter-fs', `${sizes.groupLetter}px`);
+    root.style.setProperty('--draw-team-fs', `${sizes.team}px`);
+    root.style.setProperty('--draw-meta-fs', `${sizes.meta}px`);
+    root.style.setProperty('--draw-status-fs', `${sizes.status}px`);
+    root.style.setProperty('--source-team-fs', `${sizes.team}px`);
+    root.style.setProperty('--source-meta-fs', `${sizes.meta}px`);
+    root.style.setProperty('--group-title-fs', `${sizes.groupTitle}px`);
+    root.style.setProperty('--group-team-fs', `${sizes.groupTeam}px`);
   }
 
   function shell(title, subtitle, content) {

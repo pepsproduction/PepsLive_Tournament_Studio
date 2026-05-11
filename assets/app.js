@@ -54,6 +54,18 @@
   const SOURCE_META = Object.fromEntries(SOURCES.map(([id, title, desc]) => [id, { id, title, desc }]));
 
   const DEFAULT_DRAW_TEXT_SIZES = {
+    chip: 13,
+    groupLabel: 18,
+    groupLetter: 18,
+    team: 52,
+    meta: 22,
+    status: 18,
+    sourceTeam: 52,
+    sourceMeta: 22,
+    groupTitle: 14,
+    groupTeam: 14
+  };
+  const LEGACY_DRAW_TEXT_DEFAULTS = {
     chip: 12,
     groupLabel: 16,
     groupLetter: 30,
@@ -75,7 +87,8 @@
   }
 
   function normalizeDrawTextSizes(values = {}) {
-    const normalized = { ...DEFAULT_DRAW_TEXT_SIZES, ...values };
+    const looksLegacyDefault = Object.keys(LEGACY_DRAW_TEXT_DEFAULTS).every((key) => Number(values?.[key]) === LEGACY_DRAW_TEXT_DEFAULTS[key]);
+    const normalized = looksLegacyDefault ? { ...DEFAULT_DRAW_TEXT_SIZES } : { ...DEFAULT_DRAW_TEXT_SIZES, ...values };
     // OBS Draw Animation Source references Draw Control sizes.
     normalized.sourceTeam = normalized.team;
     normalized.sourceMeta = normalized.meta;
@@ -2463,12 +2476,12 @@
 
 
       /* V9: real text-size variables + settings modal + adaptive group columns */
-      .draw-stage .draw-chip{font-size:var(--draw-chip-fs,12px)!important}
-      .draw-stage .draw-group-badge{font-size:var(--draw-group-label-fs,16px)!important}
-      .draw-stage .draw-group-badge b{font-size:var(--draw-group-letter-fs,30px)!important}
-      .draw-stage .draw-team-name{font-size:var(--draw-team-fs,56px)!important}
-      .draw-stage .draw-team-sub{font-size:var(--draw-meta-fs,14px)!important}
-      .draw-stage .draw-progress-text{font-size:var(--draw-status-fs,12px)!important}
+      .draw-stage .draw-chip,.draw-stage .draw-style-label{font-size:var(--draw-chip-fs,13px)!important}
+      .draw-stage .draw-group-badge,.draw-stage .draw-group-pill{font-size:var(--draw-group-label-fs,18px)!important}
+      .draw-stage .draw-group-badge b,.draw-stage .draw-group-pill b{font-size:var(--draw-group-letter-fs,18px)!important}
+      .draw-stage .draw-team-name{font-size:var(--draw-team-fs,52px)!important}
+      .draw-stage .draw-team-sub,.draw-stage .draw-subtitle{font-size:var(--draw-meta-fs,22px)!important}
+      .draw-stage .draw-progress-text,.draw-stage .draw-progress-meta{font-size:var(--draw-status-fs,18px)!important}
       .pl-anim-core .draw-chip{font-size:var(--draw-chip-fs,12px)!important}
       .pl-anim-core .draw-group-badge{font-size:var(--draw-group-label-fs,16px)!important}
       .pl-anim-core .draw-group-badge b{font-size:var(--draw-group-letter-fs,30px)!important}
@@ -2617,12 +2630,12 @@
         min-height:500px!important;
         max-height:500px!important;
       }
-      .peps-settings-preview .draw-chip{font-size:var(--draw-chip-fs,12px)!important}
-      .peps-settings-preview .draw-group-badge{font-size:var(--draw-group-label-fs,16px)!important}
-      .peps-settings-preview .draw-group-badge b{font-size:var(--draw-group-letter-fs,30px)!important}
-      .peps-settings-preview .draw-team-name{font-size:var(--draw-team-fs,56px)!important}
-      .peps-settings-preview .draw-team-sub{font-size:var(--draw-meta-fs,14px)!important}
-      .peps-settings-preview .draw-progress-text{font-size:var(--draw-status-fs,12px)!important}
+      .peps-settings-preview .draw-chip,.peps-settings-preview .draw-style-label{font-size:var(--draw-chip-fs,13px)!important}
+      .peps-settings-preview .draw-group-badge,.peps-settings-preview .draw-group-pill{font-size:var(--draw-group-label-fs,18px)!important}
+      .peps-settings-preview .draw-group-badge b,.peps-settings-preview .draw-group-pill b{font-size:var(--draw-group-letter-fs,18px)!important}
+      .peps-settings-preview .draw-team-name{font-size:var(--draw-team-fs,52px)!important}
+      .peps-settings-preview .draw-team-sub,.peps-settings-preview .draw-subtitle{font-size:var(--draw-meta-fs,22px)!important}
+      .peps-settings-preview .draw-progress-text,.peps-settings-preview .draw-progress-meta{font-size:var(--draw-status-fs,18px)!important}
       .preview-source-card{
         border:1px solid rgba(91,231,255,.18);
         border-radius:20px;

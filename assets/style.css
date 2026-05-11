@@ -732,3 +732,98 @@ body.ui-compact .grid{gap:10px!important}
 }
 @keyframes pepsDataSlotRoll{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,42px,0)}}
 
+/* Phase 10.27: premium Wheel Spin visual with fixed pointer, metallic hub, and segmented rotor. */
+.wheel-visual{
+  isolation:isolate!important;
+  filter:drop-shadow(0 18px 34px rgba(0,0,0,.42))!important;
+}
+.wheel-rotor{
+  inset:4px!important;
+  border:2px solid rgba(255,255,255,.08)!important;
+  background:
+    repeating-conic-gradient(from -18deg,rgba(0,0,0,.34) 0deg 2deg,transparent 2deg 30deg),
+    conic-gradient(from -18deg,
+      #ff6a00 0deg 30deg,
+      #ffd23f 30deg 60deg,
+      #10d6ff 60deg 90deg,
+      #ff2f7e 90deg 120deg,
+      #7c3cff 120deg 150deg,
+      #f02cff 150deg 180deg,
+      #20e46d 180deg 210deg,
+      #ffe04f 210deg 240deg,
+      #00a8ff 240deg 270deg,
+      #ff4a30 270deg 300deg,
+      #ff8a00 300deg 330deg,
+      #19f08b 330deg 360deg)!important;
+  box-shadow:
+    0 0 0 7px #18263a,
+    0 0 0 12px rgba(255,106,0,.18),
+    inset 0 0 0 8px rgba(0,0,0,.30),
+    inset 0 0 28px rgba(255,255,255,.16),
+    0 18px 42px rgba(0,0,0,.38)!important;
+}
+.wheel-rotor::before{
+  inset:24%!important;
+  border:1px solid rgba(255,106,0,.42)!important;
+  background:
+    radial-gradient(circle at 35% 30%,rgba(255,255,255,.22),transparent 28%),
+    radial-gradient(circle,#331405 0 42%,#120905 43% 100%)!important;
+  box-shadow:
+    inset 0 0 22px rgba(255,106,0,.18),
+    0 0 24px rgba(255,106,0,.18)!important;
+}
+.wheel-rotor::after{
+  content:''!important;
+  position:absolute!important;
+  inset:43%!important;
+  border-radius:50%!important;
+  display:block!important;
+  background:radial-gradient(circle at 35% 30%,#ffb15c,#ff6a00 58%,#8d2e00)!important;
+  border:2px solid rgba(255,210,160,.40)!important;
+  box-shadow:0 0 18px rgba(255,106,0,.45)!important;
+}
+.wheel-pointer{
+  position:absolute!important;
+  z-index:6!important;
+  left:50%!important;
+  top:2px!important;
+  width:0!important;
+  height:0!important;
+  margin:0!important;
+  transform:translateX(-50%)!important;
+  border-left:17px solid transparent!important;
+  border-right:17px solid transparent!important;
+  border-top:34px solid #ff8a2a!important;
+  filter:drop-shadow(0 7px 9px rgba(0,0,0,.44)) drop-shadow(0 0 10px rgba(255,106,0,.5))!important;
+}
+.wheel-pulse-ring{
+  width:112%!important;
+  height:112%!important;
+  top:50%!important;
+  left:50%!important;
+  margin:-56%!important;
+  border-color:rgba(255,106,0,.20)!important;
+  box-shadow:0 0 24px rgba(255,106,0,.12)!important;
+}
+.wheel-dots{
+  z-index:5!important;
+}
+.wheel-dots i{
+  width:8px!important;
+  height:8px!important;
+  margin:-4px!important;
+  background:#ffe7c8!important;
+  border:0!important;
+  color:transparent!important;
+  box-shadow:0 0 10px rgba(255,210,160,.78)!important;
+  transform:rotate(calc(var(--i) * 45deg)) translateY(-68px) rotate(calc(var(--i) * -45deg))!important;
+}
+.draw-graphic.active .wheel-rotor{
+  animation-duration:.24s!important;
+  filter:saturate(1.35) brightness(1.12) drop-shadow(0 0 24px rgba(255,106,0,.46))!important;
+}
+.draw-graphic.result .wheel-rotor{
+  animation-duration:4.8s!important;
+  filter:saturate(1.05) drop-shadow(0 0 14px rgba(255,106,0,.30))!important;
+}
+

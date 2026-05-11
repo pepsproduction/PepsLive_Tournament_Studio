@@ -12,7 +12,7 @@
     if (document.querySelector('link[href^="assets/draw-preview-source-sync.css"]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'assets/draw-preview-source-sync.css?v=phase10-26-20260511-1';
+    link.href = 'assets/draw-preview-source-sync.css?v=phase10-27-20260511-1';
     document.head.appendChild(link);
   }
 

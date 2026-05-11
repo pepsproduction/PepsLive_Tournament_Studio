@@ -93,7 +93,7 @@
 .peps-draw-preview-stage .draw-status-text{display:none!important}
 .peps-draw-preview-stage .draw-style-label,
 .peps-draw-preview-stage .draw-chip{
-  font-size:13px!important;
+  font-size:var(--draw-chip-fs,13px)!important;
   font-weight:900!important;
   color:#ffc7a8!important;
   border:1px solid rgba(255,102,31,.48)!important;
@@ -109,11 +109,12 @@
 }
 .peps-draw-preview-stage .draw-group-pill b,
 .peps-draw-preview-stage .draw-group-badge b{
+  font-size:var(--draw-group-letter-fs,var(--draw-group-label-fs,18px))!important;
   margin-left:.32em!important;
 }
 .peps-draw-preview-stage .draw-group-pill,
 .peps-draw-preview-stage .draw-group-badge{
-  font-size:18px!important;
+  font-size:var(--draw-group-label-fs,18px)!important;
   letter-spacing:.06em!important;
   color:#ffd8c3!important;
   border:1px solid rgba(255,102,31,.5)!important;
@@ -144,7 +145,7 @@
 .peps-draw-preview-stage .draw-team-name{
   grid-row:auto!important;
   order:1!important;
-  font-size:clamp(36px,4.6vw,52px)!important;
+  font-size:var(--draw-team-fs,52px)!important;
   font-weight:950!important;
   line-height:1.04!important;
   color:#fff!important;
@@ -168,7 +169,7 @@
 .peps-draw-preview-stage .draw-subtitle{
   grid-row:auto!important;
   order:2!important;
-  font-size:clamp(18px,2.4vw,24px)!important;
+  font-size:var(--draw-meta-fs,22px)!important;
   font-weight:800!important;
   color:rgba(255,255,255,.68)!important;
   text-align:center!important;
@@ -183,7 +184,7 @@
 }
 .peps-draw-preview-stage .draw-progress-track{height:11px!important;border-radius:999px!important;background:rgba(255,255,255,.10)!important;overflow:hidden!important}
 .peps-draw-preview-stage .draw-progress-bar{height:100%!important;background:linear-gradient(90deg,#ff6a00,#ff9d2e)!important}
-.peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:18px!important;margin-top:5px!important}
+.peps-draw-preview-stage .draw-progress-meta{display:flex!important;justify-content:space-between!important;color:rgba(255,255,255,.66)!important;font-size:var(--draw-status-fs,18px)!important;line-height:1.1!important;margin-top:5px!important}
 .peps-draw-preview-stage .wheel-visual{width:150px!important;height:150px!important;margin:0!important}
 .peps-draw-preview-stage .slot-visual{width:min(410px,92%)!important;max-height:150px!important;margin:0!important}
 .peps-draw-preview-stage .card-visual{width:260px!important;height:145px!important;margin:0!important}
