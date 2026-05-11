@@ -1,8 +1,12 @@
-/* Phase 4: Schedule Stability
-   Lightweight schedule health layer. Does not modify app.js algorithms.
+/* Core Schedule: Schedule Stability
+   Replaces assets/phase4-schedule.js.
+   Scope: Schedule health, BYE warnings, back-to-back warnings, and rebuild protection.
 */
 (() => {
   'use strict';
+
+  if (window.__PEPSLIVE_CORE_SCHEDULE_INSTALLED__) return;
+  window.__PEPSLIVE_CORE_SCHEDULE_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const $ = (s, root = document) => root.querySelector(s);
@@ -123,7 +127,7 @@
     box.className = `phase4-card ${ok ? 'good' : (bad ? 'bad' : 'warn')}`;
     box.innerHTML = `
       <div class="phase4-title">
-        <span>Phase 4 · Schedule Health</span>
+        <span>Core Schedule · Schedule Health</span>
         <span class="phase4-badge ${ok ? 'good' : 'warn'}">${ok ? 'ตารางพร้อมใช้งาน' : 'ต้องตรวจตาราง'}</span>
       </div>
       <div class="phase4-text">ตรวจความพร้อมของตารางแข่งหลัง Generate Schedule โดยไม่แก้อัลกอริทึมหลัก</div>
@@ -164,7 +168,7 @@
     const h = scheduleHealth();
     box.className = `phase4-card ${h.scheduleReady ? 'good' : 'warn'}`;
     box.innerHTML = `
-      <div class="phase4-title"><span>Phase 4 · Live Source Readiness</span><span class="phase4-badge ${h.scheduleReady ? 'good' : 'warn'}">${h.scheduleReady ? 'พร้อมเปิด Source' : 'ยังไม่พร้อม'}</span></div>
+      <div class="phase4-title"><span>Core Schedule · Live Source Readiness</span><span class="phase4-badge ${h.scheduleReady ? 'good' : 'warn'}">${h.scheduleReady ? 'พร้อมเปิด Source' : 'ยังไม่พร้อม'}</span></div>
       <div class="phase4-list">
         ${h.scheduleReady ? row('Schedule Source มีข้อมูลสำหรับแสดงผล', 'good') : row('Schedule Source ยังไม่มีข้อมูล ควร Generate Schedule ก่อน', 'warn')}
         ${h.done ? row('Latest Result Source มีผลล่าสุด', 'good') : row('Latest Result Source จะสมบูรณ์หลังบันทึกคะแนน', 'warn')}

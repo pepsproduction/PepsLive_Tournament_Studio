@@ -1405,12 +1405,15 @@
   function drawVisualHtml(context = 'control') {
     const live = state.drawLive || {};
     const waiting = !!live.waiting;
+    const running = !!live.running;
     const item = waiting ? tickerItem() : (live.current || live.pendingItem || { team: 'READY', group: '-', slot: '-' });
     const mode = state.settings.drawAnimation || 'wheel';
     const progress = live.total ? Math.round(((live.progress || 0) / live.total) * 100) : 0;
+    
+    const animState = (waiting || running) ? 'active' : (live.current ? 'result' : 'idle');
 
     return `
-      <div class="draw-graphic ${waiting ? 'waiting' : ''} draw-context-${esc(context)}">
+      <div class="draw-graphic ${animState} mode-${esc(mode)} draw-context-${esc(context)}">
         <div class="draw-fx">${drawFx(mode)}</div>
         <div class="draw-chip">${esc(sourceModeLabel(mode))}</div>
         <div class="draw-group-badge">GROUP <b>${esc(item.group || '-')}</b></div>
@@ -1425,10 +1428,16 @@
   }
 
   function drawFx(mode) {
-    if (mode === 'wheel') return '<div class="pl-wheel"></div>';
-    if (mode === 'slot') return '<div class="pl-slot"><i></i><i></i><i></i><i></i></div>';
-    if (mode === 'card') return '<div class="pl-card">A</div>';
-    if (mode === 'lottery') return '<div class="pl-ball">8</div>';
+    if (mode === 'wheel') return '<div class="wheel-visual"><div class="wheel-rotor"></div><div class="wheel-pointer"></div><div class="wheel-pulse-ring"></div><div class="wheel-dots"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i></div></div>';
+    if (mode === 'slot') return '<div class="slot-visual"><div class="slot-top">JACKPOT</div><div class="slot-frame"><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ff2f7e;--chip2:#c000ff">777</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">BAR</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#14d955;--chip2:#0b8032">WIN</div><div class="slot-chip" style="--chip1:#ff8c00;--chip2:#cc2900">777</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#c000ff;--chip2:#6600cc">BAR</div><div class="slot-chip" style="--chip1:#ff3b30;--chip2:#99140d">WIN</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ffd400;--chip2:#cc8800">WIN</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">777</div></div></div></div></div>';
+    if (mode === 'card') return '<div class="card-visual"><div class="card-fan"><div class="card-suit">♠</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♠</div></div><div class="card-fan"><div class="card-suit" style="color:#ff3b30">♥</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end;color:#ff3b30">♥</div></div><div class="card-fan"><div class="card-suit">♣</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♣</div></div></div>';
+    if (mode === 'lottery') return '<div class="lottery-visual"><div class="lottery-stand"></div><div class="lottery-base"></div><div class="lottery-cage"><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">45</div><div class="ball-mini red">08</div><div class="ball-mini blue">67</div><div class="ball-mini red">33</div><div class="ball-mini blue">91</div></div></div></div>';
+    if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
+    if (mode === 'galaxy') return '<div class="galaxy-visual"><div class="galaxy-disk"></div><div class="galaxy-arm arm1"></div><div class="galaxy-arm arm2"></div><div class="galaxy-core"></div><div class="galaxy-star" style="--gd:0deg;--gr:40px;--gi:1"></div><div class="galaxy-star" style="--gd:72deg;--gr:60px;--gi:2"></div><div class="galaxy-star" style="--gd:144deg;--gr:80px;--gi:3"></div><div class="galaxy-star" style="--gd:216deg;--gr:50px;--gi:4"></div><div class="galaxy-star" style="--gd:288deg;--gr:70px;--gi:5"></div></div>';
+    if (mode === 'crystal') return '<div class="crystal-visual"><div class="crystal-glow-bg"></div><div class="crystal-orb"><div class="crystal-inner"></div><div class="crystal-shine"></div><div class="crystal-spark" style="--ci:1"></div><div class="crystal-spark" style="--ci:2"></div><div class="crystal-spark" style="--ci:3"></div></div><div class="crystal-stand"></div><div class="crystal-base"></div></div>';
+    if (mode === 'plasma') return '<div class="plasma-visual"><div class="plasma-ring ring1"></div><div class="plasma-ring ring2"></div><div class="plasma-ring ring3"></div><div class="plasma-core"></div><div class="plasma-arc" style="--pa:0deg"></div><div class="plasma-arc" style="--pa:120deg"></div><div class="plasma-arc" style="--pa:240deg"></div></div>';
+    if (mode === 'vortex') return '<div class="vortex-visual"><div class="vortex-tunnel"><div class="vortex-layer" style="--vl:1"></div><div class="vortex-layer" style="--vl:2"></div><div class="vortex-layer" style="--vl:3"></div><div class="vortex-layer" style="--vl:4"></div><div class="vortex-layer" style="--vl:5"></div></div><div class="vortex-eye"></div></div>';
+    if (mode === 'winner') return '<div class="winner-visual"><div class="winner-trophy">🏆</div><div class="winner-sparks"></div></div>';
     return '<div class="pl-ring"></div>';
   }
 

@@ -1,8 +1,12 @@
-/* Phase 3: Teams & Draw Stability
-   Lightweight layer for Teams tools, BYE visibility, and Draw status clarity.
+/* Core Teams Draw: Teams & Draw Stability
+   Replaces assets/phase3-teams-draw.js.
+   Scope: Teams tools, duplicate checks, BYE visibility, and Draw status clarity.
 */
 (() => {
   'use strict';
+
+  if (window.__PEPSLIVE_CORE_TEAMS_DRAW_INSTALLED__) return;
+  window.__PEPSLIVE_CORE_TEAMS_DRAW_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const $ = (s, root = document) => root.querySelector(s);
@@ -125,7 +129,7 @@
     const ok = s.unique.length > 0 && s.dup.length === 0;
     box.className = `phase3-card ${ok ? 'good' : (s.dup.length ? 'bad' : 'warn')}`;
     box.innerHTML = `
-      <div class="phase3-title"><span>Phase 3 · Team Validation</span><span>${ok ? 'พร้อมสุ่มสาย' : 'ต้องตรวจรายชื่อ'}</span></div>
+      <div class="phase3-title"><span>Core Teams Draw · Team Validation</span><span>${ok ? 'พร้อมสุ่มสาย' : 'ต้องตรวจรายชื่อ'}</span></div>
       <div class="phase3-text">ระบบนับเฉพาะทีมจริง ไม่รวม BYE และแจ้งจำนวนช่องว่างก่อนสุ่มสาย</div>
       <div class="phase3-metrics">
         <div class="phase3-metric"><small>รายชื่อที่กรอก</small><b>${s.typed.length}</b></div>
@@ -173,7 +177,7 @@
     const ok = confirmed > 0;
     box.className = `phase3-card phase3-draw-status ${ok ? 'good' : (pending ? 'warn' : '')}`;
     box.innerHTML = `
-      <div class="phase3-title"><span>Phase 3 · Draw Status</span><span>${ok ? 'ผลสุ่มถูก Confirm แล้ว' : (pending ? 'มีผล Pending รอ Confirm' : 'ยังไม่สุ่มสาย')}</span></div>
+      <div class="phase3-title"><span>Core Teams Draw · Draw Status</span><span>${ok ? 'ผลสุ่มถูก Confirm แล้ว' : (pending ? 'มีผล Pending รอ Confirm' : 'ยังไม่สุ่มสาย')}</span></div>
       <div class="phase3-metrics">
         <div class="phase3-metric"><small>ทีม Confirm</small><b>${confirmed}</b></div>
         <div class="phase3-metric"><small>ทีม Pending</small><b>${pending}</b></div>
