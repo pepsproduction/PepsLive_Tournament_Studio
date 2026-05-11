@@ -1395,11 +1395,43 @@
   function renderDrawStage() {
     const stage = $('#drawStage');
     if (!stage) return;
-    const html = drawVisualHtml('control');
-    stage.innerHTML = html;
+    updateDrawStageNode(stage, 'control');
 
     const overlayStage = $('#drawExpandOverlay .draw-overlay-stage');
-    if (overlayStage) overlayStage.innerHTML = drawVisualHtml('overlay');
+    if (overlayStage) updateDrawStageNode(overlayStage, 'overlay');
+  }
+
+  function updateDrawStageNode(node, context) {
+    const live = state.drawLive || {};
+    const waiting = !!live.waiting;
+    const running = !!live.running;
+    const item = waiting ? tickerItem() : (live.current || live.pendingItem || { team: 'READY', group: '-', slot: '-' });
+    const mode = state.settings.drawAnimation || 'wheel';
+    const progress = live.total ? Math.round(((live.progress || 0) / live.total) * 100) : 0;
+    const animState = (waiting || running) ? 'active' : (live.current ? 'result' : 'idle');
+
+    let core = node.querySelector('.draw-graphic');
+    // If the mode changed or no core exists, we must rewrite innerHTML.
+    if (!core || !core.classList.contains(`mode-${mode}`)) {
+      node.innerHTML = drawVisualHtml(context);
+      return;
+    }
+
+    // Otherwise, fast update text nodes to preserve CSS animations
+    core.className = `draw-graphic ${animState} mode-${esc(mode)} draw-context-${esc(context)}`;
+    const badge = core.querySelector('.draw-group-badge b');
+    if (badge) badge.textContent = item.group || '-';
+    const nameSpan = core.querySelector('.draw-team-name span');
+    if (nameSpan) nameSpan.textContent = item.team || 'READY';
+    const sub = core.querySelector('.draw-team-sub');
+    if (sub) sub.textContent = waiting ? 'กำลังรันรายชื่อและสาย...' : `สาย ${item.group || '-'} · ลำดับ ${item.slot || '-'}`;
+    const bar = core.querySelector('.draw-progress-bar');
+    if (bar) bar.style.width = `${progress}%`;
+    const txt = core.querySelectorAll('.draw-progress-text span');
+    if (txt.length === 2) {
+      txt[0].textContent = waiting ? 'กำลังสุ่ม...' : 'พร้อมแสดงผล';
+      txt[1].textContent = `${progress}%`;
+    }
   }
 
   function drawVisualHtml(context = 'control') {
@@ -1432,7 +1464,7 @@
     if (mode === 'slot') return '<div class="slot-visual"><div class="slot-top">JACKPOT</div><div class="slot-frame"><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ff2f7e;--chip2:#c000ff">777</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">BAR</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#14d955;--chip2:#0b8032">WIN</div><div class="slot-chip" style="--chip1:#ff8c00;--chip2:#cc2900">777</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#c000ff;--chip2:#6600cc">BAR</div><div class="slot-chip" style="--chip1:#ff3b30;--chip2:#99140d">WIN</div></div></div><div class="slot-reel"><div class="slot-reel-track"><div class="slot-chip" style="--chip1:#ffd400;--chip2:#cc8800">WIN</div><div class="slot-chip" style="--chip1:#08c3ff;--chip2:#1f6ad8">777</div></div></div></div></div>';
     if (mode === 'card') return '<div class="card-visual"><div class="card-fan"><div class="card-suit">♠</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♠</div></div><div class="card-fan"><div class="card-suit" style="color:#ff3b30">♥</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end;color:#ff3b30">♥</div></div><div class="card-fan"><div class="card-suit">♣</div><div class="card-center"></div><div class="card-suit" style="align-self:flex-end">♣</div></div></div>';
     if (mode === 'lottery') return '<div class="lottery-visual"><div class="lottery-stand"></div><div class="lottery-base"></div><div class="lottery-cage"><div class="ball-cloud"><div class="ball-mini red">12</div><div class="ball-mini blue">45</div><div class="ball-mini red">08</div><div class="ball-mini blue">67</div><div class="ball-mini red">33</div><div class="ball-mini blue">91</div></div></div></div>';
-    if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
+    if (mode === 'glitch') return '<div class="glitch-visual"><div class="glitch-scanlines"></div><div class="glitch-lines"><div class="glitch-hline" style="--gi:1"></div><div class="glitch-hline" style="--gi:2"></div><div class="glitch-hline" style="--gi:3"></div><div class="glitch-hline" style="--gi:4"></div><div class="glitch-hline" style="--gi:5"></div></div><div class="glitch-text" data-text="SYSTEM">SYSTEM</div><div class="glitch-corner tl"></div><div class="glitch-corner tr"></div><div class="glitch-corner bl"></div><div class="glitch-corner br"></div></div>';
     if (mode === 'galaxy') return '<div class="galaxy-visual"><div class="galaxy-disk"></div><div class="galaxy-arm arm1"></div><div class="galaxy-arm arm2"></div><div class="galaxy-core"></div><div class="galaxy-star" style="--gd:0deg;--gr:40px;--gi:1"></div><div class="galaxy-star" style="--gd:72deg;--gr:60px;--gi:2"></div><div class="galaxy-star" style="--gd:144deg;--gr:80px;--gi:3"></div><div class="galaxy-star" style="--gd:216deg;--gr:50px;--gi:4"></div><div class="galaxy-star" style="--gd:288deg;--gr:70px;--gi:5"></div></div>';
     if (mode === 'crystal') return '<div class="crystal-visual"><div class="crystal-glow-bg"></div><div class="crystal-orb"><div class="crystal-inner"></div><div class="crystal-shine"></div><div class="crystal-spark" style="--ci:1"></div><div class="crystal-spark" style="--ci:2"></div><div class="crystal-spark" style="--ci:3"></div></div><div class="crystal-stand"></div><div class="crystal-base"></div></div>';
     if (mode === 'plasma') return '<div class="plasma-visual"><div class="plasma-ring ring1"></div><div class="plasma-ring ring2"></div><div class="plasma-ring ring3"></div><div class="plasma-core"></div><div class="plasma-arc" style="--pa:0deg"></div><div class="plasma-arc" style="--pa:120deg"></div><div class="plasma-arc" style="--pa:240deg"></div></div>';
@@ -1959,15 +1991,13 @@
   }
 
   function toast(msg, mode = 'good') {
-    let el = $('#toast');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'toast';
-      document.body.appendChild(el);
+    if (window.pepsToast) {
+      let type = 'info';
+      if (mode === 'good') type = 'success';
+      if (mode === 'warn') type = 'warn';
+      if (mode === 'bad') type = 'error';
+      window.pepsToast(msg, type);
     }
-    el.className = `toast ${mode}`;
-    el.textContent = msg;
-    setTimeout(() => { if (el) el.remove(); }, 1800);
   }
 
   function injectCoreCss() {

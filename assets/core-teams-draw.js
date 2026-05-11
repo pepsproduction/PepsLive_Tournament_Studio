@@ -68,14 +68,9 @@
   }
 
   function showToast(message) {
-    const old = $('.phase3-copy-toast');
-    if (old) old.remove();
-    const box = document.createElement('div');
-    box.className = 'phase3-copy-toast';
-    box.textContent = message;
-    document.body.appendChild(box);
-    setTimeout(() => box.remove(), 2200);
+    if (window.pepsToast) window.pepsToast(message, 'info');
   }
+
   async function copyText(text, message) {
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
@@ -87,23 +82,15 @@
         document.execCommand('copy');
         ta.remove();
       }
-      showToast(message || 'คัดลอกแล้ว');
+      if (window.pepsToast) window.pepsToast(message || 'คัดลอกแล้ว', 'success');
     } catch {
-      showToast('คัดลอกไม่สำเร็จ');
+      if (window.pepsToast) window.pepsToast('คัดลอกไม่สำเร็จ', 'error');
     }
   }
 
   function ensureTeamTools() {
     const panel = $('[data-panel="teams"]');
     if (!panel) return;
-    if (!$('#phase3TeamBox')) {
-      const box = document.createElement('section');
-      box.id = 'phase3TeamBox';
-      box.className = 'phase3-card';
-      const head = panel.querySelector('.panel-head');
-      if (head) head.insertAdjacentElement('afterend', box);
-      else panel.prepend(box);
-    }
     const row = panel.querySelector('textarea#teamText')?.parentElement?.querySelector('.row');
     if (row && !$('#phase3CopyTeams')) {
       const copy = document.createElement('button');
@@ -121,74 +108,15 @@
     }
   }
 
-  function renderTeamBox() {
-    ensureTeamTools();
-    const box = $('#phase3TeamBox');
-    if (!box) return;
-    const s = teamStats();
-    const ok = s.unique.length > 0 && s.dup.length === 0;
-    box.className = `phase3-card ${ok ? 'good' : (s.dup.length ? 'bad' : 'warn')}`;
-    box.innerHTML = `
-      <div class="phase3-title"><span>Core Teams Draw · Team Validation</span><span>${ok ? 'พร้อมสุ่มสาย' : 'ต้องตรวจรายชื่อ'}</span></div>
-      <div class="phase3-text">ระบบนับเฉพาะทีมจริง ไม่รวม BYE และแจ้งจำนวนช่องว่างก่อนสุ่มสาย</div>
-      <div class="phase3-metrics">
-        <div class="phase3-metric"><small>รายชื่อที่กรอก</small><b>${s.typed.length}</b></div>
-        <div class="phase3-metric"><small>ทีมไม่ซ้ำ</small><b>${s.unique.length}</b></div>
-        <div class="phase3-metric"><small>จำนวนสาย</small><b>${s.groupCount}</b></div>
-        <div class="phase3-metric"><small>BYE โดยประมาณ</small><b>${s.byes}</b></div>
-      </div>
-      <div class="phase3-list">
-        ${s.unique.length ? '<div class="phase3-item good">มีรายชื่อทีมพร้อมใช้งาน</div>' : '<div class="phase3-item warn">ยังไม่มีรายชื่อทีม</div>'}
-        ${s.dup.length ? `<div class="phase3-item bad">พบชื่อซ้ำ: ${s.dup.map(escapeHtml).join(', ')}</div>` : '<div class="phase3-item good">ไม่พบชื่อซ้ำ</div>'}
-        ${s.byes ? `<div class="phase3-item warn">ระบบจะเติม BYE ${s.byes} ช่องเพื่อให้ครบสาย</div>` : '<div class="phase3-item good">จำนวนทีมลงสายได้พอดี ไม่มี BYE</div>'}
-        ${hasDerivedData(s.state) ? '<div class="phase3-item warn">มีข้อมูล Draw/Schedule/Scores เดิมอยู่ ถ้า Save Teams ใหม่ ข้อมูลเดิมจะถูกรีเซ็ต</div>' : '<div class="phase3-item good">ยังไม่มีข้อมูลรอบแข่งเดิมค้างอยู่</div>'}
-      </div>
-    `;
-  }
-
   function escapeHtml(v) {
     return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
 
-  function ensureDrawStatus() {
-    const panel = $('[data-panel="draw"]');
-    if (!panel) return;
-    if (!$('#phase3DrawBox')) {
-      const box = document.createElement('section');
-      box.id = 'phase3DrawBox';
-      box.className = 'phase3-card phase3-draw-status';
-      const pending = $('#pendingBox', panel);
-      if (pending) pending.insertAdjacentElement('afterend', box);
-      else panel.appendChild(box);
-    }
-  }
-
-  function renderDrawBox() {
-    ensureDrawStatus();
-    const box = $('#phase3DrawBox');
-    if (!box) return;
-    const state = readState();
-    const groups = state.groups && typeof state.groups === 'object' ? state.groups : {};
-    const pendingGroups = state.pendingGroups && typeof state.pendingGroups === 'object' ? state.pendingGroups : null;
-    const confirmed = Object.values(groups).flat().filter((t) => cleanText(t) && !isBye(t)).length;
-    const pending = pendingGroups ? Object.values(pendingGroups).flat().filter((t) => cleanText(t) && !isBye(t)).length : 0;
-    const history = Array.isArray(state.drawHistory) ? state.drawHistory.length : 0;
-    const byes = Object.values(groups).flat().filter(isBye).length || (pendingGroups ? Object.values(pendingGroups).flat().filter(isBye).length : 0);
-    const ok = confirmed > 0;
-    box.className = `phase3-card phase3-draw-status ${ok ? 'good' : (pending ? 'warn' : '')}`;
-    box.innerHTML = `
-      <div class="phase3-title"><span>Core Teams Draw · Draw Status</span><span>${ok ? 'ผลสุ่มถูก Confirm แล้ว' : (pending ? 'มีผล Pending รอ Confirm' : 'ยังไม่สุ่มสาย')}</span></div>
-      <div class="phase3-metrics">
-        <div class="phase3-metric"><small>ทีม Confirm</small><b>${confirmed}</b></div>
-        <div class="phase3-metric"><small>ทีม Pending</small><b>${pending}</b></div>
-        <div class="phase3-metric"><small>BYE ในสาย</small><b>${byes}</b></div>
-        <div class="phase3-metric"><small>ประวัติสุ่ม</small><b>${history}</b></div>
-      </div>
-      <div class="phase3-list">
-        ${ok ? '<div class="phase3-item good">ผลนี้เป็นผลจริงแล้ว สามารถไป Generate Schedule ต่อได้</div>' : '<div class="phase3-item warn">ต้องกด Confirm Result ก่อน ระบบจึงถือว่าเป็นผลจริง</div>'}
-        ${byes ? '<div class="phase3-item warn">BYE ใช้เพื่อถ่วงช่องสายเท่านั้น ไม่ควรกลายเป็นคู่แข่งจริงใน Schedule</div>' : '<div class="phase3-item good">ไม่มี BYE ในผลสุ่มชุดนี้</div>'}
-      </div>
-    `;
+  function removeOldPanels() {
+    const p1 = $('#phase3TeamBox');
+    if (p1) p1.remove();
+    const p2 = $('#phase3DrawBox');
+    if (p2) p2.remove();
   }
 
   function clearTeams() {
@@ -230,8 +158,8 @@
   }
 
   function refresh() {
-    renderTeamBox();
-    renderDrawBox();
+    ensureTeamTools();
+    removeOldPanels();
   }
 
   function install() {
