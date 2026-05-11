@@ -65,7 +65,6 @@
     }
   }
 
-  // Global Toast Utility
   window.pepsToast = function(message, type = 'info') {
     let stack = document.querySelector('.peps-toast-stack');
     if (!stack) {
@@ -89,7 +88,6 @@
     return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
 
-  // Action Guard for double-click protection
   window.pepsActionLocks = {};
   window.pepsActionGuard = function(actionKey, ms = 1000) {
     const now = Date.now();
@@ -177,15 +175,11 @@
     setButton('generateKnockout', !c.scoresComplete && !c.standings, `ต้องบันทึกคะแนนให้ครบหรือมี Standings ก่อน (${c.doneCount}/${c.matchCount || 0})`);
   }
 
-  function row(name, ok, detail) {
-    return `<div class="phase2-guard-item ${ok ? 'done' : 'locked'}"><b>${name}</b><span>${detail}</span></div>`;
-  }
-
   function renderDashboard(c) {
     const panel = $('[data-panel="dashboard"]');
     if (!panel) return;
     let box = $('#phase2GuardBox');
-    if (box) box.remove(); // Health panel is removed in favor of Toast UX
+    if (box) box.remove();
   }
 
   function hintFor(panelName, message) {
@@ -213,21 +207,76 @@
     hintFor('knockout', (c.scoresComplete || c.standings) ? '' : `ต้องบันทึกคะแนนให้ครบหรือมี Standings ก่อน จึงจะสร้าง Knockout ได้ (${c.doneCount}/${c.matchCount || 0})`);
   }
 
+  function pepsSlotVisual() {
+    return `<div class="peps-slot-visual peps-control-slot-visual">
+      <div class="peps-slot-window"><div class="peps-slot-track"><b>สาย A</b><b>สาย B</b><b>สาย C</b><b>สาย D</b><b>สาย A</b></div></div>
+      <div class="peps-slot-window"><div class="peps-slot-track team"><b>Golden Lion</b><b>Wild Cats</b><b>Blue Fox</b><b>Red Bull</b><b>Golden Lion</b></div></div>
+    </div>`;
+  }
+
+  function syncDrawControlPreview() {
+    if (currentSourceView()) return;
+    const stage = document.getElementById('drawStage');
+    if (!stage) return;
+    stage.classList.add('peps-draw-preview-stage');
+
+    const state = readState();
+    const style = cleanText(document.getElementById('drawAnimation')?.value || state.settings?.drawAnimation || 'wheel') || 'wheel';
+    const scale = Number(state.settings?.drawAnimationScale || document.getElementById('drawAnimationScale')?.value || 0.72);
+    document.documentElement.style.setProperty('--draw-fx-scale', String(Math.max(.45, Math.min(1.15, scale))));
+
+    stage.querySelectorAll('.draw-graphic,.draw-source-card').forEach((graphic) => {
+      graphic.classList.add('peps-control-draw-card', `draw-style-${style}`, `mode-${style}`);
+      Array.from(graphic.classList).forEach((name) => {
+        if ((name.startsWith('draw-style-') || name.startsWith('mode-')) && !name.endsWith(style)) graphic.classList.remove(name);
+      });
+    });
+
+    const label = stage.querySelector('.draw-style-label,.draw-chip');
+    if (label) label.textContent = ({ wheel:'Wheel Spin', slot:'Slot Reveal', card:'Card Draw', lottery:'Lottery Ball', glitch:'Glitch Cyber', galaxy:'Galaxy Spiral', crystal:'Crystal Oracle', plasma:'Plasma Arc', vortex:'Vortex Portal', winner:'Winner Reveal' }[style] || style);
+
+    if (style === 'slot') {
+      const fxZone = stage.querySelector('.draw-fx-zone') || stage.querySelector('.draw-fx') || stage.querySelector('.draw-result-content')?.previousElementSibling;
+      if (fxZone && !fxZone.querySelector('.peps-slot-visual')) fxZone.innerHTML = `<div class="draw-fx-scale">${pepsSlotVisual()}</div>`;
+    }
+
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, settings: { ...(state.settings || {}), drawAnimation: style } })); } catch {}
+  }
+
+  function installDrawControlPreviewHotfix() {
+    if (currentSourceView() || window.__PEPS_DRAW_CONTROL_PREVIEW_HOTFIX__) return;
+    window.__PEPS_DRAW_CONTROL_PREVIEW_HOTFIX__ = true;
+    const run = () => syncDrawControlPreview();
+    run();
+    window.setInterval(run, 500);
+    window.addEventListener('focus', run);
+    window.addEventListener('storage', run);
+    document.addEventListener('click', () => window.setTimeout(run, 80), true);
+    document.getElementById('drawAnimation')?.addEventListener('change', (e) => {
+      const style = e.target.value;
+      window.dispatchEvent(new CustomEvent('peps:draw-style-changed', { detail: { style } }));
+      window.setTimeout(run, 60);
+    });
+    document.getElementById('drawAnimationScale')?.addEventListener('input', run);
+    const stage = document.getElementById('drawStage');
+    if (stage) new MutationObserver(() => window.setTimeout(run, 0)).observe(stage, { childList: true, subtree: true });
+  }
+
   function refresh() {
     const c = getChecks();
     applyLocks(c);
     renderDashboard(c);
     renderHints(c);
     removeOldLiveHealthPanel();
+    syncDrawControlPreview();
   }
 
   function install() {
     const sourceView = currentSourceView();
     if (!sourceView) {
       loadCoreAddons();
+      installDrawControlPreviewHotfix();
     } else {
-      // Source views are painted by app.js + core-live-sources.js only.
-      // Do not load control add-ons here; they can repaint sourceRoot and cause OBS flicker.
       removeOldLiveHealthPanel();
     }
     refresh();
