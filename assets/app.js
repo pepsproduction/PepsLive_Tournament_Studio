@@ -171,8 +171,10 @@
   let scheduleTimer = null;
   let manualGroupsEditing = false;
   let manualGroupRows = 0;
+  let manualGroupsDraft = null;
   let scheduleEditing = false;
   let scheduleDraft = null;
+  const MAX_MANUAL_GROUP_ROWS = 64;
 
   function defaultState() {
     return {
@@ -361,6 +363,48 @@
       normalized[g] = Array.from({ length: rows }, (_, i) => String(source[i] || '').trim());
     });
     return normalized;
+  }
+
+  function makeManualGroupsDraft(groups = getDisplayGroups(false), rows = manualRowsForGroups(groups)) {
+    const rowCount = Math.max(1, Math.min(MAX_MANUAL_GROUP_ROWS, Number(rows) || 2));
+    return { groups: normalizeManualGroups(groups, rowCount), rows: rowCount };
+  }
+
+  function ensureManualGroupsDraft(groups = getDisplayGroups(false)) {
+    if (!manualGroupsDraft) {
+      manualGroupsDraft = makeManualGroupsDraft(groups);
+      manualGroupRows = manualGroupsDraft.rows;
+    }
+    return manualGroupsDraft;
+  }
+
+  function readManualGroupsDraftFromEditor() {
+    const cards = Array.from(document.querySelectorAll('[data-manual-group-row]'));
+    if (!cards.length) return manualGroupsDraft;
+    const groups = {};
+    let maxSlot = 0;
+    cards.forEach(card => {
+      const group = card.dataset.manualGroupRow;
+      if (!group) return;
+      groups[group] = [];
+      card.querySelectorAll('[data-manual-team]').forEach(input => {
+        const slot = Math.max(0, Number(input.dataset.manualSlot || 1) - 1);
+        maxSlot = Math.max(maxSlot, slot + 1);
+        groups[group][slot] = String(input.value || '').trim();
+      });
+    });
+    const rows = Math.max(1, maxSlot || manualGroupsDraft?.rows || 1);
+    manualGroupsDraft = makeManualGroupsDraft(groups, rows);
+    manualGroupRows = manualGroupsDraft.rows;
+    return manualGroupsDraft;
+  }
+
+  function setManualGroupRowCount(nextRows) {
+    const draft = readManualGroupsDraftFromEditor() || ensureManualGroupsDraft();
+    const rows = Math.max(1, Math.min(MAX_MANUAL_GROUP_ROWS, Number(nextRows) || draft.rows || 1));
+    manualGroupsDraft = makeManualGroupsDraft(draft.groups, rows);
+    manualGroupRows = manualGroupsDraft.rows;
+    renderGroups();
   }
 
   function groupsToFeed(groups) {
@@ -1247,6 +1291,7 @@
           <button class="btn small" type="button" data-manual-groups-create>Empty Groups</button>
           ${editing ? `
             <button class="btn small" type="button" data-manual-groups-add-row>Add Row</button>
+            <button class="btn small warn" type="button" data-manual-groups-del-row>Del Row</button>
             <button class="btn small primary" type="button" data-manual-groups-save>Save Groups</button>
             <button class="btn small" type="button" data-manual-groups-cancel>Cancel</button>
           ` : `
@@ -1261,14 +1306,13 @@
   function bindManualGroupsToolbar() {
     on($('[data-manual-groups-create]'), 'click', createEmptyManualGroups);
     on($('[data-manual-groups-edit]'), 'click', startManualGroupsEdit);
-    on($('[data-manual-groups-add-row]'), 'click', () => {
-      manualGroupRows = Math.max(1, manualGroupRows || manualRowsForGroups(getDisplayGroups(false))) + 1;
-      renderGroups();
-    });
+    on($('[data-manual-groups-add-row]'), 'click', addManualGroupRow);
+    on($('[data-manual-groups-del-row]'), 'click', deleteManualGroupRow);
     on($('[data-manual-groups-save]'), 'click', saveManualGroupsFromEditor);
     on($('[data-manual-groups-cancel]'), 'click', () => {
       manualGroupsEditing = false;
       manualGroupRows = 0;
+      manualGroupsDraft = null;
       renderGroups();
     });
     on($('[data-manual-groups-clear]'), 'click', clearManualGroups);
@@ -1281,7 +1325,8 @@
     }
     const groups = getDisplayGroups(false);
     manualGroupsEditing = true;
-    manualGroupRows = manualRowsForGroups(groups);
+    manualGroupsDraft = makeManualGroupsDraft(groups, manualRowsForGroups(groups));
+    manualGroupRows = manualGroupsDraft.rows;
     renderGroups();
   }
 
@@ -1300,6 +1345,7 @@
     state.drawLive = { ...defaultState().drawLive, feed: [] };
     manualGroupsEditing = true;
     manualGroupRows = rows;
+    manualGroupsDraft = makeManualGroupsDraft(state.groups, rows);
     audit('manual-empty-groups', { rows, groups: Object.keys(state.groups).length });
     saveState('manual-empty-groups');
   }
@@ -1312,24 +1358,37 @@
     state.drawLive.feed = [];
     manualGroupsEditing = false;
     manualGroupRows = 0;
+    manualGroupsDraft = null;
     audit('manual-clear-groups');
     saveState('manual-clear-groups');
   }
 
+  function addManualGroupRow() {
+    const draft = readManualGroupsDraftFromEditor() || ensureManualGroupsDraft();
+    if (draft.rows >= MAX_MANUAL_GROUP_ROWS) {
+      toast(`Manual groups limited to ${MAX_MANUAL_GROUP_ROWS} rows`, 'warn');
+      return;
+    }
+    setManualGroupRowCount(draft.rows + 1);
+  }
+
+  function deleteManualGroupRow() {
+    const draft = readManualGroupsDraftFromEditor() || ensureManualGroupsDraft();
+    if (draft.rows <= 1) {
+      toast('Manual groups need at least 1 row', 'warn');
+      return;
+    }
+    const lastIndex = draft.rows - 1;
+    const hasData = Object.values(draft.groups || {}).some(arr => String(arr?.[lastIndex] || '').trim());
+    if (hasData && !confirm('Delete the last manual group row?')) return;
+    setManualGroupRowCount(draft.rows - 1);
+  }
+
   function saveManualGroupsFromEditor() {
-    const rows = Array.from(document.querySelectorAll('[data-manual-group-row]'));
-    if (!rows.length) return;
-    const groups = {};
-    rows.forEach(row => {
-      const group = row.dataset.manualGroupRow;
-      if (!group) return;
-      if (!groups[group]) groups[group] = [];
-      row.querySelectorAll('[data-manual-team]').forEach(input => {
-        const slot = Math.max(0, Number(input.dataset.manualSlot || 1) - 1);
-        groups[group][slot] = String(input.value || '').trim();
-      });
-    });
-    const rowCount = Math.max(1, ...Object.values(groups).map(arr => arr.length));
+    const draft = readManualGroupsDraftFromEditor();
+    if (!draft) return;
+    const groups = draft.groups;
+    const rowCount = draft.rows;
     state.groups = normalizeManualGroups(groups, rowCount);
     state.manualGroups = { active: true, rows: rowCount, updatedAt: nowIso() };
     state.pendingGroups = null;
@@ -1340,6 +1399,7 @@
     syncTeamsFromGroups(state.groups);
     manualGroupsEditing = false;
     manualGroupRows = 0;
+    manualGroupsDraft = null;
     state.drawHistory.unshift({ at: nowIso(), groups: deepClone(state.groups), teams: deepClone(state.teams), manual: true });
     state.drawHistory = state.drawHistory.slice(0, 20);
     audit('manual-save-groups', { groups: Object.keys(state.groups).length, teams: Object.values(state.groups).flat().filter(isRealTeamName).length });
@@ -1936,9 +1996,11 @@
     setDrawTextSizeVars(drawTextSizes());
     const box = $('#groupResult');
     if (!box) return;
-    const groups = getDisplayGroups(false);
+    const displayGroups = getDisplayGroups(false);
+    const draft = manualGroupsEditing ? ensureManualGroupsDraft(displayGroups) : null;
+    const groups = draft ? draft.groups : displayGroups;
     const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event.groupCount);
-    const maxRows = manualGroupsEditing ? manualRowsForGroups(groups) : Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
+    const maxRows = manualGroupsEditing ? draft.rows : Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
     const cols = effectiveGroupColumns(state.settings.groupColumns || 4, box.clientWidth || window.innerWidth);
 
     box.innerHTML = `
