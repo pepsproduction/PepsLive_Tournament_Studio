@@ -115,6 +115,7 @@
   }
 
   function groupsForDisplay(state) {
+    if (state.manualGroups?.active && state.groups && Object.keys(state.groups).length) return state.groups;
     if (hasGroups(state.groups)) return state.groups;
     if (state.settings?.drawMethod === 'instant-all' && state.pendingComplete && hasGroups(state.pendingGroups)) return state.pendingGroups;
     return groupsFromRevealFeed(state);

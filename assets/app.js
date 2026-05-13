@@ -169,6 +169,10 @@
   let drawTimer = null;
   let drawTickerTimer = null;
   let scheduleTimer = null;
+  let manualGroupsEditing = false;
+  let manualGroupRows = 0;
+  let scheduleEditing = false;
+  let scheduleDraft = null;
 
   function defaultState() {
     return {
@@ -193,6 +197,7 @@
       },
       teams: [],
       groups: {},
+      manualGroups: { active: false, rows: 0, updatedAt: '' },
       pendingGroups: null,
       drawHistory: [],
       pendingSequence: [],
@@ -211,6 +216,7 @@
         feed: []
       },
       matches: [],
+      manualSchedule: { active: false, updatedAt: '' },
       pendingSchedule: [],
       scheduleLive: { running: false, waiting: false, revealEndsAt: 0, total: 0, style: 'shuffle' },
       standings: {},
@@ -322,6 +328,57 @@
       out.push(team);
     }
     return out;
+  }
+
+  function isRealTeamName(team) {
+    const value = String(team || '').trim();
+    return !!value && value.toUpperCase() !== 'BYE';
+  }
+
+  function groupKeys(groups = state.groups) {
+    const base = letters(state.event.groupCount || 4);
+    const extra = Object.keys(groups || {}).filter(Boolean);
+    return uniqueTeams([...base, ...extra]).sort();
+  }
+
+  function manualRowsForGroups(groups = state.groups) {
+    const keys = groupKeys(groups);
+    const existingRows = keys.reduce((max, g) => Math.max(max, Array.isArray(groups?.[g]) ? groups[g].length : 0), 0);
+    const teamRows = Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length));
+    return Math.max(2, Number(state.manualGroups?.rows) || 0, manualGroupRows || 0, existingRows, teamRows);
+  }
+
+  function emptyGroups(rowCount = manualRowsForGroups({})) {
+    const rows = Math.max(1, Number(rowCount) || 2);
+    return Object.fromEntries(letters(state.event.groupCount || 4).map(g => [g, Array.from({ length: rows }, () => '')]));
+  }
+
+  function normalizeManualGroups(groups, rowCount = manualRowsForGroups(groups)) {
+    const rows = Math.max(1, Number(rowCount) || 2);
+    const normalized = {};
+    groupKeys(groups).forEach(g => {
+      const source = Array.isArray(groups?.[g]) ? groups[g] : [];
+      normalized[g] = Array.from({ length: rows }, (_, i) => String(source[i] || '').trim());
+    });
+    return normalized;
+  }
+
+  function groupsToFeed(groups) {
+    const feed = [];
+    Object.keys(groups || {}).sort().forEach(group => {
+      (groups[group] || []).forEach((team, i) => {
+        const cleanTeam = String(team || '').trim();
+        if (!cleanTeam) return;
+        feed.unshift({ group, slot: i + 1, team: cleanTeam, manual: true });
+      });
+    });
+    return feed.slice(0, 20);
+  }
+
+  function syncTeamsFromGroups(groups) {
+    const fromGroups = Object.values(groups || {}).flat().filter(isRealTeamName).map(t => String(t).trim());
+    if (!fromGroups.length) return;
+    state.teams = uniqueTeams([...(state.teams || []), ...fromGroups]);
   }
 
   function shuffle(arr) {
@@ -630,6 +687,7 @@
     clearDrawTimers();
     clearTimeout(scheduleTimer);
     state.groups = {};
+    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
     state.pendingGroups = null;
     state.pendingSequence = [];
     state.pendingRevealIndex = 0;
@@ -647,6 +705,7 @@
       feed: []
     };
     state.matches = [];
+    state.manualSchedule = { active: false, updatedAt: '' };
     state.pendingSchedule = [];
     state.scheduleLive = { running: false, waiting: false, revealEndsAt: 0, total: 0, style: state.settings.scheduleRevealStyle || 'shuffle' };
     state.standings = {};
@@ -722,6 +781,7 @@
     }
 
     state.pendingGroups = deepClone(plan.groups);
+    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
     state.pendingSequence = deepClone(plan.sequence);
     state.pendingRevealIndex = 0;
     state.pendingComplete = false;
@@ -860,6 +920,7 @@
       return;
     }
     state.groups = deepClone(state.pendingGroups);
+    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
     state.pendingComplete = true;
     state.drawHistory.unshift({ at: nowIso(), groups: deepClone(state.groups), teams: deepClone(state.teams) });
     state.drawHistory = state.drawHistory.slice(0, 20);
@@ -886,6 +947,7 @@
       return;
     }
     state.groups = deepClone(prev.groups || {});
+    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
     saveState('undo-draw');
   }
 
@@ -968,6 +1030,9 @@
     });
 
     state.matches = ordered;
+    state.manualSchedule = { active: false, updatedAt: '' };
+    scheduleEditing = false;
+    scheduleDraft = null;
     state.lastResult = { type: 'schedule', text: `สร้างตาราง ${ordered.length} คู่แล้ว`, at: nowIso() };
     audit('generate-schedule', { count: ordered.length });
     calculateStandings();
@@ -1099,6 +1164,7 @@
   }
 
   function getDisplayGroups(confirmedOnly = false) {
+    if (state.manualGroups?.active && Object.keys(state.groups || {}).length) return normalizeManualGroups(state.groups, manualRowsForGroups(state.groups));
     if (hasGroups(state.groups)) return state.groups;
     if (confirmedOnly) return {};
     if (state.settings.drawMethod === 'instant-all' && state.pendingComplete && state.pendingGroups) return state.pendingGroups;
@@ -1122,7 +1188,7 @@
     if (activePanel === 'dashboard') renderDashboard();
     if (activePanel === 'teams') renderTeamValidation();
     if (activePanel === 'draw') { renderDrawStage(); renderDrawTools(); renderGroups(); renderRevealFeed(); }
-    if (activePanel === 'schedule') renderSchedule();
+    if (activePanel === 'schedule') { renderScheduleTools(); renderSchedule(); }
     if (activePanel === 'scores') { renderScores(); renderStandings(); }
     if (activePanel === 'knockout') { renderOverrides(); renderKnockout(); }
     if (activePanel === 'sources') renderSourceCards();
@@ -1167,6 +1233,267 @@
       setValue($('#drawGroupColumnsRange'), state.settings.groupColumns || 4);
       setText($('#drawGroupColumnsValue'), state.settings.groupColumns || 4);
     }
+  }
+
+  function renderManualGroupsToolbar() {
+    const editing = manualGroupsEditing;
+    return `
+      <div class="manual-groups-toolbar">
+        <div>
+          <b>Manual Groups</b>
+          <span>${state.manualGroups?.active ? 'manual data is active' : 'use when you need to enter or fix groups by hand'}</span>
+        </div>
+        <div class="row">
+          <button class="btn small" type="button" data-manual-groups-create>Empty Groups</button>
+          ${editing ? `
+            <button class="btn small" type="button" data-manual-groups-add-row>Add Row</button>
+            <button class="btn small primary" type="button" data-manual-groups-save>Save Groups</button>
+            <button class="btn small" type="button" data-manual-groups-cancel>Cancel</button>
+          ` : `
+            <button class="btn small" type="button" data-manual-groups-edit>Edit Groups</button>
+            <button class="btn small bad" type="button" data-manual-groups-clear>Clear Manual</button>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindManualGroupsToolbar() {
+    on($('[data-manual-groups-create]'), 'click', createEmptyManualGroups);
+    on($('[data-manual-groups-edit]'), 'click', startManualGroupsEdit);
+    on($('[data-manual-groups-add-row]'), 'click', () => {
+      manualGroupRows = Math.max(1, manualGroupRows || manualRowsForGroups(getDisplayGroups(false))) + 1;
+      renderGroups();
+    });
+    on($('[data-manual-groups-save]'), 'click', saveManualGroupsFromEditor);
+    on($('[data-manual-groups-cancel]'), 'click', () => {
+      manualGroupsEditing = false;
+      manualGroupRows = 0;
+      renderGroups();
+    });
+    on($('[data-manual-groups-clear]'), 'click', clearManualGroups);
+  }
+
+  function startManualGroupsEdit() {
+    if (state.drawLive?.waiting) {
+      toast('Draw is running. Wait for the current reveal before editing groups.', 'warn');
+      return;
+    }
+    const groups = getDisplayGroups(false);
+    manualGroupsEditing = true;
+    manualGroupRows = manualRowsForGroups(groups);
+    renderGroups();
+  }
+
+  function createEmptyManualGroups() {
+    if (state.drawLive?.waiting) {
+      toast('Draw is running. Wait for the current reveal before creating manual groups.', 'warn');
+      return;
+    }
+    const rows = Math.max(2, Math.ceil(Math.max(1, state.teams.length) / Math.max(1, state.event.groupCount || 4)));
+    state.groups = emptyGroups(rows);
+    state.manualGroups = { active: true, rows, updatedAt: nowIso() };
+    state.pendingGroups = null;
+    state.pendingSequence = [];
+    state.pendingRevealIndex = 0;
+    state.pendingComplete = true;
+    state.drawLive = { ...defaultState().drawLive, feed: [] };
+    manualGroupsEditing = true;
+    manualGroupRows = rows;
+    audit('manual-empty-groups', { rows, groups: Object.keys(state.groups).length });
+    saveState('manual-empty-groups');
+  }
+
+  function clearManualGroups() {
+    if (!state.manualGroups?.active && !hasGroups(state.groups)) return;
+    if (!confirm('Clear manual groups?')) return;
+    state.groups = {};
+    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
+    state.drawLive.feed = [];
+    manualGroupsEditing = false;
+    manualGroupRows = 0;
+    audit('manual-clear-groups');
+    saveState('manual-clear-groups');
+  }
+
+  function saveManualGroupsFromEditor() {
+    const rows = Array.from(document.querySelectorAll('[data-manual-group-row]'));
+    if (!rows.length) return;
+    const groups = {};
+    rows.forEach(row => {
+      const group = row.dataset.manualGroupRow;
+      if (!group) return;
+      if (!groups[group]) groups[group] = [];
+      row.querySelectorAll('[data-manual-team]').forEach(input => {
+        const slot = Math.max(0, Number(input.dataset.manualSlot || 1) - 1);
+        groups[group][slot] = String(input.value || '').trim();
+      });
+    });
+    const rowCount = Math.max(1, ...Object.values(groups).map(arr => arr.length));
+    state.groups = normalizeManualGroups(groups, rowCount);
+    state.manualGroups = { active: true, rows: rowCount, updatedAt: nowIso() };
+    state.pendingGroups = null;
+    state.pendingSequence = [];
+    state.pendingRevealIndex = 0;
+    state.pendingComplete = true;
+    state.drawLive = { ...defaultState().drawLive, feed: groupsToFeed(state.groups), current: groupsToFeed(state.groups)[0] || null, progress: groupsToFeed(state.groups).length, total: groupsToFeed(state.groups).length, finished: true, phase: 'manual' };
+    syncTeamsFromGroups(state.groups);
+    manualGroupsEditing = false;
+    manualGroupRows = 0;
+    state.drawHistory.unshift({ at: nowIso(), groups: deepClone(state.groups), teams: deepClone(state.teams), manual: true });
+    state.drawHistory = state.drawHistory.slice(0, 20);
+    audit('manual-save-groups', { groups: Object.keys(state.groups).length, teams: Object.values(state.groups).flat().filter(isRealTeamName).length });
+    saveState('manual-save-groups');
+    toast('Manual groups saved', 'good');
+  }
+
+  function renderManualGroupsEditor(groups, keys, maxRows) {
+    return `
+      <div class="manual-groups-editor">
+        ${keys.map(g => `
+          <div class="manual-group-card" data-manual-group-row="${esc(g)}">
+            <div class="manual-group-head"><span>Group ${esc(g)}</span><small>${(groups[g] || []).filter(isRealTeamName).length} teams</small></div>
+            ${Array.from({ length: maxRows }, (_, i) => `
+              <label class="manual-group-row">
+                <span>${i + 1}</span>
+                <input data-manual-team data-manual-slot="${i + 1}" value="${esc((groups[g] || [])[i] || '')}" placeholder="Team name or BYE" />
+              </label>
+            `).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderScheduleTools() {
+    const scheduleRow = $('#copyScheduleBtn')?.closest('.row');
+    if (!scheduleRow || $('#manualScheduleTools')) return;
+    const tools = document.createElement('div');
+    tools.id = 'manualScheduleTools';
+    tools.className = 'manual-schedule-tools';
+    tools.innerHTML = `
+      <button class="btn" type="button" id="createEmptySchedule">Empty Schedule</button>
+      <button class="btn" type="button" id="editScheduleRows">Edit Schedule</button>
+      <button class="btn" type="button" id="addScheduleRow">Add Match</button>
+      <button class="btn primary" type="button" id="saveScheduleRows">Save Schedule</button>
+      <button class="btn" type="button" id="cancelScheduleEdit">Cancel Edit</button>
+    `;
+    scheduleRow.insertAdjacentElement('afterend', tools);
+    on($('#createEmptySchedule'), 'click', createEmptySchedule);
+    on($('#editScheduleRows'), 'click', startScheduleEdit);
+    on($('#addScheduleRow'), 'click', addScheduleDraftRow);
+    on($('#saveScheduleRows'), 'click', saveScheduleFromEditor);
+    on($('#cancelScheduleEdit'), 'click', cancelScheduleEdit);
+    syncScheduleToolState();
+  }
+
+  function syncScheduleToolState() {
+    const save = $('#saveScheduleRows');
+    const add = $('#addScheduleRow');
+    const cancel = $('#cancelScheduleEdit');
+    if (save) save.classList.toggle('hidden', !scheduleEditing);
+    if (add) add.classList.toggle('hidden', !scheduleEditing);
+    if (cancel) cancel.classList.toggle('hidden', !scheduleEditing);
+  }
+
+  function scheduleBlankMatch(index = 0) {
+    return {
+      id: `MAN-${Date.now()}-${Math.random().toString(36).slice(2)}-${index}`,
+      group: '',
+      teamA: '',
+      teamB: '',
+      scoreA: '',
+      scoreB: '',
+      status: 'Pending',
+      court: '',
+      time: ''
+    };
+  }
+
+  function startScheduleEdit() {
+    scheduleEditing = true;
+    scheduleDraft = state.matches.length ? deepClone(state.matches) : [scheduleBlankMatch(0)];
+    syncScheduleToolState();
+    renderSchedule();
+  }
+
+  function createEmptySchedule() {
+    const rows = Math.max(4, Number(state.event.groupCount || 4) || 4);
+    state.matches = Array.from({ length: rows }, (_, i) => scheduleBlankMatch(i));
+    state.manualSchedule = { active: true, updatedAt: nowIso() };
+    state.pendingSchedule = [];
+    scheduleEditing = true;
+    scheduleDraft = deepClone(state.matches);
+    audit('manual-empty-schedule', { rows });
+    saveState('manual-empty-schedule');
+  }
+
+  function addScheduleDraftRow() {
+    if (!scheduleEditing) startScheduleEdit();
+    readScheduleDraftFromEditor();
+    scheduleDraft.push(scheduleBlankMatch(scheduleDraft.length));
+    renderSchedule();
+  }
+
+  function cancelScheduleEdit() {
+    scheduleEditing = false;
+    scheduleDraft = null;
+    syncScheduleToolState();
+    renderSchedule();
+  }
+
+  function readScheduleDraftFromEditor() {
+    if (!scheduleEditing) return;
+    const rows = Array.from(document.querySelectorAll('[data-schedule-edit-row]'));
+    if (!rows.length) return;
+    scheduleDraft = rows.map((row, i) => ({
+      id: row.dataset.matchId || scheduleBlankMatch(i).id,
+      time: row.querySelector('[data-schedule-time]')?.value.trim() || '',
+      court: row.querySelector('[data-schedule-court]')?.value.trim() || '',
+      group: row.querySelector('[data-schedule-group]')?.value.trim() || '',
+      teamA: row.querySelector('[data-schedule-team-a]')?.value.trim() || '',
+      teamB: row.querySelector('[data-schedule-team-b]')?.value.trim() || '',
+      status: row.querySelector('[data-schedule-status]')?.value || 'Pending',
+      scoreA: state.matches.find(m => m.id === row.dataset.matchId)?.scoreA || '',
+      scoreB: state.matches.find(m => m.id === row.dataset.matchId)?.scoreB || ''
+    }));
+  }
+
+  function saveScheduleFromEditor() {
+    if (!scheduleEditing) return;
+    readScheduleDraftFromEditor();
+    state.matches = (scheduleDraft || []).map((m, i) => ({ ...scheduleBlankMatch(i), ...m, id: m.id || scheduleBlankMatch(i).id }));
+    state.manualSchedule = { active: true, updatedAt: nowIso() };
+    scheduleEditing = false;
+    scheduleDraft = null;
+    calculateStandings();
+    audit('manual-save-schedule', { count: state.matches.length });
+    saveState('manual-save-schedule');
+    toast('Manual schedule saved', 'good');
+  }
+
+  function renderScheduleEditorRows() {
+    const rows = scheduleDraft || deepClone(state.matches);
+    const statuses = ['Pending', 'Live', 'Finished', 'Bye', 'Forfeit A', 'Forfeit B'];
+    return `
+      <div class="tablewrap manual-schedule-editor">
+        <table>
+          <thead><tr><th>Time</th><th>Court</th><th>Group</th><th>Team A</th><th>Team B</th><th>Status</th></tr></thead>
+          <tbody>
+            ${rows.map((m, i) => `
+              <tr data-schedule-edit-row data-match-id="${esc(m.id || '')}">
+                <td><input data-schedule-time value="${esc(m.time || '')}" placeholder="09:00" /></td>
+                <td><input data-schedule-court value="${esc(m.court || '')}" placeholder="1" /></td>
+                <td><input data-schedule-group value="${esc(m.group || '')}" placeholder="A" /></td>
+                <td><input data-schedule-team-a value="${esc(m.teamA || '')}" placeholder="Team A" /></td>
+                <td><input data-schedule-team-b value="${esc(m.teamB || '')}" placeholder="Team B" /></td>
+                <td><select data-schedule-status>${statuses.map(s => `<option value="${esc(s)}" ${m.status === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
 
   function renderSettingsTools() {
@@ -1611,10 +1938,12 @@
     if (!box) return;
     const groups = getDisplayGroups(false);
     const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event.groupCount);
-    const maxRows = Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
+    const maxRows = manualGroupsEditing ? manualRowsForGroups(groups) : Math.max(1, ...keys.map(g => (groups[g] || []).length), Math.ceil(Math.max(1, state.teams.length) / Math.max(1, keys.length)));
     const cols = effectiveGroupColumns(state.settings.groupColumns || 4, box.clientWidth || window.innerWidth);
 
     box.innerHTML = `
+      ${renderManualGroupsToolbar()}
+      ${manualGroupsEditing ? renderManualGroupsEditor(groups, keys, maxRows) : `
       <div class="pl-groups-grid" style="${textSizeVarsStyle(drawTextSizes())};--group-cols:${cols};grid-template-columns:repeat(${cols},minmax(0,1fr));">
         ${keys.map(g => `
           <div class="pl-group-card">
@@ -1626,7 +1955,9 @@
           </div>
         `).join('')}
       </div>
+      `}
     `;
+    bindManualGroupsToolbar();
   }
 
   function renderRevealFeed() {
@@ -1643,6 +1974,11 @@
   function renderSchedule() {
     const box = $('#scheduleBox');
     if (!box) return;
+    syncScheduleToolState();
+    if (scheduleEditing) {
+      box.innerHTML = renderScheduleEditorRows();
+      return;
+    }
     if (!state.matches.length) {
       box.innerHTML = '<div class="notice">ยังไม่มีตารางแข่ง</div>';
       return;
