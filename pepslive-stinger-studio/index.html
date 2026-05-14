@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PepsLive Stinger Studio</title>
+  <meta name="description" content="PepsLive Stinger Studio - OBS WebM transition builder for live sport production." />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">
+          <img src="assets/img/pepsproduction-logo.png" alt="PepsProduction" />
+        </span>
+        <span class="brand-copy">
+          <strong>PepsLive Stinger Studio</strong>
+          <small>OBS WebM Transition Builder</small>
+        </span>
+      </div>
+
+      <div class="top-status">
+        <span class="status-pill" id="autosaveStatus">Auto Save พร้อม</span>
+        <span class="status-pill" id="obsPointBadge">OBS Point 1000ms</span>
+        <button class="icon-btn" id="btnPlayTop" type="button" title="เล่นตัวอย่าง">Play</button>
+        <button class="icon-btn primary" id="btnExportTop" type="button" title="Export WebM">Export</button>
+      </div>
+    </header>
+
+    <main class="studio-grid">
+      <aside class="control-panel">
+        <section class="control-section">
+          <div class="section-head">
+            <h2>Preset</h2>
+            <span id="presetName">Peps Impact</span>
+          </div>
+          <div class="preset-grid" id="presetGrid"></div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-head">
+            <h2>Logo Layer</h2>
+            <span>PNG / JPG / SVG</span>
+          </div>
+          <label class="file-drop">
+            <input id="logoInput" type="file" accept="image/*" />
+            <span>อัปโหลดโลโก้ Stinger</span>
+          </label>
+          <div class="button-row">
+            <button class="tool-btn" id="btnResetLogo" type="button">ใช้โลโก้ Peps</button>
+            <button class="tool-btn" id="btnAutoPalette" type="button">ดูดสีจากโลโก้</button>
+          </div>
+          <label class="switch-row">
+            <input id="whiteMatte" type="checkbox" checked />
+            <span>Auto White Matte</span>
+          </label>
+          <div class="field-grid two">
+            <label>ขนาด
+              <input id="logoSize" type="range" min="10" max="130" value="42" />
+              <output id="logoSizeValue">42%</output>
+            </label>
+            <label>หมุน
+              <input id="logoRotate" type="range" min="-30" max="30" value="0" />
+              <output id="logoRotateValue">0deg</output>
+            </label>
+            <label>ตำแหน่ง X
+              <input id="logoX" type="range" min="20" max="80" value="50" />
+              <output id="logoXValue">50%</output>
+            </label>
+            <label>ตำแหน่ง Y
+              <input id="logoY" type="range" min="20" max="80" value="50" />
+              <output id="logoYValue">50%</output>
+            </label>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-head">
+            <h2>Timing</h2>
+            <span id="durationBadge">2.4s</span>
+          </div>
+          <div class="field-grid two">
+            <label>ความยาวคลิป
+              <input id="duration" type="range" min="1200" max="4200" step="100" value="2400" />
+              <output id="durationValue">2400ms</output>
+            </label>
+            <label>จุดตัด OBS
+              <input id="transitionPoint" type="range" min="400" max="2400" step="50" value="1000" />
+              <output id="transitionPointValue">1000ms</output>
+            </label>
+            <label>FPS
+              <select id="fps">
+                <option value="30">30</option>
+                <option value="60" selected>60</option>
+              </select>
+            </label>
+            <label>Resolution
+              <select id="resolution">
+                <option value="1280x720">1280 x 720</option>
+                <option value="1920x1080" selected>1920 x 1080</option>
+                <option value="2560x1440">2560 x 1440</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-head">
+            <h2>Motion FX</h2>
+            <span>Layer-based</span>
+          </div>
+          <div class="toggle-grid">
+            <label><input id="enablePanels" type="checkbox" checked /> Curtain Panels</label>
+            <label><input id="enableSweep" type="checkbox" checked /> Alpha Sweep</label>
+            <label><input id="enableParticles" type="checkbox" checked /> Particles</label>
+            <label><input id="enableShockwave" type="checkbox" checked /> Shockwave</label>
+            <label><input id="enableBars" type="checkbox" checked /> Split Bars</label>
+            <label><input id="enableLabel" type="checkbox" checked /> Title Badge</label>
+          </div>
+          <div class="field-grid two">
+            <label>ความแรง
+              <input id="intensity" type="range" min="10" max="100" value="72" />
+              <output id="intensityValue">72%</output>
+            </label>
+            <label>องศาแสง
+              <input id="sweepAngle" type="range" min="-45" max="45" value="22" />
+              <output id="sweepAngleValue">22deg</output>
+            </label>
+            <label>Easing
+              <select id="easing">
+                <option value="cinematic" selected>Cinematic</option>
+                <option value="snappy">Snappy</option>
+                <option value="smooth">Smooth</option>
+              </select>
+            </label>
+            <label>Title
+              <input id="stingerLabel" type="text" value="PEPS LIVE" maxlength="18" />
+            </label>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-head">
+            <h2>Color & Export</h2>
+            <span>OBS Ready</span>
+          </div>
+          <div class="color-grid">
+            <label>Primary <input id="primaryColor" type="color" value="#ff5a00" /></label>
+            <label>Secondary <input id="secondaryColor" type="color" value="#111111" /></label>
+            <label>Glow <input id="glowColor" type="color" value="#ffffff" /></label>
+            <label>Accent <input id="accentColor" type="color" value="#ff9a3c" /></label>
+          </div>
+          <div class="field-grid two">
+            <label>Preview BG
+              <select id="previewBg">
+                <option value="checker" selected>Checker</option>
+                <option value="dark">Dark Scene</option>
+                <option value="bright">Bright Scene</option>
+                <option value="court">Sport Court</option>
+              </select>
+            </label>
+            <label>Bitrate
+              <select id="bitrate">
+                <option value="12000000">12 Mbps</option>
+                <option value="25000000">25 Mbps</option>
+                <option value="50000000" selected>50 Mbps</option>
+                <option value="80000000">80 Mbps</option>
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button class="tool-btn primary" id="btnExport" type="button">บันทึก WebM</button>
+            <button class="tool-btn" id="btnSaveJson" type="button">Save JSON</button>
+            <label class="tool-btn file-inline">Load JSON<input id="loadJsonInput" type="file" accept=".json,application/json" /></label>
+          </div>
+        </section>
+      </aside>
+
+      <section class="preview-panel">
+        <div class="preview-head">
+          <div>
+            <h1>PepsLive Stinger Studio</h1>
+            <p>สร้าง Stinger Transition สำหรับ OBS ด้วย preset, timeline, alpha inspector และ export package</p>
+          </div>
+          <div class="metric-row">
+            <span><b id="metricResolution">1920x1080</b><small>Canvas</small></span>
+            <span><b id="metricFps">60</b><small>FPS</small></span>
+            <span><b id="metricAlpha">Alpha ON</b><small>Output</small></span>
+          </div>
+        </div>
+
+        <div class="canvas-shell" id="canvasShell">
+          <canvas id="stageCanvas" width="1920" height="1080"></canvas>
+          <div class="transition-line" id="transitionLine"></div>
+          <div class="canvas-hud">
+            <span id="timeReadout">0ms</span>
+            <span id="exportState">Preview Ready</span>
+          </div>
+        </div>
+
+        <div class="timeline-card">
+          <div class="transport">
+            <button class="round-btn primary" id="btnPlay" type="button">Play</button>
+            <button class="round-btn" id="btnPause" type="button">Pause</button>
+            <button class="round-btn" id="btnAtPoint" type="button">OBS Point</button>
+            <button class="round-btn" id="btnCopyObs" type="button">Copy OBS</button>
+          </div>
+          <input id="timeline" class="timeline" type="range" min="0" max="1000" value="0" />
+          <div class="timeline-labels">
+            <span>0ms</span>
+            <span id="timelinePointLabel">1000ms Cut</span>
+            <span id="timelineEndLabel">2400ms</span>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <article class="info-card">
+            <h3>OBS Settings</h3>
+            <pre id="obsSettings"></pre>
+          </article>
+          <article class="info-card">
+            <h3>Alpha Inspector</h3>
+            <div class="alpha-track">
+              <span id="alphaCoverage"></span>
+            </div>
+            <p id="alphaNote">พื้นหลังโปร่งใส ยกเว้นช่วง curtain/panels ที่ตั้งใจปิดจอ</p>
+          </article>
+          <article class="info-card">
+            <h3>Export Package</h3>
+            <p>WebM VP9/VP8, project JSON, auto OBS point, preset-ready, localStorage autosave</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
