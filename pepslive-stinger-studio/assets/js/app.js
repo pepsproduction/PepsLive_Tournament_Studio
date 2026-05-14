@@ -5,10 +5,30 @@
   const storageKey = "pepslive-stinger-studio-v1";
   const logoPath = "assets/img/pepsproduction-logo.png";
 
+  const fullFx = {
+    enablePanels: true,
+    enableSweep: true,
+    enableParticles: true,
+    enableShockwave: true,
+    enableBars: true,
+    enableLightRays: true,
+    enableLensFlare: true,
+    enableGlowMist: true,
+    enableEnergyRing: true,
+    enableChromatic: true,
+    enableShutter: true,
+    enableVignette: true,
+    enableCameraShake: true,
+    enableMotionBlur: true,
+    enableLabel: true
+  };
+
   const presets = {
     "peps-impact": {
+      ...fullFx,
       name: "Peps Impact",
-      note: "ส้มดำ ดุดัน ใช้กับงานกีฬา",
+      category: "Live Sport",
+      note: "ส้มดำ ดุดัน เหมาะกับเปิดฉากหรือเปลี่ยนซีนหลัก",
       primaryColor: "#ff5a00",
       secondaryColor: "#101010",
       glowColor: "#ffffff",
@@ -16,37 +36,31 @@
       duration: 2400,
       transitionPoint: 1000,
       intensity: 72,
+      realism: 68,
       sweepAngle: 22,
-      easing: "cinematic",
-      enablePanels: true,
-      enableSweep: true,
-      enableParticles: true,
-      enableShockwave: true,
-      enableBars: true,
-      enableLabel: true
+      easing: "cinematic"
     },
     "neon-slash": {
+      ...fullFx,
       name: "Neon Slash",
-      note: "เส้นเฉือนเร็วแบบ esports",
+      category: "Esports",
+      note: "เส้นเฉือนเร็ว มี chromatic edge และแรงปะทะสูง",
       primaryColor: "#ff4d00",
       secondaryColor: "#121212",
       glowColor: "#00d7ff",
       accentColor: "#ff2bbd",
       duration: 2100,
       transitionPoint: 850,
-      intensity: 86,
-      sweepAngle: -18,
-      easing: "snappy",
-      enablePanels: true,
-      enableSweep: true,
-      enableParticles: true,
-      enableShockwave: true,
-      enableBars: true,
-      enableLabel: true
+      intensity: 88,
+      realism: 60,
+      sweepAngle: 342,
+      easing: "snappy"
     },
     "glass-arena": {
+      ...fullFx,
       name: "Glass Arena",
-      note: "ใส หรู อ่านง่ายสำหรับ live",
+      category: "Premium",
+      note: "ใส หรู อ่านง่าย เหมาะกับรายการที่ต้องดูแพง",
       primaryColor: "#ff7a1a",
       secondaryColor: "#262626",
       glowColor: "#ffffff",
@@ -54,18 +68,18 @@
       duration: 2800,
       transitionPoint: 1150,
       intensity: 48,
+      realism: 82,
       sweepAngle: 30,
       easing: "smooth",
-      enablePanels: true,
-      enableSweep: true,
       enableParticles: false,
-      enableShockwave: true,
       enableBars: false,
-      enableLabel: true
+      enableCameraShake: false
     },
     "cyber-gate": {
+      ...fullFx,
       name: "Cyber Gate",
-      note: "ประตูปิดจอพร้อม shockwave",
+      category: "Gate",
+      note: "ประตูพลังงานปิดจอชัด เหมาะกับตัดเข้าซีนใหม่",
       primaryColor: "#ff5a00",
       secondaryColor: "#001018",
       glowColor: "#24e6ff",
@@ -73,37 +87,33 @@
       duration: 2500,
       transitionPoint: 1000,
       intensity: 92,
+      realism: 62,
       sweepAngle: 12,
       easing: "cinematic",
-      enablePanels: true,
-      enableSweep: true,
-      enableParticles: true,
-      enableShockwave: true,
-      enableBars: true,
       enableLabel: false
     },
     "light-tunnel": {
+      ...fullFx,
       name: "Light Tunnel",
-      note: "แสงพุ่งเข้ากล้อง สมจริงขึ้น",
+      category: "Light",
+      note: "ลำแสงพุ่งเข้ากล้อง มี flare และหมอกแสง",
       primaryColor: "#ff7b00",
       secondaryColor: "#080808",
       glowColor: "#fff6e8",
       accentColor: "#ffbd59",
       duration: 3200,
       transitionPoint: 1300,
-      intensity: 64,
+      intensity: 66,
+      realism: 92,
       sweepAngle: 36,
       easing: "smooth",
-      enablePanels: true,
-      enableSweep: true,
-      enableParticles: true,
-      enableShockwave: false,
-      enableBars: true,
-      enableLabel: true
+      enableShockwave: false
     },
     "trophy-burst": {
+      ...fullFx,
       name: "Trophy Burst",
-      note: "ประกายเฉลิมฉลองหลังจุดตัด",
+      category: "Final",
+      note: "ประกายเฉลิมฉลอง เหมาะกับจบแมตช์หรือประกาศผู้ชนะ",
       primaryColor: "#ff5a00",
       secondaryColor: "#181008",
       glowColor: "#ffefb0",
@@ -111,14 +121,151 @@
       duration: 2600,
       transitionPoint: 1050,
       intensity: 100,
+      realism: 74,
       sweepAngle: 25,
       easing: "snappy",
-      enablePanels: true,
-      enableSweep: true,
-      enableParticles: true,
-      enableShockwave: true,
+      enableBars: false
+    },
+    "broadcast-wipe": {
+      ...fullFx,
+      name: "Broadcast Wipe",
+      category: "TV",
+      note: "สไตล์ทีวีสปอร์ต คม สะอาด ใช้ซ้ำระหว่างรายการได้",
+      primaryColor: "#ff5a00",
+      secondaryColor: "#0c0c0c",
+      glowColor: "#ffffff",
+      accentColor: "#d9d9d9",
+      duration: 2300,
+      transitionPoint: 950,
+      intensity: 58,
+      realism: 78,
+      sweepAngle: 0,
+      easing: "cinematic",
+      enableParticles: false,
+      enableCameraShake: false
+    },
+    "stadium-lights": {
+      ...fullFx,
+      name: "Stadium Lights",
+      category: "Arena",
+      note: "จำลองไฟสนามและ lens flare เหมาะกับกีฬา outdoor",
+      primaryColor: "#ff6a00",
+      secondaryColor: "#090909",
+      glowColor: "#fff4dd",
+      accentColor: "#ffc56d",
+      duration: 3000,
+      transitionPoint: 1200,
+      intensity: 70,
+      realism: 100,
+      sweepAngle: 315,
+      easing: "smooth",
+      enableShockwave: false,
+      enableShutter: false
+    },
+    "court-flash": {
+      ...fullFx,
+      name: "Court Flash",
+      category: "Basketball",
+      note: "แฟลชเร็วและเส้นสปีด เหมาะกับบาส/กีฬาในสนาม",
+      primaryColor: "#ff5a00",
+      secondaryColor: "#170a02",
+      glowColor: "#fff8ec",
+      accentColor: "#ffbd59",
+      duration: 1900,
+      transitionPoint: 760,
+      intensity: 94,
+      realism: 66,
+      sweepAngle: 90,
+      easing: "snappy"
+    },
+    "replay-impact": {
+      ...fullFx,
+      name: "Replay Impact",
+      category: "Replay",
+      note: "แรงกระแทกและ shake ชัด ใช้เข้าช่วง replay/highlight",
+      primaryColor: "#ff5a00",
+      secondaryColor: "#060606",
+      glowColor: "#ffffff",
+      accentColor: "#ff2a00",
+      duration: 2200,
+      transitionPoint: 900,
+      intensity: 100,
+      realism: 58,
+      sweepAngle: 270,
+      easing: "snappy",
+      enableLabel: false
+    },
+    "premium-glass": {
+      ...fullFx,
+      name: "Premium Glass",
+      category: "Sponsor",
+      note: "เนียนและไม่แรงเกินไป เหมาะกับโลโก้สปอนเซอร์",
+      primaryColor: "#ff8a2a",
+      secondaryColor: "#171717",
+      glowColor: "#ffffff",
+      accentColor: "#ffe1c7",
+      duration: 3400,
+      transitionPoint: 1350,
+      intensity: 42,
+      realism: 88,
+      sweepAngle: 45,
+      easing: "smooth",
+      enableParticles: false,
+      enableShockwave: false,
+      enableCameraShake: false
+    },
+    "final-whistle": {
+      ...fullFx,
+      name: "Final Whistle",
+      category: "Match End",
+      note: "ปิดจอหนัก มีวงพลังงาน ใช้ตอนจบเกมหรือจบรายการ",
+      primaryColor: "#ff5a00",
+      secondaryColor: "#000000",
+      glowColor: "#fff0dd",
+      accentColor: "#ffcc00",
+      duration: 2800,
+      transitionPoint: 1100,
+      intensity: 96,
+      realism: 72,
+      sweepAngle: 180,
+      easing: "cinematic"
+    },
+    "clean-sponsor": {
+      ...fullFx,
+      name: "Clean Sponsor",
+      category: "Clean",
+      note: "เรียบ สะอาด โฟกัสโลโก้ ไม่รบกวนภาพรายการ",
+      primaryColor: "#ff5a00",
+      secondaryColor: "#1c1c1c",
+      glowColor: "#ffffff",
+      accentColor: "#f2f2f2",
+      duration: 3000,
+      transitionPoint: 1200,
+      intensity: 36,
+      realism: 70,
+      sweepAngle: 20,
+      easing: "smooth",
+      enableParticles: false,
+      enableShockwave: false,
       enableBars: false,
-      enableLabel: true
+      enableShutter: false,
+      enableCameraShake: false
+    },
+    "thunder-gate": {
+      ...fullFx,
+      name: "Thunder Gate",
+      category: "Impact",
+      note: "สายฟ้า/พลังงานหนัก เหมาะกับเปิดตัวคู่ใหญ่",
+      primaryColor: "#ff5a00",
+      secondaryColor: "#050505",
+      glowColor: "#47e8ff",
+      accentColor: "#ffe14f",
+      duration: 2400,
+      transitionPoint: 950,
+      intensity: 100,
+      realism: 64,
+      sweepAngle: 300,
+      easing: "snappy"
     }
   };
 
@@ -140,8 +287,18 @@
     enableParticles: true,
     enableShockwave: true,
     enableBars: true,
+    enableLightRays: true,
+    enableLensFlare: true,
+    enableGlowMist: true,
+    enableEnergyRing: true,
+    enableChromatic: true,
+    enableShutter: true,
+    enableVignette: true,
+    enableCameraShake: true,
+    enableMotionBlur: true,
     enableLabel: true,
     intensity: 72,
+    realism: 68,
     sweepAngle: 22,
     easing: "cinematic",
     stingerLabel: "PEPS LIVE",
@@ -173,12 +330,111 @@
   const controls = [
     "duration", "transitionPoint", "fps", "resolution", "logoSize", "logoX", "logoY", "logoRotate",
     "whiteMatte", "enablePanels", "enableSweep", "enableParticles", "enableShockwave", "enableBars",
-    "enableLabel", "intensity", "sweepAngle", "easing", "stingerLabel", "primaryColor",
+    "enableLightRays", "enableLensFlare", "enableGlowMist", "enableEnergyRing", "enableChromatic",
+    "enableShutter", "enableVignette", "enableCameraShake", "enableMotionBlur", "enableLabel",
+    "intensity", "realism", "sweepAngle", "easing", "stingerLabel", "primaryColor",
     "secondaryColor", "glowColor", "accentColor", "previewBg", "bitrate"
   ];
 
+  const helpContent = {
+    preset: {
+      title: "วิธีใช้ Preset",
+      intro: "เลือกสไตล์เริ่มต้นให้เหมาะกับช่วงรายการ แล้วค่อยปรับสี/จังหวะต่อ",
+      body: `
+        <h3>ใช้ยังไง</h3>
+        <ul>
+          <li>กด preset หนึ่งครั้ง ระบบจะตั้งสี, ความยาวคลิป, จุดตัด OBS และ Motion FX ให้ทันที</li>
+          <li>งานกีฬาใช้ Peps Impact, Broadcast Wipe, Court Flash หรือ Stadium Lights</li>
+          <li>งานไฮไลต์/Replay ใช้ Replay Impact หรือ Thunder Gate เพราะจังหวะเร็วและแรงกว่า</li>
+          <li>งานสปอนเซอร์ใช้ Premium Glass หรือ Clean Sponsor เพื่อให้โลโก้อ่านง่ายและไม่รก</li>
+        </ul>
+        <p class="help-callout">แนะนำ: หลังเลือก preset ให้กด OBS Point เพื่อดูเฟรมที่ควรตัดใน OBS ก่อน export</p>
+      `
+    },
+    logo: {
+      title: "วิธีใช้ Logo Layer",
+      intro: "จัดโลโก้ให้อ่านชัดก่อนใส่เอฟเฟกต์ เพราะ Stinger ที่ดีต้องเห็นแบรนด์ในเสี้ยววินาที",
+      body: `
+        <h3>ขั้นตอน</h3>
+        <ul>
+          <li>อัปโหลด PNG ที่มีพื้นโปร่งใสจะดีที่สุด</li>
+          <li>ถ้าโลโก้มีพื้นหลังขาว ให้เปิด Auto White Matte เพื่อตัดพื้นขาวที่ติดขอบออก</li>
+          <li>ปรับขนาดให้อยู่ราว 35-55% สำหรับโลโก้แนวนอน และ 45-70% สำหรับโลโก้ทรงสูง</li>
+          <li>ตำแหน่ง X/Y ใช้เมื่อโลโก้ไม่สมดุลหรืออยากให้ชนจุดแสงพอดี</li>
+        </ul>
+        <p class="help-callout">ถ้าสีเอฟเฟกต์ไม่เข้ากับโลโก้ ให้กด ดูดสีจากโลโก้ แล้วค่อยเลือก preset ใหม่</p>
+      `
+    },
+    timing: {
+      title: "วิธีใช้ Timing",
+      intro: "Timing คือหัวใจของ Stinger เพราะต้องปิดจอให้มิดพอดีกับจุดตัดซีนใน OBS",
+      body: `
+        <h3>ค่าที่ควรรู้</h3>
+        <ul>
+          <li>ความยาวคลิป 1.9-2.6 วินาที เหมาะกับงาน live ที่ต้องไว</li>
+          <li>ความยาว 2.8-3.4 วินาที เหมาะกับเปิดรายการ, sponsor bumper หรือจังหวะ cinematic</li>
+          <li>จุดตัด OBS ควรอยู่ตอน Alpha Inspector ขึ้นใกล้เต็ม เพราะเป็นช่วงที่จอถูกปิดมิด</li>
+          <li>FPS 60 เหมาะกับ motion ที่ลื่น แต่ถ้าเครื่องเบาใช้ 30 ได้</li>
+        </ul>
+        <p class="help-callout">ใน OBS ให้ตั้ง Transition Point Type เป็น Time (milliseconds) แล้วใส่ค่าที่หน้าเว็บแสดง</p>
+      `
+    },
+    motion: {
+      title: "วิธีใช้ Motion FX",
+      intro: "เปิดเอฟเฟกต์เป็นชั้น ๆ เพื่อให้ดูสมจริง แต่ยังคุมความเบาและความนิ่งสำหรับ OBS",
+      body: `
+        <h3>แนวทางเปิด FX</h3>
+        <ul>
+          <li>Curtain Panels และ Shutter Wipe ช่วยปิดจอให้แน่น เหมาะกับ transition จริง</li>
+          <li>Light Rays, Lens Flare และ Glow Mist เพิ่มความสมจริงแบบกล้องถ่ายไฟสนาม</li>
+          <li>Energy Ring, Shockwave และ Camera Shake เพิ่มแรงปะทะ ใช้กับ replay หรือเปิดตัวคู่ใหญ่</li>
+          <li>Chromatic Edge และ Motion Blur ทำให้โลโก้เคลื่อนเร็วแบบมีน้ำหนัก</li>
+          <li>องศาแสงปรับได้ครบ 0-360 องศา เพื่อเลือกทิศทางแสงหรือทิศทางม่านได้อิสระ</li>
+        </ul>
+        <p class="help-callout">ถ้าใช้ใน OBS เครื่องไม่แรง ให้ลด ความแรง/ความสมจริง หรือปิด Particles, Glow Mist, Camera Shake ก่อน</p>
+      `
+    },
+    export: {
+      title: "วิธีใช้ Color & Export",
+      intro: "ตั้งสีและคุณภาพไฟล์ก่อน export ให้พร้อมใช้กับ OBS และ GitHub Pages",
+      body: `
+        <h3>แนะนำ</h3>
+        <ul>
+          <li>Primary คือสีหลักของม่านและพลังงาน</li>
+          <li>Glow คือสีแสงปาดและ flare ถ้าอยากดูแพงใช้ขาว/ครีม ถ้าอยาก esports ใช้ฟ้า/ชมพู</li>
+          <li>Preview BG ใช้เช็กว่า alpha และขอบโลโก้ดูดีบนพื้นหลังหลายแบบหรือไม่</li>
+          <li>Bitrate 50 Mbps ใช้งานทั่วไปคมมาก 80 Mbps เหมาะกับ 1440p หรือกราฟิกละเอียด</li>
+        </ul>
+        <p class="help-callout">ไฟล์ที่ export เป็น WebM ใช้ได้กับ OBS Stinger Transition โดยไม่ต้องมี backend</p>
+      `
+    },
+    preview: {
+      title: "วิธีใช้ Preview",
+      intro: "พื้นที่นี้ใช้ตรวจจังหวะจริงก่อนบันทึกไฟล์",
+      body: `
+        <h3>วิธีตรวจงาน</h3>
+        <ul>
+          <li>กด Play เพื่อดู motion เต็ม</li>
+          <li>ลาก timeline เพื่อเช็กแต่ละเฟรม โดยเฉพาะขอบโลโก้และช่วงปิดจอ</li>
+          <li>กด OBS Point เพื่อหยุดตรงเฟรมที่ OBS จะตัดซีน</li>
+          <li>ดู Alpha Inspector ถ้าขึ้นเต็มหรือเกือบเต็ม แปลว่าช่วงนั้นเหมาะกับการตัดซีน</li>
+        </ul>
+        <p class="help-callout">ก่อนใช้งานจริง ให้ทดสอบไฟล์ WebM ใน OBS หนึ่งครั้งกับฉากมืดและฉากสว่าง</p>
+      `
+    }
+  };
+
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  function normalizeAngle(value) {
+    const angle = Number(value) || 0;
+    return ((angle % 360) + 360) % 360;
+  }
+
+  function angleRad(offset = 0) {
+    return (normalizeAngle(state.sweepAngle + offset) * Math.PI) / 180;
   }
 
   function lerp(a, b, t) {
@@ -408,7 +664,7 @@
 
     ctx.save();
     ctx.translate(w / 2, h / 2);
-    ctx.rotate((state.sweepAngle - 8) * Math.PI / 180);
+    ctx.rotate(angleRad(-8));
 
     const ext = Math.max(w, h) * 1.72;
     const offset = ext * (1 - progress);
@@ -442,7 +698,7 @@
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.translate(w / 2, h / 2);
-    ctx.rotate((state.sweepAngle + 90) * Math.PI / 180);
+    ctx.rotate(angleRad(90));
     for (let i = -count; i <= count; i++) {
       const x = i * (w * 0.085) + Math.sin(timeline.t * Math.PI * 2 + i) * 22;
       const alpha = (0.09 + p * 0.12) * (1 - Math.abs(i) / (count + 1));
@@ -450,6 +706,198 @@
       ctx.fillRect(x, -h * 1.2, 3 + (i % 3), h * 2.4);
     }
     ctx.restore();
+  }
+
+  function drawVolumetricRays(w, h, timeline) {
+    if (!state.enableLightRays) return;
+    const panel = getPanelProgress(timeline);
+    const flareWindow = Math.sin(clamp((timeline.t - 0.08) / 0.78, 0, 1) * Math.PI);
+    const alpha = clamp((panel * 0.32 + flareWindow * 0.18) * (state.realism / 100), 0, 0.55);
+    if (alpha <= 0.01) return;
+
+    const cx = w * state.logoX / 100;
+    const cy = h * state.logoY / 100;
+    const beamLength = Math.max(w, h) * 1.25;
+    const count = 8;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.translate(cx, cy);
+    ctx.rotate(angleRad());
+    for (let i = 0; i < count; i += 1) {
+      const offset = (i - (count - 1) / 2) * 0.12;
+      const spread = lerp(0.05, 0.18, seeded(i + 31));
+      const localAlpha = alpha * lerp(0.35, 1, seeded(i + 34));
+      const grad = ctx.createLinearGradient(0, 0, beamLength, 0);
+      grad.addColorStop(0, rgba(state.glowColor, localAlpha));
+      grad.addColorStop(0.34, rgba(state.primaryColor, localAlpha * 0.45));
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(0, -h * spread + offset * h);
+      ctx.lineTo(beamLength, -h * (spread * 1.9) + offset * h);
+      ctx.lineTo(beamLength, h * (spread * 1.9) + offset * h);
+      ctx.lineTo(0, h * spread + offset * h);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawGlowMist(w, h, timeline) {
+    if (!state.enableGlowMist) return;
+    const panel = getPanelProgress(timeline);
+    const alpha = clamp((0.12 + panel * 0.28) * (state.realism / 100), 0, 0.42);
+    if (alpha <= 0.01) return;
+
+    const cx = w * state.logoX / 100;
+    const cy = h * state.logoY / 100;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 10; i += 1) {
+      const angle = seeded(i + 51) * Math.PI * 2 + timeline.t * 0.7;
+      const radius = Math.max(w, h) * lerp(0.04, 0.34, seeded(i + 54));
+      const x = cx + Math.cos(angle) * radius;
+      const y = cy + Math.sin(angle) * radius * 0.52;
+      const size = Math.max(w, h) * lerp(0.08, 0.24, seeded(i + 57));
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, size);
+      grad.addColorStop(0, rgba(i % 2 ? state.primaryColor : state.glowColor, alpha * lerp(0.22, 0.7, seeded(i + 60))));
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawShutterWipe(w, h, timeline) {
+    if (!state.enableShutter) return;
+    const p = getPanelProgress(timeline);
+    if (p <= 0.02) return;
+    const strips = 9;
+    const stripH = h / strips;
+    const slide = w * (1 - p);
+
+    ctx.save();
+    ctx.globalAlpha = clamp(0.18 + p * 0.42, 0, 0.58);
+    for (let i = 0; i < strips; i += 1) {
+      const fromLeft = i % 2 === 0;
+      const x = fromLeft ? -slide : slide;
+      const y = i * stripH;
+      const grad = ctx.createLinearGradient(x, y, x + w, y);
+      grad.addColorStop(0, rgba(state.secondaryColor, 0.85));
+      grad.addColorStop(0.5, rgba(i % 3 === 0 ? state.primaryColor : state.accentColor, 0.72));
+      grad.addColorStop(1, rgba(state.secondaryColor, 0.85));
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y + 1, w, stripH - 2);
+    }
+    ctx.restore();
+  }
+
+  function drawEnergyRing(w, h, timeline) {
+    if (!state.enableEnergyRing) return;
+    const start = timeline.cut - 0.2;
+    const end = timeline.cut + 0.42;
+    if (timeline.t < start || timeline.t > end) return;
+    const p = clamp((timeline.t - start) / (end - start), 0, 1);
+    const cx = w * state.logoX / 100;
+    const cy = h * state.logoY / 100;
+    const base = Math.min(w, h) * lerp(0.14, 0.54, easeOutCubic(p));
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angleRad(timeline.t * 180));
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 3; i += 1) {
+      const r = base + i * Math.min(w, h) * 0.055;
+      ctx.strokeStyle = rgba(i === 1 ? state.glowColor : state.primaryColor, (1 - p) * (0.58 - i * 0.1));
+      ctx.lineWidth = lerp(12, 2, p) * (1 - i * 0.18);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, -Math.PI * 0.12, Math.PI * 1.2);
+      ctx.stroke();
+      const ticks = 14;
+      for (let j = 0; j < ticks; j += 1) {
+        const a = (j / ticks) * Math.PI * 2;
+        const inner = r + 10;
+        const outer = r + 32 + state.intensity * 0.12;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+        ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawLensFlare(w, h, timeline) {
+    if (!state.enableLensFlare) return;
+    const start = timeline.cut - 0.28;
+    const end = timeline.cut + 0.32;
+    if (timeline.t < start || timeline.t > end) return;
+    const p = clamp((timeline.t - start) / (end - start), 0, 1);
+    const flash = Math.sin(p * Math.PI);
+    const cx = w * state.logoX / 100;
+    const cy = h * state.logoY / 100;
+    const dir = angleRad();
+    const dx = Math.cos(dir);
+    const dy = Math.sin(dir);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = flash * (0.38 + state.realism / 260);
+    ctx.strokeStyle = rgba(state.glowColor, 0.8);
+    ctx.lineWidth = 2 + state.intensity / 24;
+    ctx.beginPath();
+    ctx.moveTo(cx - dx * w * 0.55, cy - dy * h * 0.55);
+    ctx.lineTo(cx + dx * w * 0.55, cy + dy * h * 0.55);
+    ctx.stroke();
+
+    const sizes = [0.018, 0.034, 0.012, 0.052, 0.024];
+    for (let i = 0; i < sizes.length; i += 1) {
+      const dist = (i - 2) * w * 0.15 + (p - 0.5) * w * 0.18;
+      const x = cx + dx * dist;
+      const y = cy + dy * dist * 0.56;
+      const r = Math.min(w, h) * sizes[i];
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, rgba(i % 2 ? state.primaryColor : state.glowColor, 0.8));
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawVignette(w, h, timeline) {
+    if (!state.enableVignette) return;
+    const p = getPanelProgress(timeline);
+    const alpha = clamp((0.18 + p * 0.28) * (state.realism / 100), 0, 0.44);
+    const cx = w * 0.5;
+    const cy = h * 0.5;
+    const grad = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.18, cx, cy, Math.max(w, h) * 0.72);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(0.62, "rgba(0,0,0,0)");
+    grad.addColorStop(1, `rgba(0,0,0,${alpha})`);
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  function getCameraShake(timeline, w, h) {
+    if (!state.enableCameraShake) return { x: 0, y: 0 };
+    const impact = Math.max(0, 1 - Math.abs(timeline.t - timeline.cut) / 0.18);
+    const exit = Math.max(0, 1 - Math.abs(timeline.t - timeline.exitStart) / 0.13);
+    const force = Math.max(impact, exit * 0.55);
+    if (force <= 0) return { x: 0, y: 0 };
+    const amp = Math.min(w, h) * 0.011 * force * (state.intensity / 100) * (state.realism / 100);
+    const phase = timeline.t * 96;
+    return {
+      x: Math.sin(phase * 1.7) * amp,
+      y: Math.cos(phase * 2.1) * amp * 0.62
+    };
   }
 
   function drawLogoToLayer(w, h, timeline) {
@@ -491,7 +939,7 @@
     logoCtx.shadowColor = rgba(state.glowColor, 0.6);
     logoCtx.shadowBlur = 18 + state.intensity * 0.28;
 
-    if (blurSteps > 0) {
+    if (state.enableMotionBlur && blurSteps > 0) {
       for (let i = blurSteps; i >= 1; i--) {
         const ghost = i / blurSteps;
         logoCtx.globalAlpha = opacity * 0.08 * ghost;
@@ -500,7 +948,19 @@
       }
     }
 
+    if (state.enableChromatic) {
+      const glitchWindow = Math.max(0, 1 - Math.abs(t - timeline.cut) / 0.22);
+      const edge = (2 + state.intensity * 0.09) * (0.32 + glitchWindow);
+      logoCtx.save();
+      logoCtx.globalCompositeOperation = "lighter";
+      logoCtx.globalAlpha = opacity * (0.09 + glitchWindow * 0.13);
+      logoCtx.filter = `drop-shadow(${edge}px 0 0 ${state.primaryColor}) drop-shadow(${-edge}px 0 0 ${state.glowColor})`;
+      logoCtx.drawImage(processedLogo, -drawW / 2, -drawH / 2, drawW, drawH);
+      logoCtx.restore();
+    }
+
     logoCtx.globalAlpha = opacity;
+    logoCtx.filter = "none";
     logoCtx.drawImage(processedLogo, -drawW / 2, -drawH / 2, drawW, drawH);
     logoCtx.restore();
 
@@ -517,7 +977,7 @@
     logoCtx.save();
     logoCtx.globalCompositeOperation = "source-atop";
     logoCtx.translate(sweepX, h / 2);
-    logoCtx.rotate(state.sweepAngle * Math.PI / 180);
+    logoCtx.rotate(angleRad());
 
     const grad = logoCtx.createLinearGradient(-w * 0.28, 0, w * 0.28, 0);
     grad.addColorStop(0, "rgba(255,255,255,0)");
@@ -628,13 +1088,23 @@
     const timeline = getTimeline(currentTime);
 
     ctx.clearRect(0, 0, w, h);
+    const shake = getCameraShake(timeline, w, h);
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
+    drawVolumetricRays(w, h, timeline);
+    drawGlowMist(w, h, timeline);
     drawPanels(w, h, timeline);
+    drawShutterWipe(w, h, timeline);
     drawSplitBars(w, h, timeline);
+    drawEnergyRing(w, h, timeline);
     drawShockwave(w, h, timeline);
     drawParticles(w, h, timeline);
     drawLogoToLayer(w, h, timeline);
     ctx.drawImage(logoLayer, 0, 0);
+    drawLensFlare(w, h, timeline);
     drawTitleBadge(w, h, timeline);
+    drawVignette(w, h, timeline);
+    ctx.restore();
     drawPreviewBackgroundGuide(w, h);
     updateReadouts();
   }
@@ -707,7 +1177,16 @@
     if (state.previewBg === "court") shell.classList.add("bg-court");
   }
 
+  function normalizeState() {
+    state.sweepAngle = normalizeAngle(state.sweepAngle);
+    state.duration = Number(state.duration) || 2400;
+    state.transitionPoint = clamp(Number(state.transitionPoint) || 1000, 400, Math.max(500, state.duration - 300));
+    state.intensity = clamp(Number(state.intensity) || 72, 10, 100);
+    state.realism = clamp(Number(state.realism) || 68, 0, 100);
+  }
+
   function syncControls() {
+    normalizeState();
     for (const key of controls) {
       const el = $(key);
       if (!el) continue;
@@ -726,6 +1205,7 @@
     $("durationValue").textContent = `${state.duration}ms`;
     $("transitionPointValue").textContent = `${state.transitionPoint}ms`;
     $("intensityValue").textContent = `${state.intensity}%`;
+    $("realismValue").textContent = `${state.realism}%`;
     $("sweepAngleValue").textContent = `${state.sweepAngle}deg`;
     $("presetName").textContent = presets[state.preset]?.name || "Custom";
     document.querySelectorAll(".preset-card").forEach((card) => {
@@ -749,6 +1229,9 @@
       if (id === "whiteMatte") processLogo();
     } else if (event.target.type === "range" || event.target.type === "number" || id === "fps" || id === "bitrate") {
       state[id] = Number(event.target.value);
+      if (id === "sweepAngle") {
+        state[id] = normalizeAngle(state[id]);
+      }
       if (id === "duration") {
         state.transitionPoint = Math.min(state.transitionPoint, state.duration - 300);
       }
@@ -778,12 +1261,25 @@
       `<button class="preset-card" type="button" data-preset="${key}">
         <strong>${preset.name}</strong>
         <small>${preset.note}</small>
+        <em>${preset.category || "Preset"}</em>
       </button>`
     )).join("");
     grid.addEventListener("click", (event) => {
       const card = event.target.closest(".preset-card");
       if (card) applyPreset(card.dataset.preset);
     });
+  }
+
+  function openHelp(topic) {
+    const content = helpContent[topic] || helpContent.preview;
+    $("helpTitle").textContent = content.title;
+    $("helpIntro").textContent = content.intro;
+    $("helpBody").innerHTML = content.body;
+    $("helpModal").hidden = false;
+  }
+
+  function closeHelp() {
+    $("helpModal").hidden = true;
   }
 
   function getProjectJson() {
@@ -983,8 +1479,19 @@
     $("logoInput").addEventListener("change", (event) => loadLogoFile(event.target.files[0]));
     $("btnResetLogo").addEventListener("click", resetLogo);
     $("btnAutoPalette").addEventListener("click", sampleLogoPalette);
+    document.querySelectorAll(".help-btn").forEach((button) => {
+      button.addEventListener("click", () => openHelp(button.dataset.help));
+    });
+    $("helpClose").addEventListener("click", closeHelp);
+    $("helpModal").addEventListener("click", (event) => {
+      if (event.target === $("helpModal")) closeHelp();
+    });
 
     window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !$("helpModal").hidden) {
+        closeHelp();
+        return;
+      }
       if (event.target.matches("input, select")) return;
       if (event.code === "Space") {
         event.preventDefault();

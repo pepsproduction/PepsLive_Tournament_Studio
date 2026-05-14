@@ -18,10 +18,12 @@ pepslive-stinger-studio/
 ## ฟีเจอร์หลัก
 
 - โลโก้ PepsProduction อยู่มุมบนซ้ายของเว็บ
-- Preset สำเร็จรูป 6 แบบ
+- Preset สำเร็จรูป 14 แบบ แยกแนว Live Sport, TV, Arena, Replay, Sponsor และ Final
 - Canvas preview 16:9 พร้อม timeline scrubber
 - ตั้งค่า duration, OBS transition point, FPS, resolution, bitrate
-- Effect layers: curtain panels, alpha sweep, particles, shockwave, split bars, title badge
+- Effect layers: curtain panels, alpha sweep, particles, shockwave, split bars, light rays, lens flare, glow mist, energy ring, chromatic edge, shutter wipe, vignette, camera shake, motion blur, title badge
+- องศาแสงปรับได้ครบ 0-360 องศา
+- ปุ่ม `วิธีใช้` รายหมวด พร้อม popup อธิบายการใช้งาน
 - Auto White Matte สำหรับโลโก้ที่มีพื้นหลังขาว
 - ดูดสีจากโลโก้เพื่อทำ palette
 - Export เป็น `.webm` ด้วย MediaRecorder

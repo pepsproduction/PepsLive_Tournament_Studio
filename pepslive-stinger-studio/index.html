@@ -32,7 +32,10 @@
       <aside class="control-panel">
         <section class="control-section">
           <div class="section-head">
-            <h2>Preset</h2>
+            <div class="section-title">
+              <h2>Preset</h2>
+              <button class="help-btn" type="button" data-help="preset">วิธีใช้</button>
+            </div>
             <span id="presetName">Peps Impact</span>
           </div>
           <div class="preset-grid" id="presetGrid"></div>
@@ -40,7 +43,10 @@
 
         <section class="control-section">
           <div class="section-head">
-            <h2>Logo Layer</h2>
+            <div class="section-title">
+              <h2>Logo Layer</h2>
+              <button class="help-btn" type="button" data-help="logo">วิธีใช้</button>
+            </div>
             <span>PNG / JPG / SVG</span>
           </div>
           <label class="file-drop">
@@ -77,7 +83,10 @@
 
         <section class="control-section">
           <div class="section-head">
-            <h2>Timing</h2>
+            <div class="section-title">
+              <h2>Timing</h2>
+              <button class="help-btn" type="button" data-help="timing">วิธีใช้</button>
+            </div>
             <span id="durationBadge">2.4s</span>
           </div>
           <div class="field-grid two">
@@ -107,8 +116,11 @@
 
         <section class="control-section">
           <div class="section-head">
-            <h2>Motion FX</h2>
-            <span>Layer-based</span>
+            <div class="section-title">
+              <h2>Motion FX</h2>
+              <button class="help-btn" type="button" data-help="motion">วิธีใช้</button>
+            </div>
+            <span>Realistic Layers</span>
           </div>
           <div class="toggle-grid">
             <label><input id="enablePanels" type="checkbox" checked /> Curtain Panels</label>
@@ -116,6 +128,15 @@
             <label><input id="enableParticles" type="checkbox" checked /> Particles</label>
             <label><input id="enableShockwave" type="checkbox" checked /> Shockwave</label>
             <label><input id="enableBars" type="checkbox" checked /> Split Bars</label>
+            <label><input id="enableLightRays" type="checkbox" checked /> Light Rays</label>
+            <label><input id="enableLensFlare" type="checkbox" checked /> Lens Flare</label>
+            <label><input id="enableGlowMist" type="checkbox" checked /> Glow Mist</label>
+            <label><input id="enableEnergyRing" type="checkbox" checked /> Energy Ring</label>
+            <label><input id="enableChromatic" type="checkbox" checked /> Chromatic Edge</label>
+            <label><input id="enableShutter" type="checkbox" checked /> Shutter Wipe</label>
+            <label><input id="enableVignette" type="checkbox" checked /> Vignette</label>
+            <label><input id="enableCameraShake" type="checkbox" checked /> Camera Shake</label>
+            <label><input id="enableMotionBlur" type="checkbox" checked /> Motion Blur</label>
             <label><input id="enableLabel" type="checkbox" checked /> Title Badge</label>
           </div>
           <div class="field-grid two">
@@ -124,8 +145,12 @@
               <output id="intensityValue">72%</output>
             </label>
             <label>องศาแสง
-              <input id="sweepAngle" type="range" min="-45" max="45" value="22" />
+              <input id="sweepAngle" type="range" min="0" max="360" step="1" value="22" />
               <output id="sweepAngleValue">22deg</output>
+            </label>
+            <label>ความสมจริง
+              <input id="realism" type="range" min="0" max="100" value="68" />
+              <output id="realismValue">68%</output>
             </label>
             <label>Easing
               <select id="easing">
@@ -142,7 +167,10 @@
 
         <section class="control-section">
           <div class="section-head">
-            <h2>Color & Export</h2>
+            <div class="section-title">
+              <h2>Color & Export</h2>
+              <button class="help-btn" type="button" data-help="export">วิธีใช้</button>
+            </div>
             <span>OBS Ready</span>
           </div>
           <div class="color-grid">
@@ -183,6 +211,7 @@
             <h1>PepsLive Stinger Studio</h1>
             <p>สร้าง Stinger Transition สำหรับ OBS ด้วย preset, timeline, alpha inspector และ export package</p>
           </div>
+          <button class="help-btn preview-help" type="button" data-help="preview">วิธีใช้</button>
           <div class="metric-row">
             <span><b id="metricResolution">1920x1080</b><small>Canvas</small></span>
             <span><b id="metricFps">60</b><small>FPS</small></span>
@@ -233,6 +262,19 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop" id="helpModal" hidden>
+    <div class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="help-modal-head">
+        <div>
+          <h2 id="helpTitle">วิธีใช้</h2>
+          <p id="helpIntro">คำอธิบายหมวดนี้</p>
+        </div>
+        <button class="modal-close" id="helpClose" type="button" aria-label="ปิด">×</button>
+      </div>
+      <div class="help-body" id="helpBody"></div>
+    </div>
   </div>
 
   <script src="assets/js/app.js"></script>
