@@ -278,6 +278,7 @@
     height: 1080,
     bitrate: 50000000,
     previewQuality: "smooth",
+    previewLoop: false,
     logoSize: 42,
     logoX: 50,
     logoY: 50,
@@ -1135,13 +1136,21 @@
     if (isPlaying) cancelAnimationFrame(rafId);
     isPlaying = true;
     playStart = performance.now();
-    playOffset = currentTime;
+    playOffset = currentTime >= state.duration - 1 ? 0 : currentTime;
 
     const tick = (now) => {
       const elapsed = now - playStart + playOffset;
       if (elapsed >= state.duration) {
+        if (state.previewLoop) {
+          playStart = now;
+          playOffset = 0;
+          drawFrame(0, true);
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
         drawFrame(state.duration, true);
         isPlaying = false;
+        updateLoopButton();
         return;
       }
       drawFrame(elapsed);
@@ -1153,6 +1162,7 @@
   function pause() {
     isPlaying = false;
     cancelAnimationFrame(rafId);
+    updateLoopButton();
   }
 
   function setTimeFromTimeline(value) {
@@ -1212,6 +1222,15 @@
     if (!["smooth", "balanced", "full"].includes(state.previewQuality)) {
       state.previewQuality = "smooth";
     }
+    state.previewLoop = Boolean(state.previewLoop);
+  }
+
+  function updateLoopButton() {
+    const button = $("btnLoop");
+    if (!button) return;
+    button.classList.toggle("active", state.previewLoop);
+    button.setAttribute("aria-pressed", state.previewLoop ? "true" : "false");
+    button.textContent = state.previewLoop ? "Loop On" : "Loop Off";
   }
 
   function syncControls() {
@@ -1240,6 +1259,7 @@
     document.querySelectorAll(".preset-card").forEach((card) => {
       card.classList.toggle("active", card.dataset.preset === state.preset);
     });
+    updateLoopButton();
     setPreviewBg();
     setCanvasSize();
     updateReadouts();
@@ -1561,6 +1581,15 @@
     $("btnPlay").addEventListener("click", play);
     $("btnPlayTop").addEventListener("click", play);
     $("btnPause").addEventListener("click", pause);
+    $("btnLoop").addEventListener("click", () => {
+      state.previewLoop = !state.previewLoop;
+      updateLoopButton();
+      autosave();
+      if (state.previewLoop && !isPlaying && currentTime >= state.duration - 1) {
+        drawFrame(0, true);
+        play();
+      }
+    });
     $("btnAtPoint").addEventListener("click", () => {
       pause();
       drawFrame(state.transitionPoint);
@@ -1587,6 +1616,12 @@
         return;
       }
       if (event.target.matches("input, select")) return;
+      if (event.key.toLowerCase() === "l") {
+        state.previewLoop = !state.previewLoop;
+        updateLoopButton();
+        autosave();
+        return;
+      }
       if (event.code === "Space") {
         event.preventDefault();
         isPlaying ? pause() : play();
