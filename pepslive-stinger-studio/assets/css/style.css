@@ -284,6 +284,9 @@ button {
 
 .metric-row b {
   color: var(--orange-2);
+  font-size: 13px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .metric-row small {

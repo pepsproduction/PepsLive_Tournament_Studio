@@ -277,6 +277,7 @@
     width: 1920,
     height: 1080,
     bitrate: 50000000,
+    previewQuality: "smooth",
     logoSize: 42,
     logoX: 50,
     logoY: 50,
@@ -310,9 +311,9 @@
   };
 
   const canvas = $("stageCanvas");
-  const ctx = canvas.getContext("2d", { alpha: true, willReadFrequently: true });
+  const ctx = canvas.getContext("2d", { alpha: true });
   const logoLayer = document.createElement("canvas");
-  const logoCtx = logoLayer.getContext("2d", { alpha: true, willReadFrequently: true });
+  const logoCtx = logoLayer.getContext("2d", { alpha: true });
   const logoProcessCanvas = document.createElement("canvas");
   const logoProcessCtx = logoProcessCanvas.getContext("2d", { willReadFrequently: true });
 
@@ -326,9 +327,11 @@
   let playOffset = 0;
   let particles = [];
   let lastAutosave = 0;
+  let lastReadoutUpdate = 0;
+  let lastExportStatus = 0;
 
   const controls = [
-    "duration", "transitionPoint", "fps", "resolution", "logoSize", "logoX", "logoY", "logoRotate",
+    "duration", "transitionPoint", "fps", "resolution", "previewQuality", "logoSize", "logoX", "logoY", "logoRotate",
     "whiteMatte", "enablePanels", "enableSweep", "enableParticles", "enableShockwave", "enableBars",
     "enableLightRays", "enableLensFlare", "enableGlowMist", "enableEnergyRing", "enableChromatic",
     "enableShutter", "enableVignette", "enableCameraShake", "enableMotionBlur", "enableLabel",
@@ -492,16 +495,33 @@
     return x - Math.floor(x);
   }
 
-  function setCanvasSize() {
-    canvas.width = state.width;
-    canvas.height = state.height;
-    logoLayer.width = state.width;
-    logoLayer.height = state.height;
+  function effectQuality() {
+    if (isRecording || state.previewQuality === "full") return 1;
+    if (state.previewQuality === "balanced") return 0.76;
+    return 0.54;
+  }
+
+  function previewScale() {
+    if (isRecording || state.previewQuality === "full") return 1;
+    const maxPreviewWidth = state.previewQuality === "balanced" ? 1280 : 960;
+    return Math.min(1, maxPreviewWidth / state.width);
+  }
+
+  function setCanvasSize(force = false) {
+    const scale = previewScale();
+    const targetWidth = Math.max(2, Math.round(state.width * scale));
+    const targetHeight = Math.max(2, Math.round(state.height * scale));
+    if (!force && canvas.width === targetWidth && canvas.height === targetHeight) return;
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    logoLayer.width = targetWidth;
+    logoLayer.height = targetHeight;
     particles = buildParticles();
   }
 
   function buildParticles() {
-    const count = Math.round(42 + state.intensity * 1.35);
+    const count = Math.max(24, Math.round((42 + state.intensity * 1.35) * effectQuality()));
     return Array.from({ length: count }, (_, i) => ({
       angle: seeded(i + 1) * Math.PI * 2,
       radius: lerp(0.08, 0.58, seeded(i + 4)),
@@ -718,7 +738,7 @@
     const cx = w * state.logoX / 100;
     const cy = h * state.logoY / 100;
     const beamLength = Math.max(w, h) * 1.25;
-    const count = 8;
+    const count = Math.max(4, Math.round(8 * effectQuality()));
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
@@ -754,7 +774,8 @@
     const cy = h * state.logoY / 100;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    for (let i = 0; i < 10; i += 1) {
+    const mistCount = Math.max(4, Math.round(10 * effectQuality()));
+    for (let i = 0; i < mistCount; i += 1) {
       const angle = seeded(i + 51) * Math.PI * 2 + timeline.t * 0.7;
       const radius = Math.max(w, h) * lerp(0.04, 0.34, seeded(i + 54));
       const x = cx + Math.cos(angle) * radius;
@@ -816,7 +837,7 @@
       ctx.beginPath();
       ctx.arc(0, 0, r, -Math.PI * 0.12, Math.PI * 1.2);
       ctx.stroke();
-      const ticks = 14;
+      const ticks = Math.max(8, Math.round(14 * effectQuality()));
       for (let j = 0; j < ticks; j += 1) {
         const a = (j / ticks) * Math.PI * 2;
         const inner = r + 10;
@@ -1081,7 +1102,7 @@
     context.closePath();
   }
 
-  function drawFrame(timeMs) {
+  function drawFrame(timeMs, forceReadout = false) {
     currentTime = clamp(timeMs, 0, state.duration);
     const w = canvas.width;
     const h = canvas.height;
@@ -1106,7 +1127,7 @@
     drawVignette(w, h, timeline);
     ctx.restore();
     drawPreviewBackgroundGuide(w, h);
-    updateReadouts();
+    updateReadouts(forceReadout);
   }
 
   function play() {
@@ -1119,7 +1140,7 @@
     const tick = (now) => {
       const elapsed = now - playStart + playOffset;
       if (elapsed >= state.duration) {
-        drawFrame(state.duration);
+        drawFrame(state.duration, true);
         isPlaying = false;
         return;
       }
@@ -1136,10 +1157,14 @@
 
   function setTimeFromTimeline(value) {
     pause();
-    drawFrame((Number(value) / 1000) * state.duration);
+    drawFrame((Number(value) / 1000) * state.duration, true);
   }
 
-  function updateReadouts() {
+  function updateReadouts(force = false) {
+    const now = performance.now();
+    if (!force && (isPlaying || isRecording) && now - lastReadoutUpdate < 90) return;
+    lastReadoutUpdate = now;
+
     const progress = state.duration ? currentTime / state.duration : 0;
     $("timeline").value = Math.round(progress * 1000);
     $("timeReadout").textContent = `${Math.round(currentTime)}ms`;
@@ -1150,7 +1175,8 @@
     $("timelinePointLabel").textContent = `${state.transitionPoint}ms Cut`;
     $("timelineEndLabel").textContent = `${state.duration}ms`;
     $("durationBadge").textContent = `${(state.duration / 1000).toFixed(1)}s`;
-    $("metricResolution").textContent = `${state.width}x${state.height}`;
+    const previewText = canvas.width === state.width ? "" : ` / Preview ${canvas.width}x${canvas.height}`;
+    $("metricResolution").textContent = `${state.width}x${state.height}${previewText}`;
     $("metricFps").textContent = String(state.fps);
     $("metricAlpha").textContent = "Alpha ON";
     $("obsSettings").textContent = [
@@ -1183,6 +1209,9 @@
     state.transitionPoint = clamp(Number(state.transitionPoint) || 1000, 400, Math.max(500, state.duration - 300));
     state.intensity = clamp(Number(state.intensity) || 72, 10, 100);
     state.realism = clamp(Number(state.realism) || 68, 0, 100);
+    if (!["smooth", "balanced", "full"].includes(state.previewQuality)) {
+      state.previewQuality = "smooth";
+    }
   }
 
   function syncControls() {
@@ -1417,42 +1446,107 @@
 
     pause();
     isRecording = true;
+    setCanvasSize(true);
+    drawFrame(0, true);
+
     $("exportState").textContent = "กำลังเข้ารหัส WebM...";
     $("btnExport").textContent = "กำลังบันทึก...";
     $("btnExportTop").textContent = "Recording";
-    const stream = canvas.captureStream(state.fps);
-    const recorder = new MediaRecorder(stream, getRecorderOptions());
+
+    const fps = Number(state.fps) || 60;
+    const frameDuration = 1000 / fps;
+    const totalFrames = Math.ceil(state.duration / frameDuration);
+    let stream;
+    try {
+      stream = canvas.captureStream(0);
+    } catch (error) {
+      stream = canvas.captureStream(fps);
+    }
+    let videoTrack = stream.getVideoTracks()[0];
+    let canRequestFrame = Boolean(videoTrack && typeof videoTrack.requestFrame === "function");
+    if (!canRequestFrame) {
+      stream.getTracks().forEach((track) => track.stop());
+      stream = canvas.captureStream(fps);
+      videoTrack = stream.getVideoTracks()[0];
+      canRequestFrame = Boolean(videoTrack && typeof videoTrack.requestFrame === "function");
+    }
+    let recorder;
+    try {
+      recorder = new MediaRecorder(stream, getRecorderOptions());
+    } catch (error) {
+      recorder = new MediaRecorder(stream);
+    }
     const chunks = [];
+    let exportFailed = false;
 
     recorder.ondataavailable = (event) => {
       if (event.data?.size) chunks.push(event.data);
     };
 
+    recorder.onerror = () => {
+      exportFailed = true;
+      stream.getTracks().forEach((track) => track.stop());
+      isRecording = false;
+      setCanvasSize(true);
+      $("btnExport").textContent = "บันทึก WebM";
+      $("btnExportTop").textContent = "Export";
+      drawFrame(state.transitionPoint, true);
+      alert("Export ไม่สำเร็จ ลองลด FPS/Resolution หรือปิด Motion FX บางตัวแล้วบันทึกใหม่");
+    };
+
     recorder.onstop = () => {
+      if (exportFailed) return;
+      if (!chunks.length) {
+        stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        setCanvasSize(true);
+        $("btnExport").textContent = "บันทึก WebM";
+        $("btnExportTop").textContent = "Export";
+        drawFrame(state.transitionPoint, true);
+        alert("Export ไม่สำเร็จเพราะ browser ไม่ส่งข้อมูลวิดีโอ ลองใช้ Chrome/Edge รุ่นล่าสุด");
+        return;
+      }
+
       const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
       downloadBlob(blob, `pepslive-stinger-studio-${dateStamp()}.webm`);
       stream.getTracks().forEach((track) => track.stop());
       isRecording = false;
+      setCanvasSize(true);
       $("btnExport").textContent = "บันทึก WebM";
       $("btnExportTop").textContent = "Export";
-      drawFrame(state.transitionPoint);
+      drawFrame(state.transitionPoint, true);
       flashStatus(`Export สำเร็จ ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
     };
 
     recorder.start();
-    const recordStart = performance.now();
-    const render = (now) => {
-      const elapsed = now - recordStart;
-      drawFrame(Math.min(elapsed, state.duration));
-      $("exportState").textContent = `กำลังเข้ารหัส ${Math.round((elapsed / state.duration) * 100)}%`;
-      if (elapsed < state.duration) {
-        requestAnimationFrame(render);
+    let frameIndex = 0;
+    const startedAt = performance.now();
+    lastExportStatus = 0;
+
+    const renderExportFrame = () => {
+      const frameTime = Math.min(frameIndex * frameDuration, state.duration);
+      drawFrame(frameTime, frameIndex === 0 || frameIndex >= totalFrames);
+      if (canRequestFrame) videoTrack.requestFrame();
+
+      const now = performance.now();
+      if (now - lastExportStatus > 120 || frameIndex >= totalFrames) {
+        const percent = Math.min(100, Math.round((frameIndex / totalFrames) * 100));
+        $("exportState").textContent = `กำลังเข้ารหัส ${percent}%`;
+        lastExportStatus = now;
+      }
+
+      frameIndex += 1;
+      if (frameIndex <= totalFrames) {
+        const targetTime = startedAt + frameIndex * frameDuration;
+        const delay = Math.max(0, targetTime - performance.now());
+        window.setTimeout(() => requestAnimationFrame(renderExportFrame), delay);
       } else {
-        drawFrame(state.duration);
-        setTimeout(() => recorder.stop(), 120);
+        drawFrame(state.duration, true);
+        if (canRequestFrame) videoTrack.requestFrame();
+        window.setTimeout(() => recorder.stop(), Math.max(140, frameDuration * 2));
       }
     };
-    requestAnimationFrame(render);
+    requestAnimationFrame(renderExportFrame);
   }
 
   function bindEvents() {
