@@ -27,7 +27,7 @@
   const readTextPreview = () => { try { return JSON.parse(localStorage.getItem(DRAW_TEXT_PREVIEW_KEY) || 'null'); } catch { return null; } };
   const teamOf = (m, side) => clean(m?.[side] || m?.[side === 'teamA' ? 'home' : 'away'] || m?.teams?.[side === 'teamA' ? 0 : 1] || '');
   const scoreOf = (m, key) => { const v = m?.[key]; return v === '' || v == null ? '' : asNum(v); };
-  const isDone = (m) => String(m?.status || '').toLowerCase() === 'done';
+  const isDone = (m) => ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(clean(m?.status).toLowerCase());
 
   function removeDuplicateHealthPanel() {
     $('#phase8SourceHealth')?.remove();

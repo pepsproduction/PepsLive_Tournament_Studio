@@ -593,6 +593,8 @@
       if (copyBtn) copyText(sourceUrl(copyBtn.dataset.copySource), 'คัดลอก URL แล้ว');
       const previewBtn = e.target.closest('[data-preview-source]');
       if (previewBtn) window.open(sourceUrl(previewBtn.dataset.previewSource), '_blank');
+      const excelBtn = e.target.closest('[data-excel-export]');
+      if (excelBtn) exportExcelWorkbook(excelBtn.dataset.excelExport);
     }, true);
 
     document.addEventListener('keydown', (e) => {
@@ -1236,6 +1238,7 @@
     if (activePanel === 'scores') { renderScores(); renderStandings(); }
     if (activePanel === 'knockout') { renderOverrides(); renderKnockout(); }
     if (activePanel === 'sources') renderSourceCards();
+    if (activePanel === 'export') renderExcelExportPanel();
     if (activePanel === 'settings') { renderSettingsTools(); renderDebug(); }
 
     renderStepper();
@@ -2162,6 +2165,35 @@
     $('#sourceModal')?.classList.add('open');
   }
 
+  function renderExcelExportPanel() {
+    const panel = $('[data-panel="export"]');
+    if (!panel) return;
+    let box = $('#excelExportBox');
+    if (!box) {
+      box = document.createElement('section');
+      box.id = 'excelExportBox';
+      box.className = 'card';
+      const grid = panel.querySelector('.grid.two');
+      if (grid) grid.insertAdjacentElement('beforebegin', box);
+      else panel.appendChild(box);
+    }
+
+    const groups = getDisplayGroups(true);
+    const groupCount = Object.keys(groups).length;
+    const teamCount = Object.values(groups).flat().filter(Boolean).length;
+    const matchCount = state.matches.length;
+    box.innerHTML = `
+      <h3>Excel Export</h3>
+      <p class="hint">ดาวน์โหลดเป็นไฟล์ .xlsx สำหรับนำไปใช้ต่อใน Excel, Google Sheets หรือส่งให้ทีมงาน</p>
+      <div class="grid three">
+        <button class="btn primary" type="button" data-excel-export="groups">Download Groups Excel</button>
+        <button class="btn primary" type="button" data-excel-export="schedule">Download Schedule Excel</button>
+        <button class="btn" type="button" data-excel-export="all">Download Groups + Schedule</button>
+      </div>
+      <div id="excelStatus" class="notice">พร้อม Export: ${groupCount} กลุ่ม / ${teamCount} ทีม / ${matchCount} คู่แข่ง</div>
+    `;
+  }
+
   function renderDebug() {
     const box = $('#debugState');
     if (box) box.textContent = JSON.stringify(state, null, 2);
@@ -2451,6 +2483,252 @@
       }
     };
     reader.readAsText(file);
+  }
+
+  function exportExcelWorkbook(kind = 'all') {
+    const sheets = buildExcelSheets(kind);
+    if (!sheets.length) {
+      toast('ยังไม่มีข้อมูลสำหรับ Export Excel', 'warn');
+      return;
+    }
+
+    const blob = buildXlsxBlob(sheets);
+    const eventName = state.event.name || 'PepsLive Tournament';
+    const suffix = kind === 'groups' ? 'groups' : kind === 'schedule' ? 'schedule' : 'groups_schedule';
+    downloadBlob(blob, `${safeFileName(eventName)}_${suffix}.xlsx`);
+    const status = $('#excelStatus');
+    if (status) status.textContent = `Export Excel แล้ว: ${eventName} (${suffix})`;
+    toast('ดาวน์โหลดไฟล์ Excel แล้ว', 'good');
+  }
+
+  function buildExcelSheets(kind) {
+    const sheets = [excelSheet('Event Info', eventInfoRows())];
+    if (kind === 'groups' || kind === 'all') {
+      const groups = getDisplayGroups(true);
+      sheets.push(excelSheet('Groups', groupRows(groups)));
+      Object.keys(groups).sort().forEach((group) => {
+        sheets.push(excelSheet(`Group ${group}`, singleGroupRows(group, groups[group] || [])));
+      });
+    }
+    if (kind === 'schedule' || kind === 'all') {
+      sheets.push(excelSheet('Schedule', scheduleRows()));
+    }
+    return sheets;
+  }
+
+  function excelSheet(name, rows) {
+    return { name: safeSheetName(name), rows: rows.map((row) => row.map((value) => value ?? '')) };
+  }
+
+  function eventInfoRows() {
+    return [
+      ['รายการ', state.event.name || 'PepsLive Tournament'],
+      ['ประเภทกีฬา', state.event.sport || ''],
+      ['Preset', state.event.preset || ''],
+      ['จำนวนกลุ่ม', state.event.groupCount || ''],
+      ['จำนวนสนาม', state.event.courtCount || ''],
+      ['เวลาเริ่มแข่ง', state.event.startTime || ''],
+      ['ระยะห่างแต่ละคู่ (นาที)', state.event.matchInterval || ''],
+      ['Exported At', new Date().toLocaleString('th-TH')],
+      ['Version', APP_VERSION]
+    ];
+  }
+
+  function groupRows(groups = getDisplayGroups(true)) {
+    const rows = [
+      ['รายการ', state.event.name || 'PepsLive Tournament'],
+      ['Exported At', new Date().toLocaleString('th-TH')],
+      [],
+      ['กลุ่ม', 'ลำดับ', 'ทีม', 'BYE']
+    ];
+    Object.keys(groups || {}).sort().forEach((group) => {
+      (groups[group] || []).forEach((team, index) => {
+        rows.push([group, index + 1, team || '', team === 'BYE' ? 'YES' : '']);
+      });
+    });
+    return rows;
+  }
+
+  function singleGroupRows(group, teams) {
+    return [
+      ['รายการ', state.event.name || 'PepsLive Tournament'],
+      ['กลุ่ม', group],
+      ['Exported At', new Date().toLocaleString('th-TH')],
+      [],
+      ['ลำดับ', 'ทีม', 'BYE'],
+      ...(teams || []).map((team, index) => [index + 1, team || '', team === 'BYE' ? 'YES' : ''])
+    ];
+  }
+
+  function scheduleRows() {
+    const rows = [
+      ['รายการ', state.event.name || 'PepsLive Tournament'],
+      ['Exported At', new Date().toLocaleString('th-TH')],
+      [],
+      ['ลำดับ', 'เวลา', 'สนาม', 'กลุ่ม', 'ทีม A', 'ทีม B', 'สถานะ', 'คะแนน A', 'คะแนน B', 'Match ID']
+    ];
+    (state.matches || []).forEach((match, index) => {
+      rows.push([
+        index + 1,
+        match.time || match.startTime || '',
+        match.court || match.field || '',
+        match.group || '',
+        match.teamA || '',
+        match.teamB || '',
+        match.status || 'Pending',
+        match.scoreA ?? '',
+        match.scoreB ?? '',
+        match.id || ''
+      ]);
+    });
+    return rows;
+  }
+
+  function buildXlsxBlob(sheets) {
+    const files = {
+      '[Content_Types].xml': contentTypesXml(sheets),
+      '_rels/.rels': rootRelsXml(),
+      'docProps/app.xml': appPropsXml(),
+      'docProps/core.xml': corePropsXml(),
+      'xl/workbook.xml': workbookXml(sheets),
+      'xl/_rels/workbook.xml.rels': workbookRelsXml(sheets),
+      'xl/styles.xml': stylesXml()
+    };
+    sheets.forEach((sheet, index) => {
+      files[`xl/worksheets/sheet${index + 1}.xml`] = worksheetXml(sheet.rows);
+    });
+    return new Blob([zipFiles(files)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  function contentTypesXml(sheets) {
+    return xmlHeader() + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;
+  }
+
+  function rootRelsXml() {
+    return xmlHeader() + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>';
+  }
+
+  function appPropsXml() {
+    return xmlHeader() + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>PepsLive Tournament Studio</Application></Properties>';
+  }
+
+  function corePropsXml() {
+    const now = new Date().toISOString();
+    return xmlHeader() + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEsc(state.event.name || 'PepsLive Tournament')}</dc:title><dc:creator>PepsLive Tournament Studio</dc:creator><cp:lastModifiedBy>PepsLive Tournament Studio</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
+  }
+
+  function workbookXml(sheets) {
+    return xmlHeader() + `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sheet, index) => `<sheet name="${xmlEsc(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join('')}</sheets></workbook>`;
+  }
+
+  function workbookRelsXml(sheets) {
+    return xmlHeader() + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  }
+
+  function stylesXml() {
+    return xmlHeader() + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  }
+
+  function worksheetXml(rows) {
+    const colCount = Math.max(1, ...rows.map((row) => row.length));
+    const cols = Array.from({ length: colCount }, (_, i) => `<col min="${i + 1}" max="${i + 1}" width="${i < 2 ? 18 : 28}" customWidth="1"/>`).join('');
+    const body = rows.map((row, rIndex) => {
+      const cells = row.map((value, cIndex) => cellXml(value, rIndex + 1, cIndex + 1, rIndex === 0 || rIndex === 3 || rIndex === 4));
+      return `<row r="${rIndex + 1}">${cells.join('')}</row>`;
+    }).join('');
+    return xmlHeader() + `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${cols}</cols><sheetData>${body}</sheetData></worksheet>`;
+  }
+
+  function cellXml(value, row, col, header = false) {
+    const ref = `${excelColumn(col)}${row}`;
+    const style = header ? ' s="1"' : '';
+    if (typeof value === 'number' && Number.isFinite(value)) return `<c r="${ref}"${style}><v>${value}</v></c>`;
+    return `<c r="${ref}" t="inlineStr"${style}><is><t>${xmlEsc(value)}</t></is></c>`;
+  }
+
+  function zipFiles(files) {
+    const encoder = new TextEncoder();
+    const entries = Object.entries(files).map(([name, content]) => ({ name, nameBytes: encoder.encode(name), data: encoder.encode(content) }));
+    const chunks = [];
+    const central = [];
+    let offset = 0;
+    entries.forEach((entry) => {
+      const crc = crc32(entry.data);
+      const local = concatBytes([
+        le32(0x04034b50), le16(20), le16(0), le16(0), le16(0), le16(0),
+        le32(crc), le32(entry.data.length), le32(entry.data.length),
+        le16(entry.nameBytes.length), le16(0), entry.nameBytes, entry.data
+      ]);
+      chunks.push(local);
+      central.push(concatBytes([
+        le32(0x02014b50), le16(20), le16(20), le16(0), le16(0), le16(0), le16(0),
+        le32(crc), le32(entry.data.length), le32(entry.data.length),
+        le16(entry.nameBytes.length), le16(0), le16(0), le16(0), le16(0), le32(0), le32(offset), entry.nameBytes
+      ]));
+      offset += local.length;
+    });
+    const centralSize = central.reduce((sum, item) => sum + item.length, 0);
+    const end = concatBytes([
+      le32(0x06054b50), le16(0), le16(0), le16(entries.length), le16(entries.length),
+      le32(centralSize), le32(offset), le16(0)
+    ]);
+    return concatBytes([...chunks, ...central, end]);
+  }
+
+  const CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i += 1) {
+      let c = i;
+      for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      table[i] = c >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < bytes.length; i += 1) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function le16(v) { return new Uint8Array([v & 255, (v >>> 8) & 255]); }
+  function le32(v) { return new Uint8Array([v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]); }
+  function concatBytes(parts) {
+    const total = parts.reduce((sum, part) => sum + part.length, 0);
+    const out = new Uint8Array(total);
+    let at = 0;
+    parts.forEach((part) => { out.set(part, at); at += part.length; });
+    return out;
+  }
+
+  function downloadBlob(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 800);
+  }
+
+  function xmlHeader() { return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'; }
+  function xmlEsc(value) {
+    return String(value ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[m]));
+  }
+  function excelColumn(index) {
+    let name = '';
+    while (index > 0) {
+      const mod = (index - 1) % 26;
+      name = String.fromCharCode(65 + mod) + name;
+      index = Math.floor((index - mod) / 26);
+    }
+    return name;
+  }
+  function safeSheetName(name) {
+    return String(name || 'Sheet').replace(/[:\\/?*\[\]]/g, ' ').slice(0, 31).trim() || 'Sheet';
+  }
+  function safeFileName(name) {
+    return String(name || 'pepslive').trim().replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '_').replace(/\s+/g, '_').slice(0, 80) || 'pepslive';
   }
 
   function exportText(kind) {

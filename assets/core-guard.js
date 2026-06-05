@@ -61,7 +61,10 @@
   function realTeams(state) { return Array.isArray(state.teams) ? state.teams.filter((t) => clean(t) && !isBye(t)) : []; }
   function groupTeams(state) { const groups = state.groups && typeof state.groups === 'object' ? state.groups : {}; return Object.values(groups).flat().filter((t) => clean(t) && !isBye(t)); }
   function realMatches(state) { const matches = Array.isArray(state.matches) ? state.matches : []; return matches.filter((m) => !isBye(m.teamA) && !isBye(m.teamB)); }
-  function doneMatches(state) { return realMatches(state).filter((m) => String(m.status || '').toLowerCase() === 'done'); }
+  function isCompleteStatus(status) {
+    return ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(clean(status).toLowerCase());
+  }
+  function doneMatches(state) { return realMatches(state).filter((m) => isCompleteStatus(m.status)); }
   function getChecks() {
     const state = readState(); const matches = realMatches(state); const done = doneMatches(state);
     return { setup: !!(state.event && clean(state.event.name) && Number(state.event.groupCount || 0) > 0), teams: realTeams(state).length > 0, drawConfirmed: groupTeams(state).length > 0, schedule: matches.length > 0, scoresComplete: matches.length > 0 && done.length >= matches.length, standings: !!(state.standings && typeof state.standings === 'object' && Object.keys(state.standings).length), matchCount: matches.length, doneCount: done.length };

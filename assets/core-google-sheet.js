@@ -26,6 +26,8 @@
   }
   function clean(v) { return String(v ?? '').trim(); }
   function isBye(v) { return clean(v).toUpperCase() === 'BYE'; }
+  function statusOf(m) { return clean(m?.status).toLowerCase(); }
+  function isCompleteStatus(m) { return ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(statusOf(m)); }
   function esc(v) { return String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
   function num(v, fallback = 0) { const n = Number(v); return Number.isFinite(n) ? n : fallback; }
   function nowIso() { return new Date().toISOString(); }
@@ -34,6 +36,9 @@
   function matchWinner(m) {
     const w = clean(m?.winner || m?.winnerTeam);
     if (w) return w;
+    const status = statusOf(m);
+    if (status === 'forfeit a') return matchTeam(m, 'teamB');
+    if (status === 'forfeit b' || status === 'bye') return matchTeam(m, 'teamA');
     const a = matchScore(m, 'scoreA'), b = matchScore(m, 'scoreB');
     if (a === '' || b === '' || a === b) return '';
     return a > b ? matchTeam(m, 'teamA') : matchTeam(m, 'teamB');
@@ -77,10 +82,19 @@
       matches.forEach((m) => {
         const a = matchTeam(m, 'teamA'), b = matchTeam(m, 'teamB');
         if (!map.has(a) || !map.has(b) || isBye(a) || isBye(b)) return;
-        if (String(m.status || '').toLowerCase() !== 'done') return;
+        const ra = map.get(a), rb = map.get(b);
+        if (!isCompleteStatus(m)) return;
+        const status = statusOf(m);
+        if (status === 'forfeit a') {
+          applyFallbackWinLoss(rb, ra, state, 2, 0);
+          return;
+        }
+        if (status === 'forfeit b' || status === 'bye') {
+          applyFallbackWinLoss(ra, rb, state, 2, 0);
+          return;
+        }
         const sa = matchScore(m, 'scoreA'), sb = matchScore(m, 'scoreB');
         if (sa === '' || sb === '') return;
-        const ra = map.get(a), rb = map.get(b);
         ra.gf += sa; ra.ga += sb; rb.gf += sb; rb.ga += sa;
         ra.gd = ra.gf - ra.ga; rb.gd = rb.gf - rb.ga;
         if (sa > sb) { ra.w += 1; rb.l += 1; ra.pts += num(state.event?.pointsWin, 3); rb.pts += num(state.event?.pointsLoss, 0); }
@@ -91,6 +105,16 @@
       rows.forEach((r, i) => { r.rank = i + 1; });
       return [group, rows];
     }).filter(([, rows]) => rows.length);
+  }
+
+  function applyFallbackWinLoss(winner, loser, state, gf, ga) {
+    winner.w += 1; loser.l += 1;
+    winner.gf += gf; winner.ga += ga;
+    loser.gf += ga; loser.ga += gf;
+    winner.gd = winner.gf - winner.ga;
+    loser.gd = loser.gf - loser.ga;
+    winner.pts += num(state.event?.pointsWin, 3);
+    loser.pts += num(state.event?.pointsLoss, 0);
   }
 
   function tieBreakRows(state) {
@@ -149,7 +173,7 @@
       })),
       Standings: standingsEntries.flatMap(([group, rows]) => rows.map((r, i) => ({
         Group: group, Rank: r.rank || i + 1, TeamName: r.team, PTS: r.pts, W: r.w, D: r.d, L: r.l, GF: r.gf, GA: r.ga, GD: r.gd, Qualified: qualifiedSet.has(r.team), TieNote: ''
-      })),
+      }))),
       Tie_Break: tieBreakRows(state),
       Knockout: knockout.map((m, i) => ({
         MatchID: m.id || `KO${String(i + 1).padStart(2, '0')}`, Round: m.round || m.stage || 'Knockout', TeamA: matchTeam(m, 'teamA'), ScoreA: matchScore(m, 'scoreA'), ScoreB: matchScore(m, 'scoreB'), TeamB: matchTeam(m, 'teamB'),

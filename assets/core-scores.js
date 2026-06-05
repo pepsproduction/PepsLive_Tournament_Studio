@@ -20,7 +20,9 @@
   function asNum(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n : d; }
   function getMatches(state) { return Array.isArray(state.matches) ? state.matches : []; }
   function realMatches(state) { return getMatches(state).filter((m) => !isBye(teamOf(m, 'teamA')) && !isBye(teamOf(m, 'teamB'))); }
-  function isDone(m) { return String(m?.status || '').toLowerCase() === 'done'; }
+  function statusOf(m) { return cleanText(m?.status).toLowerCase(); }
+  function isDone(m) { return ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(statusOf(m)); }
+  function needsScore(m) { return ['done', 'finished'].includes(statusOf(m)); }
   function teamOf(m, side) { return cleanText(m?.[side] || m?.[side === 'teamA' ? 'home' : 'away'] || m?.teams?.[side === 'teamA' ? 0 : 1] || ''); }
   function scoreValue(m, key) {
     const v = m?.[key];
@@ -78,11 +80,20 @@
         const a = teamOf(m, 'teamA');
         const b = teamOf(m, 'teamB');
         if (!byTeam.has(a) || !byTeam.has(b) || isBye(a) || isBye(b) || !isDone(m)) return;
+        const ra = byTeam.get(a);
+        const rb = byTeam.get(b);
+        const status = statusOf(m);
+        if (status === 'forfeit a') {
+          applyFallbackWinLoss(rb, ra, state, 2, 0);
+          return;
+        }
+        if (status === 'forfeit b' || status === 'bye') {
+          applyFallbackWinLoss(ra, rb, state, 2, 0);
+          return;
+        }
         const sa = scoreValue(m, 'scoreA');
         const sb = scoreValue(m, 'scoreB');
         if (sa === null || sb === null || Number.isNaN(sa) || Number.isNaN(sb)) return;
-        const ra = byTeam.get(a);
-        const rb = byTeam.get(b);
         ra.gf += sa; ra.ga += sb; ra.gd = ra.gf - ra.ga;
         rb.gf += sb; rb.ga += sa; rb.gd = rb.gf - rb.ga;
         if (sa > sb) {
@@ -107,6 +118,14 @@
     return entries;
   }
 
+  function applyFallbackWinLoss(winner, loser, state, gf, ga) {
+    winner.w += 1; loser.l += 1;
+    winner.gf += gf; winner.ga += ga; winner.gd = winner.gf - winner.ga;
+    loser.gf += ga; loser.ga += gf; loser.gd = loser.gf - loser.ga;
+    winner.pts += asNum(state.event?.pointsWin, 3);
+    loser.pts += asNum(state.event?.pointsLoss, 0);
+  }
+
   function standingsEntries(state) {
     const fromState = standingsEntriesFromState(state);
     return fromState.length ? fromState : computeStandingsEntries(state);
@@ -128,7 +147,7 @@
       const a = scoreValue(m, 'scoreA');
       const b = scoreValue(m, 'scoreB');
       if (Number.isNaN(a) || Number.isNaN(b)) invalid.push(matchName(m));
-      if (isDone(m) && (a === null || b === null)) blankDone.push(matchName(m));
+      if (needsScore(m) && (a === null || b === null)) blankDone.push(matchName(m));
       if (!isDone(m) && hasAnyScore(m)) partial.push(matchName(m));
     });
     const rows = standingsRows(state);

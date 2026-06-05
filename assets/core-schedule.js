@@ -17,7 +17,9 @@
   }
   function cleanText(v) { return String(v || '').trim(); }
   function isBye(v) { return cleanText(v).toUpperCase() === 'BYE'; }
-  function isDone(m) { return String(m?.status || '').toLowerCase() === 'done'; }
+  function isDone(m) {
+    return ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(cleanText(m?.status).toLowerCase());
+  }
   function getMatches(state) { return Array.isArray(state.matches) ? state.matches : []; }
   function realMatches(state) { return getMatches(state).filter((m) => !isBye(m.teamA) && !isBye(m.teamB)); }
   function byeMatches(state) { return getMatches(state).filter((m) => isBye(m.teamA) || isBye(m.teamB)); }

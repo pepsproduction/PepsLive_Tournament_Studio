@@ -461,6 +461,9 @@
     const winner = clean(m.winner || m.winnerTeam);
     return winner || inferWinnerFromScores(m);
   }
+  function isCompleteStatus(status) {
+    return ['done', 'finished'].includes(clean(status).toLowerCase());
+  }
 
   function loserOf(m) {
     const winner = winnerOf(m);
@@ -670,7 +673,7 @@
   }
 
   function findLatestKnockoutResult(state) {
-    const done = getKnockoutMatches(state).reverse().find((m) => m.winner || clean(m.status).toLowerCase() === 'done');
+    const done = getKnockoutMatches(state).reverse().find((m) => m.winner || isCompleteStatus(m.status));
     if (!done) return null;
     return {
       teamA: done.teamA,
