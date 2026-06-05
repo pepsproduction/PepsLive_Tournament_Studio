@@ -1180,6 +1180,146 @@
     );
   }
 
+  function hasCompletedGroupMatches() {
+    return (state.matches || []).some((m) => ['Finished', 'Bye', 'Forfeit A', 'Forfeit B'].includes(m.status));
+  }
+
+  function knockoutSeedInfo(group, rank) {
+    const groups = getDisplayGroups(true);
+    const standingsRows = sortedStandings(state.standings?.[group] || {});
+    const resolved = hasCompletedGroupMatches() && standingsRows.length >= rank;
+    const fallbackTeam = (groups[group] || []).filter((team) => team && team !== 'BYE')[rank - 1] || '';
+    return {
+      group,
+      rank,
+      seed: `${group}${rank}`,
+      label: `ที่ ${rank} สาย ${group}`,
+      team: resolved ? (standingsRows[rank - 1]?.team || '') : '',
+      draftTeam: resolved ? (standingsRows[rank - 1]?.team || '') : fallbackTeam,
+      resolved
+    };
+  }
+
+  function buildKnockoutPreviewPlan() {
+    calculateStandings();
+    const groups = getDisplayGroups(true);
+    const groupKeys = Object.keys(groups || {})
+      .sort()
+      .filter((group) => (groups[group] || []).some((team) => team && team !== 'BYE'));
+    const perGroup = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
+    if (groupKeys.length < 2) return [];
+
+    const firstRound = [];
+    const addMatch = (id, round, a, b) => {
+      firstRound.push({
+        id,
+        round,
+        seedA: a.seed,
+        seedB: b.seed,
+        labelA: a.label,
+        labelB: b.label,
+        teamA: a.team,
+        teamB: b.team,
+        draftTeamA: a.draftTeam,
+        draftTeamB: b.draftTeam,
+        note: a.resolved || b.resolved ? 'จากอันดับปัจจุบัน' : 'รอผลอันดับจริง'
+      });
+    };
+
+    if (perGroup >= 2) {
+      for (let i = 0; i < groupKeys.length; i += 2) {
+        const left = groupKeys[i];
+        const right = groupKeys[i + 1];
+        if (!right) break;
+        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', knockoutSeedInfo(left, 1), knockoutSeedInfo(right, 2));
+        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', knockoutSeedInfo(right, 1), knockoutSeedInfo(left, 2));
+      }
+    } else {
+      for (let i = 0; i < groupKeys.length; i += 2) {
+        const left = groupKeys[i];
+        const right = groupKeys[i + 1];
+        if (!right) break;
+        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', knockoutSeedInfo(left, 1), knockoutSeedInfo(right, 1));
+      }
+    }
+
+    if (perGroup > 2) {
+      const extraSeeds = [];
+      groupKeys.forEach((group) => {
+        for (let rank = 3; rank <= perGroup; rank += 1) extraSeeds.push(knockoutSeedInfo(group, rank));
+      });
+      for (let i = 0; i < extraSeeds.length; i += 2) {
+        if (!extraSeeds[i + 1]) break;
+        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', extraSeeds[i], extraSeeds[i + 1]);
+      }
+    }
+
+    const firstCount = firstRound.length;
+    firstRound.forEach((match) => {
+      match.round = firstCount <= 2 ? 'Semi Final' : firstCount <= 4 ? 'Quarter Final' : 'Knockout Round 1';
+    });
+
+    const plan = [...firstRound];
+    if (firstCount === 4) {
+      for (let i = 0; i < 2; i += 1) {
+        const left = firstRound[i * 2]?.id || `KO-${i * 2 + 1}`;
+        const right = firstRound[i * 2 + 1]?.id || `KO-${i * 2 + 2}`;
+        plan.push({
+          id: `SF-${i + 1}`,
+          round: 'Semi Final',
+          seedA: `Winner ${left}`,
+          seedB: `Winner ${right}`,
+          labelA: `ผู้ชนะ ${left}`,
+          labelB: `ผู้ชนะ ${right}`,
+          teamA: '',
+          teamB: '',
+          draftTeamA: '',
+          draftTeamB: '',
+          note: 'รอผลรอบก่อนหน้า'
+        });
+      }
+      plan.push({ id: 'FINAL', round: 'Final', seedA: 'Winner SF-1', seedB: 'Winner SF-2', labelA: 'ผู้ชนะ SF-1', labelB: 'ผู้ชนะ SF-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
+      if (state.event.enableThird !== false) plan.push({ id: 'THIRD', round: 'Third Place', seedA: 'Loser SF-1', seedB: 'Loser SF-2', labelA: 'ผู้แพ้ SF-1', labelB: 'ผู้แพ้ SF-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
+    } else if (firstCount > 4) {
+      for (let i = 0; i < firstCount; i += 2) {
+        const left = firstRound[i]?.id || `KO-${i + 1}`;
+        const right = firstRound[i + 1]?.id || `KO-${i + 2}`;
+        plan.push({
+          id: `NEXT-${(i / 2) + 1}`,
+          round: 'Next Round',
+          seedA: `Winner ${left}`,
+          seedB: `Winner ${right}`,
+          labelA: `ผู้ชนะ ${left}`,
+          labelB: `ผู้ชนะ ${right}`,
+          teamA: '',
+          teamB: '',
+          draftTeamA: '',
+          draftTeamB: '',
+          note: 'รอบต่อไปสำหรับจัดต่อใน Excel'
+        });
+      }
+    } else if (firstCount === 2) {
+      plan.push({ id: 'FINAL', round: 'Final', seedA: 'Winner KO-1', seedB: 'Winner KO-2', labelA: 'ผู้ชนะ KO-1', labelB: 'ผู้ชนะ KO-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
+      if (state.event.enableThird !== false) plan.push({ id: 'THIRD', round: 'Third Place', seedA: 'Loser KO-1', seedB: 'Loser KO-2', labelA: 'ผู้แพ้ KO-1', labelB: 'ผู้แพ้ KO-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
+    }
+    return plan;
+  }
+
+  function renderKnockoutPreviewHtml() {
+    const plan = buildKnockoutPreviewPlan();
+    if (!plan.length) return '<div class="notice">Knockout Preview: ต้องมีอย่างน้อย 2 สายก่อน จึงจะจัดคู่จำลองได้</div>';
+    return `
+      <div class="card compact knockout-preview-card">
+        <h3>Knockout Preview / Seed Plan</h3>
+        <p class="hint">แบบจำลองคู่รอบ Knockout สำหรับเตรียมไฟล์งาน: ใช้ seed เช่น ที่ 1 สาย A vs ที่ 2 สาย B และจะเติมชื่อทีมเมื่อมีอันดับจริงแล้ว</p>
+        <div class="tablewrap"><table>
+          <thead><tr><th>รอบ</th><th>Match</th><th>Seed A</th><th>ทีม A</th><th>Seed B</th><th>ทีม B</th><th>หมายเหตุ</th></tr></thead>
+          <tbody>${plan.map((match) => `<tr><td>${esc(match.round)}</td><td>${esc(match.id)}</td><td>${esc(match.labelA)}</td><td>${esc(match.teamA || match.draftTeamA || '')}</td><td>${esc(match.labelB)}</td><td>${esc(match.teamB || match.draftTeamB || '')}</td><td>${esc(match.note)}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    `;
+  }
+
   function generateKnockout() {
     calculateStandings();
     const q = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
@@ -2045,12 +2185,13 @@
       return;
     }
     if (!state.matches.length) {
-      box.innerHTML = '<div class="notice">ยังไม่มีตารางแข่ง</div>';
+      box.innerHTML = `<div class="notice">ยังไม่มีตารางแข่ง</div>${renderKnockoutPreviewHtml()}`;
       return;
     }
     box.innerHTML = `
       <div class="tablewrap"><table><thead><tr><th>เวลา</th><th>สนาม</th><th>สาย</th><th>ทีม A</th><th>ทีม B</th><th>สถานะ</th></tr></thead>
       <tbody>${state.matches.map(m => `<tr><td>${esc(m.time)}</td><td>${esc(m.court)}</td><td>${esc(m.group)}</td><td>${esc(m.teamA)}</td><td>${esc(m.teamB)}</td><td>${esc(m.status)}</td></tr>`).join('')}</tbody></table></div>
+      ${renderKnockoutPreviewHtml()}
     `;
   }
 
@@ -2089,7 +2230,7 @@
       <h3>สาย ${esc(g)}</h3>
       <div class="tablewrap"><table><thead><tr><th>#</th><th>ทีม</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>PTS</th></tr></thead>
       <tbody>${sortedStandings(state.standings[g]).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.team)}</td><td>${r.P}</td><td>${r.W}</td><td>${r.D}</td><td>${r.L}</td><td>${r.GF}</td><td>${r.GA}</td><td>${r.GD}</td><td><b>${r.PTS}</b></td></tr>`).join('')}</tbody></table></div>
-    `).join('');
+    `).join('') + renderKnockoutPreviewHtml();
   }
 
   function renderOverrides() {
@@ -2184,7 +2325,7 @@
     const matchCount = state.matches.length;
     box.innerHTML = `
       <h3>Excel Export</h3>
-      <p class="hint">ดาวน์โหลดเป็นไฟล์ .xlsx สำหรับนำไปใช้ต่อใน Excel, Google Sheets หรือส่งให้ทีมงาน</p>
+      <p class="hint">ดาวน์โหลดเป็นไฟล์ .xlsx สำหรับนำไปใช้ต่อใน Excel, Google Sheets หรือส่งให้ทีมงาน พร้อม sheet Knockout Preview ในไฟล์ตารางแข่ง</p>
       <div class="grid three">
         <button class="btn primary" type="button" data-excel-export="groups">Download Groups Excel</button>
         <button class="btn primary" type="button" data-excel-export="schedule">Download Schedule Excel</button>
@@ -2512,6 +2653,7 @@
     }
     if (kind === 'schedule' || kind === 'all') {
       sheets.push(excelSheet('Schedule', scheduleRows()));
+      sheets.push(excelSheet('Knockout Preview', knockoutPreviewRows()));
     }
     return sheets;
   }
@@ -2579,6 +2721,35 @@
         match.scoreA ?? '',
         match.scoreB ?? '',
         match.id || ''
+      ]);
+    });
+    return rows;
+  }
+
+  function knockoutPreviewRows() {
+    const plan = buildKnockoutPreviewPlan();
+    const rows = [
+      ['รายการ', state.event.name || 'PepsLive Tournament'],
+      ['Exported At', new Date().toLocaleString('th-TH')],
+      ['รูปแบบ', 'Seed preview สำหรับแก้ไขต่อใน Excel'],
+      [],
+      ['รอบ', 'Match ID', 'Seed A', 'ทีม A ตามอันดับปัจจุบัน', 'ทีม A Draft', 'Seed B', 'ทีม B ตามอันดับปัจจุบัน', 'ทีม B Draft', 'หมายเหตุ']
+    ];
+    if (!plan.length) {
+      rows.push(['', '', 'ยังไม่มีข้อมูล seed', '', '', '', '', '', 'ต้อง Confirm Draw ให้มีอย่างน้อย 2 สายก่อน']);
+      return rows;
+    }
+    plan.forEach((match) => {
+      rows.push([
+        match.round,
+        match.id,
+        match.labelA,
+        match.teamA || '',
+        match.draftTeamA || '',
+        match.labelB,
+        match.teamB || '',
+        match.draftTeamB || '',
+        match.note || ''
       ]);
     });
     return rows;

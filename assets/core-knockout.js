@@ -216,7 +216,7 @@
     if (!q.ok) return [];
     const groups = q.groups;
 
-    if (groups.length >= 4 && groups.every((g) => g.rows.length >= 2)) {
+    if (groups.length === 4 && groups.every((g) => g.rows.length >= 2)) {
       const A = groups[0], B = groups[1], C = groups[2], D = groups[3];
       const ko = [
         makeMatch('qf1', 'Quarter Final', A.rows[0].team, B.rows[1].team, `${A.group}1 vs ${B.group}2`),
@@ -231,7 +231,25 @@
       return ko;
     }
 
-    const flat = groups.flatMap((g) => g.rows.map((r, idx) => ({ team: r.team, seed: `${g.group}${idx + 1}` })));
+    const flat = [];
+    if (groups.length > 4 && groups.every((g) => g.rows.length >= 2)) {
+      for (let i = 0; i < groups.length; i += 2) {
+        const left = groups[i];
+        const right = groups[i + 1];
+        if (!right) break;
+        flat.push(
+          { team: left.rows[0].team, seed: `${left.group}1` },
+          { team: right.rows[1].team, seed: `${right.group}2` },
+          { team: right.rows[0].team, seed: `${right.group}1` },
+          { team: left.rows[1].team, seed: `${left.group}2` }
+        );
+      }
+      groups.forEach((g) => {
+        g.rows.slice(2).forEach((r, idx) => flat.push({ team: r.team, seed: `${g.group}${idx + 3}` }));
+      });
+    } else {
+      groups.forEach((g) => g.rows.forEach((r, idx) => flat.push({ team: r.team, seed: `${g.group}${idx + 1}` })));
+    }
     const firstRoundName = flat.length <= 4 ? 'Semi Final' : flat.length <= 8 ? 'Quarter Final' : 'Knockout Round 1';
     const first = [];
 
@@ -240,6 +258,13 @@
     }
 
     if (first.length <= 2) return [...first, makeMatch('final', 'Final', 'Winner SF1', 'Winner SF2')];
+    if (first.length > 4) {
+      const next = [];
+      for (let i = 0; i < first.length; i += 2) {
+        next.push(makeMatch(`next${(i / 2) + 1}`, 'Next Round', `Winner ${first[i]?.id || ''}`.trim(), `Winner ${first[i + 1]?.id || ''}`.trim()));
+      }
+      return [...first, ...next];
+    }
     return [
       ...first,
       makeMatch('sf1', 'Semi Final', 'Winner QF1', 'Winner QF2'),
