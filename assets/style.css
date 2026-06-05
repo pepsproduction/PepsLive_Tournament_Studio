@@ -514,6 +514,13 @@ body.ui-compact .grid{gap:10px!important}
 @keyframes pepsToastSlideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes pepsToastSlideOut{to{transform:translateX(100%);opacity:0;margin-top:-60px}}
 
+/* ─── HOVER HELP TOOLTIP ────────────────────────────────────── */
+.peps-help-tooltip{position:fixed;z-index:10050;max-width:min(360px,calc(100vw - 28px));padding:11px 13px;border:1px solid rgba(255,191,155,.45);border-radius:14px;background:linear-gradient(135deg,rgba(16,24,36,.98),rgba(8,14,22,.98));box-shadow:0 18px 48px rgba(0,0,0,.42);color:#f8fbff;font-size:13px;line-height:1.55;font-family:"IBM Plex Sans Thai",system-ui,sans-serif;pointer-events:none;opacity:0;transform:translateY(6px) scale(.98);transition:opacity .12s ease,transform .12s ease}
+.peps-help-tooltip.open{opacity:1;transform:translateY(0) scale(1)}
+.peps-help-tooltip b{display:block;margin-bottom:4px;color:#ffbf9b;font-family:"Chakra Petch",sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+[data-peps-help-ready]{outline-offset:3px}
+[data-peps-help-ready]:focus-visible{outline:2px solid rgba(255,191,155,.55)}
+
 /* ─── PHASE 10.21 LOCKED LAYOUT SYSTEM ─────────────────────── */
 .draw-graphic {
   position: relative;

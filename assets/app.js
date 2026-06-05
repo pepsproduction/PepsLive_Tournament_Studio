@@ -53,6 +53,180 @@
 
   const SOURCE_META = Object.fromEntries(SOURCES.map(([id, title, desc]) => [id, { id, title, desc }]));
 
+  const PANEL_HELP = {
+    dashboard: 'หน้าภาพรวม ใช้ดูว่าตั้งค่า ทีม สุ่มสาย ตาราง คะแนน และรอบ Knockout ไปถึงขั้นตอนไหนแล้ว',
+    setup: 'หน้าตั้งค่ารายการ เช่น ชื่อรายการ ประเภทกีฬา จำนวนสาย จำนวนสนาม เวลาเริ่ม และกติกาคะแนน',
+    teams: 'หน้าใส่รายชื่อทีม ทีละบรรทัด ระบบจะเอารายชื่อนี้ไปสุ่มสายและสร้างตารางแข่ง',
+    draw: 'หน้าจับสลากแบ่งสาย เลือกรูปแบบ animation แล้วสุ่มทีมเข้ากลุ่มก่อนกดยืนยันผล',
+    schedule: 'หน้าสร้างและแก้ตารางแข่งรอบแบ่งกลุ่ม พร้อมดูตัวอย่างคู่ Knockout ที่จะรอไว้ล่วงหน้า',
+    scores: 'หน้ากรอกผลการแข่งขัน ระบบจะคำนวณตารางคะแนนและอันดับให้ทันที',
+    knockout: 'หน้าสร้างสายรอบ Knockout จากอันดับในรอบแบ่งกลุ่ม และบันทึกผลรอบต่อไป',
+    sources: 'หน้ารวม URL สำหรับเอาไปใส่ใน OBS Browser Source เช่น ตาราง กลุ่ม ผลล่าสุด และคู่ถัดไป',
+    export: 'หน้าส่งออกข้อมูลเป็นข้อความ, Excel, JSON หรือ Google Sheet สำหรับนำไปใช้ต่อ',
+    settings: 'หน้าปรับขนาดหน้าจอ แผงควบคุม รูปแบบหน้า Draw และการแสดงผลของ OBS Source'
+  };
+
+  const ID_HELP = {
+    autosavePill: 'แสดงเวลาล่าสุดที่ระบบบันทึกข้อมูลลงใน browser อัตโนมัติ',
+    sheetPill: 'บอกสถานะว่าได้ตั้งค่า Google Sheet Webhook แล้วหรือยัง',
+    btnSaveProject: 'ดาวน์โหลดข้อมูลโปรเจกต์ทั้งหมดเป็นไฟล์ JSON เพื่อเก็บสำรองหรือย้ายเครื่อง',
+    loadProjectInput: 'โหลดไฟล์ JSON ที่เคย Save ไว้กลับเข้าระบบ',
+    safeLiveToggle: 'โหมดปลอดภัยสำหรับงานสด ผลสุ่มจะยังไม่ถือเป็นผลจริงจนกว่าจะกด Confirm Result',
+    goNext: 'ข้ามไปหน้าถัดไปตามลำดับการทำงานของระบบ',
+    eventName: 'ชื่อรายการแข่งขันที่จะใช้แสดงบน Dashboard, OBS Source และไฟล์ Export',
+    sportType: 'ประเภทกีฬา ใช้เป็นข้อมูลประกอบรายการและช่วยให้ทีมงานเข้าใจรูปแบบการแข่งขัน',
+    preset: 'ชุดตั้งค่าตัวอย่างตามประเภทกีฬา เลือกเพื่อช่วยเริ่มต้นเร็วขึ้น',
+    groupCount: 'จำนวนสายหรือกลุ่มที่ต้องการแบ่งทีม เช่น 4 คือสาย A-D',
+    courtCount: 'จำนวนสนามที่ใช้แข่งพร้อมกัน ระบบจะกระจายคู่แข่งลงสนามตามจำนวนนี้',
+    startTime: 'เวลาเริ่มคู่แรกของตารางแข่ง',
+    matchInterval: 'ระยะเวลาห่างระหว่างรอบเวลาแต่ละชุด เช่น 15 นาทีต่อ slot',
+    breakEverySlots: 'กำหนดให้แทรกเวลาพักทุกกี่รอบเวลา ใส่ 0 ถ้าไม่ต้องการพัก',
+    breakMinutes: 'จำนวนนาทีที่ต้องการพักเมื่อถึงรอบเวลาพัก',
+    pointsWin: 'แต้มที่ทีมได้รับเมื่อชนะในรอบแบ่งกลุ่ม',
+    pointsDraw: 'แต้มที่ทีมได้รับเมื่อเสมอ',
+    pointsLoss: 'แต้มที่ทีมได้รับเมื่อแพ้',
+    qualifiersPerGroup: 'จำนวนทีมที่เข้ารอบจากแต่ละสาย เช่น 2 คืออันดับ 1-2 ของทุกสาย',
+    saveSetup: 'บันทึกค่ารายการและกติกาคะแนนที่กรอกไว้',
+    resetAll: 'ล้างข้อมูลโปรเจกต์ทั้งหมดและเริ่มใหม่ ควร Save JSON สำรองก่อนใช้',
+    teamText: 'วางรายชื่อทีมทีละบรรทัด ระบบจะนับและใช้ชื่อเหล่านี้ในการสุ่มสาย',
+    saveTeams: 'บันทึกรายชื่อทีม ถ้ามี Draw/Schedule เดิม ระบบอาจรีเซ็ตข้อมูลที่เกี่ยวข้อง',
+    dedupeTeams: 'ลบชื่อทีมที่ซ้ำกันออก เหลือชื่อทีมละหนึ่งรายการ',
+    sampleTeams: 'ใส่รายชื่อทีมตัวอย่าง 16 ทีม เพื่อทดลองระบบอย่างรวดเร็ว',
+    drawAnimation: 'เลือกรูปแบบภาพเคลื่อนไหวตอนสุ่ม เช่น Wheel, Slot, Card หรือ Lottery',
+    drawMethod: 'เลือกวิธีเปิดผลสุ่ม: อัตโนมัติทีละทีม, กดเองทีละทีม, หรือสุ่มทั้งหมดทีเดียว',
+    drawDuration: 'กำหนดเวลาหน่วง animation ก่อนแสดงผลสุ่ม',
+    drawNote: 'ใส่หมายเหตุของรอบจับสาย เช่น รอบเช้า รอบบ่าย หรือ seed ที่ใช้',
+    drawStage: 'พื้นที่แสดง animation และผลทีมที่กำลังถูกสุ่ม',
+    startDraw: 'เริ่มสุ่มสายตามรายชื่อทีมและวิธีสุ่มที่เลือก',
+    nextReveal: 'เปิดผลทีมถัดไป ใช้กับโหมด Manual Reveal',
+    confirmDraw: 'ยืนยันผลแบ่งสายให้เป็นผลจริง ก่อนนำไปสร้างตารางแข่ง',
+    redraw: 'ล้างผลสุ่มที่เตรียมไว้ เพื่อเริ่มสุ่มใหม่ก่อนยืนยัน',
+    undoDraw: 'ย้อนกลับผลสุ่มล่าสุดหนึ่งขั้น ใช้แก้กรณีกดพลาดก่อนยืนยัน',
+    toggleDrawExpand: 'ขยายหน้าต่าง Draw ให้ใหญ่ขึ้น เหมาะกับการแสดงบนจอหรือเช็กหน้างาน',
+    pendingBox: 'แสดงสถานะผลสุ่มที่รอยืนยัน',
+    scheduleDuration: 'กำหนดเวลาหน่วงตอนเปิดผลตารางแข่ง',
+    randomizeSchedule: 'เปิดเพื่อสุ่มลำดับสายและคู่แข่งในตาราง ปิดเพื่อเรียงตามลำดับเดิม',
+    scheduleRevealStyle: 'เลือกรูปแบบ animation ตอนแสดงผลตารางแข่ง',
+    generateSchedule: 'สร้างตารางแข่งรอบแบ่งกลุ่มจากผลแบ่งสายที่ยืนยันแล้ว',
+    rebalanceSchedule: 'สร้างตารางใหม่อีกครั้งแบบสุ่ม ใช้เมื่ออยากจัดลำดับคู่ใหม่',
+    copyScheduleBtn: 'คัดลอกตารางแข่งเป็นข้อความ เพื่อนำไปวางในแชทหรือเอกสาร',
+    saveScores: 'บันทึกคะแนนและสถานะของทุกคู่ แล้วคำนวณตารางคะแนนใหม่',
+    markAllPending: 'ตั้งสถานะทุกคู่กลับเป็น Pending ใช้เมื่อต้องการเริ่มกรอกผลใหม่',
+    copyStandingsBtn: 'คัดลอกตารางคะแนนเป็นข้อความ',
+    enableThird: 'เปิด/ปิดการสร้างรอบชิงอันดับ 3 ในสาย Knockout',
+    enableFinal: 'เปิด/ปิดการสร้างรอบชิงชนะเลิศ',
+    generateKnockout: 'สร้างหรือรีเฟรชสาย Knockout จากอันดับในตารางคะแนน',
+    copyKnockoutBtn: 'คัดลอกสาย Knockout เป็นข้อความ',
+    clearOverrides: 'ล้างการแก้ไขทีมเข้ารอบแบบพิเศษทั้งหมด',
+    webhookUrl: 'URL ของ Google Apps Script Web App ที่ใช้รับข้อมูลจากระบบนี้',
+    webhookToken: 'รหัสลับที่ใช้ยืนยันกับ Apps Script ควรตั้งให้ตรงกับฝั่ง Google',
+    sheetId: 'รหัส Google Sheet ที่ต้องการส่งข้อมูลเข้าไป เว้นว่างได้ถ้า Script สร้างใหม่',
+    saveWebhook: 'บันทึก URL, Token และ Sheet ID สำหรับส่งข้อมูลไป Google Sheet',
+    testWebhook: 'ส่งข้อมูลทดสอบไปยัง Webhook เพื่อตรวจว่าตั้งค่าถูกหรือไม่',
+    sendWebhook: 'ส่งข้อมูลรายการจริงไป Google Sheet ผ่าน Apps Script',
+    sourceBg: 'เลือกพื้นหลังของ OBS Source เช่น Dark, Transparent หรือ Green Screen',
+    fontScale: 'ปรับขนาดตัวอักษรโดยรวมของ OBS Source',
+    drawAnimationScale: 'ปรับขนาดกราฟิก animation ใน Draw Source',
+    sidebarWidth: 'ปรับความกว้างของแถบ Control Center ด้านซ้าย',
+    appMaxWidth: 'ปรับความกว้างสูงสุดของหน้าเว็บทั้งหมด',
+    drawStageHeight: 'ปรับความสูงของพื้นที่แสดง Draw',
+    drawPanelMode: 'เลือกรูปแบบพื้นที่หน้า Draw ว่าปกติ กว้าง หรือเต็มพื้นที่',
+    uiDensity: 'เลือกระยะห่างของ UI: Comfortable ดูโปร่ง หรือ Compact ดูแน่นขึ้น',
+    saveLayoutSettings: 'บันทึกค่าขนาดและรูปแบบ layout ที่ตั้งไว้',
+    resetLayoutSettings: 'คืนค่าขนาด layout กลับเป็นค่าเริ่มต้น',
+    saveDisplaySettings: 'บันทึกค่าการแสดงผลของ OBS Source',
+    settingsDrawTextBtn: 'เปิดหน้าปรับขนาดตัวอักษรใน Draw และ OBS Draw Source แบบละเอียด',
+    drawGroupColumnsRange: 'ปรับจำนวนคอลัมน์ของตารางแบ่งสายบนหน้า Draw',
+    settingsGroupColumnsRange: 'ปรับจำนวนคอลัมน์ของตารางแบ่งสายในหน้าตั้งค่า',
+    createEmptySchedule: 'สร้างตารางแข่งเปล่าเพื่อกรอกเองทั้งหมด',
+    editScheduleRows: 'เปิดโหมดแก้ไขตารางแข่งทีละแถว',
+    addScheduleRow: 'เพิ่มคู่แข่งใหม่ในตารางแก้ไข',
+    saveScheduleRows: 'บันทึกตารางแข่งที่แก้ไขเอง',
+    cancelScheduleEdit: 'ยกเลิกการแก้ไขตารางและกลับไปดูตารางปกติ',
+    coreGenerateFromStandings: 'สร้าง Knockout จากอันดับในตารางคะแนนปัจจุบัน',
+    coreGenerateResolved: 'สร้าง Knockout จากลำดับที่แก้ไว้ใน Tie Resolver',
+    coreSaveKnockoutScores: 'บันทึกผลรอบ Knockout และส่งผู้ชนะไปรอบถัดไป',
+    phase55SendDb: 'ส่งข้อมูลทั้งหมดเป็นฐานข้อมูลการแข่งขันเข้า Google Sheet',
+    phase55CopyPayload: 'คัดลอก JSON payload ที่จะส่งเข้า Google Sheet เพื่อตรวจหรือ debug',
+    phase55CopyScriptUrl: 'คัดลอก path ของไฟล์ Apps Script template ใน repo',
+    closeModal: 'ปิดหน้าต่างรายละเอียด Source',
+    copyModalUrl: 'คัดลอก URL ของ OBS Source ที่เปิดดูอยู่',
+    openModalUrl: 'เปิด preview ของ OBS Source นี้ในแท็บใหม่'
+  };
+
+  const COPY_HELP = {
+    draw: 'คัดลอกผลแบ่งสายเป็นข้อความ',
+    schedule: 'คัดลอกตารางแข่งเป็นข้อความ',
+    scores: 'คัดลอกผลคะแนนทุกคู่เป็นข้อความ',
+    standings: 'คัดลอกตารางคะแนนเป็นข้อความ',
+    knockout: 'คัดลอกสาย Knockout เป็นข้อความ',
+    caption: 'คัดลอกข้อความแคปชันสำหรับโพสต์ Facebook',
+    all: 'คัดลอกข้อมูลสำคัญทั้งหมดในครั้งเดียว',
+    script: 'คัดลอกสคริปต์สำหรับผู้บรรยายหรือพิธีกร'
+  };
+
+  const EXCEL_HELP = {
+    groups: 'ดาวน์โหลดไฟล์ Excel เฉพาะข้อมูลกลุ่มและรายชื่อทีมแต่ละสาย',
+    schedule: 'ดาวน์โหลดไฟล์ Excel ตารางแข่ง พร้อม sheet Knockout Preview สำหรับแก้ต่อ',
+    all: 'ดาวน์โหลดไฟล์ Excel รวมข้อมูลกลุ่ม ตารางแข่ง และ Knockout Preview'
+  };
+
+  const DATA_HELP = {
+    'manual-groups-create': 'สร้างตารางแบ่งสายเปล่าเพื่อกรอกทีมเอง',
+    'manual-groups-add-row': 'เพิ่มแถวทีมในทุกสายสำหรับกรอกเพิ่ม',
+    'manual-groups-del-row': 'ลบแถวทีมท้ายสุดของทุกสาย',
+    'manual-groups-save': 'บันทึกการจัดกลุ่มทีมที่กรอกเอง',
+    'manual-groups-cancel': 'ยกเลิกการแก้ไขกลุ่มด้วยมือ',
+    'manual-groups-edit': 'แก้ไขผลแบ่งสายด้วยมือ',
+    'manual-groups-clear': 'ล้างโหมดจัดกลุ่มเองและกลับไปใช้ผลสุ่ม',
+    'core-save-tie': 'บันทึกลำดับทีมที่คะแนนเท่ากันตามที่จัดไว้',
+    'core-random-tie': 'สุ่มจับลำดับทีมที่คะแนนเท่ากัน',
+    'save-text-size': 'บันทึกขนาดตัวอักษร Draw ที่ปรับไว้',
+    'reset-text-size': 'คืนค่าขนาดตัวอักษร Draw เป็นค่าเริ่มต้น',
+    'cancel-text-size': 'ยกเลิกการปรับขนาดตัวอักษรและปิดหน้าต่าง',
+    'close-text-modal': 'ปิดหน้าต่างตั้งค่าขนาดตัวอักษร'
+  };
+
+  const FIELD_HELP = {
+    'score-a': 'กรอกคะแนนของทีมฝั่งซ้ายในคู่นี้',
+    'score-b': 'กรอกคะแนนของทีมฝั่งขวาในคู่นี้',
+    status: 'เลือกสถานะคู่แข่ง เช่น Pending, Live, Finished หรือ Forfeit',
+    'schedule-time': 'เวลาแข่งของคู่นี้ เช่น 09:00',
+    'schedule-court': 'สนามที่ใช้แข่งคู่นี้',
+    'schedule-group': 'สายหรือกลุ่มของคู่นี้ เช่น A',
+    'schedule-team-a': 'ชื่อทีมฝั่ง A ของคู่นี้',
+    'schedule-team-b': 'ชื่อทีมฝั่ง B ของคู่นี้',
+    'schedule-status': 'สถานะของคู่นี้ในตารางแข่ง',
+    'manual-team': 'กรอกชื่อทีมในช่องนี้ หรือพิมพ์ BYE ถ้าต้องการช่องว่าง',
+    'size-key': 'เลื่อนเพื่อปรับขนาดตัวอักษรส่วนนี้ใน Draw/OBS Source'
+  };
+
+  const HEADING_HELP = {
+    Dashboard: PANEL_HELP.dashboard,
+    'Setup Event': PANEL_HELP.setup,
+    Teams: PANEL_HELP.teams,
+    Draw: PANEL_HELP.draw,
+    Schedule: PANEL_HELP.schedule,
+    'Scores & Standings': PANEL_HELP.scores,
+    Knockout: PANEL_HELP.knockout,
+    'Live Sources': PANEL_HELP.sources,
+    Export: PANEL_HELP.export,
+    Settings: PANEL_HELP.settings,
+    'Draw Control': 'ชุดควบคุมการสุ่มสาย เลือกรูปแบบ วิธีสุ่ม เวลา animation และยืนยันผล',
+    'ผลแบ่งสาย / Reveal Feed': 'แสดงผลทีมที่ถูกสุ่มเข้าแต่ละสายและลำดับการเปิดผล',
+    'Schedule Reveal Control': 'ตั้งค่าวิธีแสดงและสร้างตารางแข่ง',
+    'Match Scores': 'รายการคู่แข่งสำหรับกรอกคะแนนและสถานะ',
+    Standings: 'ตารางอันดับที่ระบบคำนวณจากคะแนนและสถานะการแข่งขัน',
+    'Qualifier Override': 'พื้นที่สำหรับตรวจหรือแก้ทีมเข้ารอบแบบพิเศษจากหน้างาน',
+    'Knockout Builder': 'เครื่องมือสร้างสาย Knockout จากอันดับรอบแบ่งกลุ่ม',
+    'Copy Export': 'ปุ่มคัดลอกข้อมูลในรูปแบบข้อความ',
+    'Google Sheet Webhook': 'ตั้งค่าการส่งข้อมูลไปยัง Google Sheet ผ่าน Apps Script',
+    'Excel Export': 'ดาวน์โหลดข้อมูลเป็นไฟล์ Excel สำหรับใช้งานต่อ',
+    'Layout Resize': 'ปรับขนาดส่วนต่าง ๆ ของหน้าจอควบคุม',
+    'Source Display': 'ปรับการแสดงผลของ OBS Browser Source',
+    'Debug State': 'ข้อมูลภายในของโปรเจกต์ ใช้ตรวจปัญหาหรือส่งให้ทีมพัฒนา'
+  };
+
   const DEFAULT_DRAW_TEXT_SIZES = {
     chip: 13,
     groupLabel: 18,
@@ -447,6 +621,7 @@
     applyLayoutSettings();
     buildNav();
     bindEvents();
+    installHelpTooltips();
     fillForms();
     renderAll(true);
   }
@@ -464,6 +639,233 @@
 
     $$('[data-panel-target]', nav).forEach(btn => {
       on(btn, 'click', () => showPanel(btn.dataset.panelTarget));
+    });
+  }
+
+  function installHelpTooltips() {
+    if (window.__PEPSLIVE_HELP_TOOLTIP_INSTALLED__) return;
+    window.__PEPSLIVE_HELP_TOOLTIP_INSTALLED__ = true;
+
+    const tip = document.createElement('div');
+    tip.id = 'pepsHelpTooltip';
+    tip.className = 'peps-help-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+
+    let activeEl = null;
+    let activeText = '';
+
+    const show = (el, event) => {
+      const text = helpTextForElement(el);
+      if (!text) return;
+      activeEl = el;
+      activeText = text;
+      tip.innerHTML = `<b>คำอธิบาย</b><span>${esc(text)}</span>`;
+      tip.classList.add('open');
+      positionHelpTooltip(tip, event);
+    };
+    const hide = () => {
+      activeEl = null;
+      activeText = '';
+      tip.classList.remove('open');
+    };
+
+    document.addEventListener('pointerover', (event) => {
+      const el = helpTargetFrom(event.target);
+      if (!el || el === activeEl) return;
+      show(el, event);
+    }, true);
+    document.addEventListener('pointermove', (event) => {
+      if (activeText) positionHelpTooltip(tip, event);
+    }, true);
+    document.addEventListener('pointerout', (event) => {
+      if (!activeEl) return;
+      if (event.relatedTarget && activeEl.contains(event.relatedTarget)) return;
+      hide();
+    }, true);
+    document.addEventListener('focusin', (event) => {
+      const el = helpTargetFrom(event.target);
+      if (el) show(el, event);
+    }, true);
+    document.addEventListener('focusout', hide, true);
+  }
+
+  function positionHelpTooltip(tip, event) {
+    const pad = 14;
+    const x = event?.clientX ?? (window.innerWidth / 2);
+    const y = event?.clientY ?? 80;
+    const rect = tip.getBoundingClientRect();
+    let left = x + 14;
+    let top = y + 16;
+    if (left + rect.width + pad > window.innerWidth) left = Math.max(pad, x - rect.width - 14);
+    if (top + rect.height + pad > window.innerHeight) top = Math.max(pad, y - rect.height - 14);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  }
+
+  function helpTargetFrom(target) {
+    if (!target || target === document || target === window) return null;
+    return target.closest?.([
+      '[data-help]',
+      '[data-panel-target]',
+      '[data-copy]',
+      '[data-excel-export]',
+      '[data-open-source]',
+      '[data-copy-source]',
+      '[data-preview-source]',
+      '[data-manual-groups-create]',
+      '[data-manual-groups-add-row]',
+      '[data-manual-groups-del-row]',
+      '[data-manual-groups-save]',
+      '[data-manual-groups-cancel]',
+      '[data-manual-groups-edit]',
+      '[data-manual-groups-clear]',
+      '[data-core-save-tie]',
+      '[data-core-random-tie]',
+      '[data-save-text-size]',
+      '[data-reset-text-size]',
+      '[data-cancel-text-size]',
+      '[data-close-text-modal]',
+      '[data-score-a]',
+      '[data-score-b]',
+      '[data-status]',
+      '[data-schedule-time]',
+      '[data-schedule-court]',
+      '[data-schedule-group]',
+      '[data-schedule-team-a]',
+      '[data-schedule-team-b]',
+      '[data-schedule-status]',
+      '[data-manual-team]',
+      '[data-size-key]',
+      'button',
+      'input',
+      'select',
+      'textarea',
+      'label',
+      '.navbtn',
+      '.step',
+      '.pill',
+      '.source-card',
+      '.score-row',
+      '.manual-group-card',
+      '.knockout-preview-card',
+      '.phase6-tie',
+      '.pre6-match',
+      '.field',
+      'h2',
+      'h3'
+    ].join(','));
+  }
+
+  function helpTextForElement(el) {
+    if (!el) return '';
+    if (el.dataset?.help) return el.dataset.help;
+    if (el.id && ID_HELP[el.id]) return ID_HELP[el.id];
+    if (el.dataset?.panelTarget) return PANEL_HELP[el.dataset.panelTarget] || '';
+    if (el.dataset?.copy) return COPY_HELP[el.dataset.copy] || '';
+    if (el.dataset?.excelExport) return EXCEL_HELP[el.dataset.excelExport] || '';
+    if (el.dataset?.openSource) return `ดูรายละเอียดของ OBS Source: ${sourceTitle(el.dataset.openSource)} พร้อม URL สำหรับนำไปใช้`;
+    if (el.dataset?.copySource) return `คัดลอก URL ของ ${sourceTitle(el.dataset.copySource)} เพื่อนำไปวางใน OBS Browser Source`;
+    if (el.dataset?.previewSource) return `เปิดหน้าตัวอย่างของ ${sourceTitle(el.dataset.previewSource)} เพื่อตรวจภาพก่อนใช้งานจริง`;
+
+    for (const [key, text] of Object.entries(DATA_HELP)) {
+      const attr = `data-${key}`;
+      if (el.hasAttribute?.(attr)) return text;
+    }
+    for (const [key, text] of Object.entries(FIELD_HELP)) {
+      const attr = `data-${key}`;
+      if (el.hasAttribute?.(attr)) return text;
+    }
+
+    if (el.classList?.contains('core-ko-score-a')) return 'กรอกคะแนนทีมฝั่งซ้ายของคู่ Knockout นี้';
+    if (el.classList?.contains('core-ko-score-b')) return 'กรอกคะแนนทีมฝั่งขวาของคู่ Knockout นี้';
+    if (el.classList?.contains('core-ko-winner')) return 'เลือกผู้ชนะของคู่ Knockout ถ้าคะแนนไม่ชัดหรือมีการตัดสินพิเศษ';
+    if (el.classList?.contains('phase6-tie-order')) return 'จัดลำดับทีมที่คะแนนเท่ากัน บรรทัดบนสุดคืออันดับที่สูงกว่า';
+
+    if (el.matches?.('label.file-btn')) return 'เลือกไฟล์ JSON ที่เคย Save ไว้เพื่อโหลดโปรเจกต์กลับมา';
+    if (el.matches?.('.field')) {
+      const control = el.querySelector('input,select,textarea');
+      return control ? helpTextForElement(control) : '';
+    }
+    if (el.matches?.('label')) {
+      const control = el.querySelector('input,select,textarea') || el.closest('.field')?.querySelector('input,select,textarea');
+      if (control) return helpTextForElement(control);
+    }
+    if (el.matches?.('input,select,textarea')) {
+      const dataHelp = dataFieldHelp(el);
+      if (dataHelp) return dataHelp;
+      const label = el.closest('.field')?.querySelector('label')?.textContent?.trim();
+      return label ? `ช่อง "${label}" ใช้กรอกหรือเลือกค่าที่ระบบจะนำไปคำนวณและแสดงผล` : '';
+    }
+    if (el.matches?.('h2,h3')) {
+      const text = cleanHeading(el.textContent);
+      if (HEADING_HELP[text]) return HEADING_HELP[text];
+      if (/^สาย\s+/i.test(text)) return 'หัวข้อตารางของสายนั้น ๆ ใช้ดูรายชื่อทีม อันดับ หรือข้อมูลที่เกี่ยวกับกลุ่มนี้';
+      if (/^Group\s+/i.test(text)) return 'หัวข้อกลุ่มในไฟล์หรือ preview ใช้ดูข้อมูลของกลุ่มนั้นโดยเฉพาะ';
+      return text ? `หัวข้อ "${text}" ใช้บอกว่าส่วนนี้เกี่ยวกับข้อมูลหรือคำสั่งชุดใด` : '';
+    }
+    if (el.matches?.('.step')) return 'ขั้นตอนใน workflow ถ้าขึ้นสถานะเสร็จ แปลว่าข้อมูลส่วนนั้นพร้อมใช้งานต่อ';
+    if (el.matches?.('.source-card')) return 'การ์ด OBS Source ใช้คัดลอก URL, เปิด preview หรือดูรายละเอียดของ source นี้';
+    if (el.matches?.('.score-row')) return 'แถวกรอกผลของคู่แข่งหนึ่งคู่ ใส่คะแนนและสถานะแล้วกดบันทึกคะแนน';
+    if (el.matches?.('.manual-group-card')) return 'กล่องนี้แทนหนึ่งสาย กรอกชื่อทีมตามลำดับที่ต้องการ';
+    if (el.matches?.('.knockout-preview-card')) return 'แบบจำลองคู่รอบ Knockout ที่ใช้ seed เช่น ที่ 1 สาย A เจอที่ 2 สาย B เพื่อเตรียมไฟล์งานล่วงหน้า';
+    if (el.matches?.('.phase6-tie')) return 'กล่องแก้กรณีทีมคะแนนเท่ากัน ใช้จัดลำดับก่อนสร้าง Knockout';
+    if (el.matches?.('.pre6-match')) return 'แถวกรอกผลรอบ Knockout เพื่อส่งผู้ชนะไปยังรอบถัดไป';
+
+    const text = cleanHeading(el.textContent);
+    if (text && HEADING_HELP[text]) return HEADING_HELP[text];
+    if (text) return buttonTextHelp(text);
+    return '';
+  }
+
+  function dataFieldHelp(el) {
+    if (el.hasAttribute?.('data-score-a')) return FIELD_HELP['score-a'];
+    if (el.hasAttribute?.('data-score-b')) return FIELD_HELP['score-b'];
+    if (el.hasAttribute?.('data-status')) return FIELD_HELP.status;
+    if (el.hasAttribute?.('data-schedule-time')) return FIELD_HELP['schedule-time'];
+    if (el.hasAttribute?.('data-schedule-court')) return FIELD_HELP['schedule-court'];
+    if (el.hasAttribute?.('data-schedule-group')) return FIELD_HELP['schedule-group'];
+    if (el.hasAttribute?.('data-schedule-team-a')) return FIELD_HELP['schedule-team-a'];
+    if (el.hasAttribute?.('data-schedule-team-b')) return FIELD_HELP['schedule-team-b'];
+    if (el.hasAttribute?.('data-schedule-status')) return FIELD_HELP['schedule-status'];
+    if (el.hasAttribute?.('data-manual-team')) return FIELD_HELP['manual-team'];
+    if (el.hasAttribute?.('data-size-key')) return FIELD_HELP['size-key'];
+    return '';
+  }
+
+  function buttonTextHelp(text) {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    const map = {
+      'Save Order': 'บันทึกลำดับทีมที่จัดไว้ในกรณีคะแนนเท่ากัน',
+      'Draw Lots': 'สุ่มลำดับทีมที่คะแนนเท่ากัน',
+      'Generate from Standings': ID_HELP.coreGenerateFromStandings,
+      'Generate from Resolved Order': ID_HELP.coreGenerateResolved,
+      'Save Knockout Scores': ID_HELP.coreSaveKnockoutScores,
+      'Copy Teams': 'คัดลอกรายชื่อทีมทั้งหมดเป็นข้อความ',
+      'Clear Teams': 'ล้างช่องรายชื่อทีม เพื่อเตรียมกรอกใหม่',
+      'ESC / ปิด': 'ปิดหน้าต่าง Draw ที่ขยายอยู่ กดปุ่ม ESC ได้เช่นกัน',
+      '×': 'ปิดหน้าต่างนี้'
+    };
+    return map[normalized] || '';
+  }
+
+  function sourceTitle(id) {
+    return SOURCE_META[normalizeSourceView(id)]?.title || id || 'Source';
+  }
+
+  function cleanHeading(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function refreshHelpAttributes() {
+    $$('button,input,select,textarea,label,.navbtn,.step,.pill,.source-card,.score-row,.manual-group-card,.knockout-preview-card,.phase6-tie,.pre6-match,.field,h2,h3').forEach((el) => {
+      const help = helpTextForElement(el);
+      if (!help) return;
+      el.dataset.pepsHelpReady = '1';
+      if (!el.getAttribute('aria-label') && el.matches('button,input,select,textarea')) {
+        const label = el.textContent?.trim() || el.closest('.field')?.querySelector('label')?.textContent?.trim();
+        if (label) el.setAttribute('aria-label', label);
+      }
     });
   }
 
@@ -1382,6 +1784,7 @@
     if (activePanel === 'settings') { renderSettingsTools(); renderDebug(); }
 
     renderStepper();
+    refreshHelpAttributes();
   }
 
   function renderDrawTools() {
