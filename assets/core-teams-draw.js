@@ -97,12 +97,12 @@
       copy.className = 'btn';
       copy.type = 'button';
       copy.id = 'phase3CopyTeams';
-      copy.textContent = 'Copy Teams';
+      copy.textContent = 'คัดลอกรายชื่อ';
       const clear = document.createElement('button');
       clear.className = 'btn bad';
       clear.type = 'button';
       clear.id = 'phase3ClearTeams';
-      clear.textContent = 'Clear Teams';
+      clear.textContent = 'ล้างช่องรายชื่อ';
       row.appendChild(copy);
       row.appendChild(clear);
     }
@@ -154,7 +154,6 @@
     document.addEventListener('click', warnBeforeSaveTeams, true);
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', refresh);
-    window.setInterval(refresh, 1500);
   }
 
   function refresh() {

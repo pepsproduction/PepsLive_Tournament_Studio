@@ -37,6 +37,13 @@
     ['settings', 'Settings', 'ตั้งค่า']
   ];
 
+  const NAV_GROUPS = [
+    ['เตรียมรายการ', ['dashboard', 'setup', 'teams', 'draw']],
+    ['ดำเนินการแข่งขัน', ['schedule', 'scores', 'knockout']],
+    ['ถ่ายทอดและส่งออก', ['sources', 'export']],
+    ['ระบบ', ['settings']]
+  ];
+
   const DRAW_SOURCE_ID = 'draw-animation';
   const DRAW_SOURCE_ALIASES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex', 'winner'];
 
@@ -348,6 +355,13 @@
   let manualGroupsDraft = null;
   let scheduleEditing = false;
   let scheduleDraft = null;
+  let scheduleFilterGroup = 'all';
+  let scheduleFilterCourt = 'all';
+  let scheduleFilterStatus = 'all';
+  let scheduleSearch = '';
+  let scoreFilterGroup = 'all';
+  let scoreFilterStatus = 'all';
+  let scoreSearch = '';
   const MAX_MANUAL_GROUP_ROWS = 64;
 
   function defaultState() {
@@ -423,16 +437,28 @@
     };
   }
 
-  function merge(base, incoming) {
+  function stripNestedVersionKeys(value, keepVersion = true) {
+    if (Array.isArray(value)) return value.map((item) => stripNestedVersionKeys(item, false));
+    if (!value || typeof value !== 'object') return value;
+    const cleaned = {};
+    Object.entries(value).forEach(([key, item]) => {
+      if (key === 'version' && !keepVersion) return;
+      cleaned[key] = stripNestedVersionKeys(item, false);
+    });
+    return cleaned;
+  }
+
+  function merge(base, incoming, isRoot = true) {
     if (!incoming || typeof incoming !== 'object') return base;
-    for (const [k, v] of Object.entries(incoming)) {
+    const source = isRoot ? stripNestedVersionKeys(incoming, true) : incoming;
+    for (const [k, v] of Object.entries(source)) {
       if (v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
-        base[k] = merge(base[k], v);
+        base[k] = merge(base[k], v, false);
       } else {
         base[k] = v;
       }
     }
-    base.version = APP_VERSION;
+    if (isRoot) base.version = APP_VERSION;
     return base;
   }
 
@@ -440,7 +466,10 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultState();
-      return merge(defaultState(), JSON.parse(raw));
+      const loaded = merge(defaultState(), JSON.parse(raw));
+      const serialized = JSON.stringify(loaded);
+      if (serialized !== raw) localStorage.setItem(STORAGE_KEY, serialized);
+      return loaded;
     } catch (err) {
       console.warn('loadState failed', err);
       return defaultState();
@@ -619,6 +648,7 @@
     }
 
     applyLayoutSettings();
+    installShellEnhancements();
     buildNav();
     bindEvents();
     installHelpTooltips();
@@ -630,16 +660,75 @@
     const nav = $('#nav');
     if (!nav) return;
 
-    nav.innerHTML = PANELS.map(([id, title, sub], i) => `
-      <button class="navbtn ${id === activePanel ? 'active' : ''}" data-panel-target="${esc(id)}" type="button">
-        <span>${esc(title)}<br><small>${esc(sub)}</small></span>
-        <small>${i + 1}</small>
-      </button>
+    const panelMap = new Map(PANELS.map((panel, index) => [panel[0], [...panel, index]]));
+    nav.innerHTML = NAV_GROUPS.map(([groupTitle, ids]) => `
+      <div class="nav-group">
+        <div class="nav-group-title">${esc(groupTitle)}</div>
+        ${ids.map((id) => {
+          const panel = panelMap.get(id);
+          if (!panel) return '';
+          const [, title, sub, index] = panel;
+          return `
+            <button class="navbtn ${id === activePanel ? 'active' : ''}" data-panel-target="${esc(id)}" type="button">
+              <span class="nav-index">${String(index + 1).padStart(2, '0')}</span>
+              <span class="nav-copy"><b>${esc(title)}</b><small>${esc(sub)}</small></span>
+              <span class="nav-state ${panelDone(id) ? 'done' : ''}" aria-hidden="true"></span>
+            </button>
+          `;
+        }).join('')}
+      </div>
     `).join('');
 
     $$('[data-panel-target]', nav).forEach(btn => {
       on(btn, 'click', () => showPanel(btn.dataset.panelTarget));
     });
+  }
+
+  function refreshNavState() {
+    $$('#nav [data-panel-target]').forEach((button) => {
+      const id = button.dataset.panelTarget;
+      button.classList.toggle('active', id === activePanel);
+      button.querySelector('.nav-state')?.classList.toggle('done', panelDone(id));
+    });
+  }
+
+  function installShellEnhancements() {
+    if (window.__PEPSLIVE_SHELL_ENHANCED__) return;
+    window.__PEPSLIVE_SHELL_ENHANCED__ = true;
+
+    const topbar = $('.topbar');
+    if (topbar && !$('#mobileMenuButton')) {
+      const menu = document.createElement('button');
+      menu.id = 'mobileMenuButton';
+      menu.className = 'iconbtn mobile-menu-trigger';
+      menu.type = 'button';
+      menu.setAttribute('aria-label', 'เปิดเมนูหลัก');
+      menu.setAttribute('aria-expanded', 'false');
+      menu.textContent = '☰';
+      topbar.prepend(menu);
+    }
+
+    const sidebar = $('.sidebar');
+    if (sidebar && !$('#sidebarClose')) {
+      const head = document.createElement('div');
+      head.className = 'sidebar-mobile-head';
+      head.innerHTML = '<b>เมนูหลัก</b><button class="iconbtn" id="sidebarClose" type="button" aria-label="ปิดเมนู">×</button>';
+      sidebar.prepend(head);
+    }
+
+    if (!$('#sidebarBackdrop')) {
+      const backdrop = document.createElement('button');
+      backdrop.id = 'sidebarBackdrop';
+      backdrop.className = 'sidebar-backdrop';
+      backdrop.type = 'button';
+      backdrop.setAttribute('aria-label', 'ปิดเมนู');
+      document.body.appendChild(backdrop);
+    }
+  }
+
+  function setMobileNav(open) {
+    document.body.classList.toggle('nav-open', !!open);
+    $('#mobileMenuButton')?.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
   function installHelpTooltips() {
@@ -654,6 +743,8 @@
 
     let activeEl = null;
     let activeText = '';
+    let showTimer = null;
+    let pendingEvent = null;
 
     const show = (el, event) => {
       const text = helpTextForElement(el);
@@ -664,18 +755,26 @@
       tip.classList.add('open');
       positionHelpTooltip(tip, event);
     };
+    const queueShow = (el, event, delay = 460) => {
+      clearTimeout(showTimer);
+      pendingEvent = event;
+      showTimer = setTimeout(() => show(el, pendingEvent), delay);
+    };
     const hide = () => {
+      clearTimeout(showTimer);
       activeEl = null;
       activeText = '';
+      pendingEvent = null;
       tip.classList.remove('open');
     };
 
     document.addEventListener('pointerover', (event) => {
       const el = helpTargetFrom(event.target);
       if (!el || el === activeEl) return;
-      show(el, event);
+      queueShow(el, event);
     }, true);
     document.addEventListener('pointermove', (event) => {
+      pendingEvent = event;
       if (activeText) positionHelpTooltip(tip, event);
     }, true);
     document.addEventListener('pointerout', (event) => {
@@ -685,7 +784,7 @@
     }, true);
     document.addEventListener('focusin', (event) => {
       const el = helpTargetFrom(event.target);
-      if (el) show(el, event);
+      if (el) queueShow(el, event, 180);
     }, true);
     document.addEventListener('focusout', hide, true);
   }
@@ -870,6 +969,9 @@
   }
 
   function bindEvents() {
+    on($('#mobileMenuButton'), 'click', () => setMobileNav(!document.body.classList.contains('nav-open')));
+    on($('#sidebarClose'), 'click', () => setMobileNav(false));
+    on($('#sidebarBackdrop'), 'click', () => setMobileNav(false));
     on($('#goNext'), 'click', () => showPanel(nextPanel()));
     on($('#btnSaveProject'), 'click', downloadJson);
     on($('#loadProjectInput'), 'change', loadJsonFile);
@@ -989,6 +1091,8 @@
     on($('#openModalUrl'), 'click', () => modalSource && window.open(sourceUrl(modalSource), '_blank'));
 
     document.addEventListener('click', (e) => {
+      const dashboardTarget = e.target.closest('[data-dashboard-target]');
+      if (dashboardTarget) showPanel(dashboardTarget.dataset.dashboardTarget);
       const sourceBtn = e.target.closest('[data-open-source]');
       if (sourceBtn) openSourceModal(sourceBtn.dataset.openSource);
       const copyBtn = e.target.closest('[data-copy-source]');
@@ -999,9 +1103,48 @@
       if (excelBtn) exportExcelWorkbook(excelBtn.dataset.excelExport);
     }, true);
 
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-schedule-filter-group]')) {
+        scheduleFilterGroup = e.target.value;
+        applyScheduleFilters();
+      }
+      if (e.target.matches('[data-schedule-filter-court]')) {
+        scheduleFilterCourt = e.target.value;
+        applyScheduleFilters();
+      }
+      if (e.target.matches('[data-schedule-filter-status]')) {
+        scheduleFilterStatus = e.target.value;
+        applyScheduleFilters();
+      }
+      if (e.target.matches('[data-score-filter-group]')) {
+        scoreFilterGroup = e.target.value;
+        applyScoreFilters();
+      }
+      if (e.target.matches('[data-score-filter-status]')) {
+        scoreFilterStatus = e.target.value;
+        applyScoreFilters();
+      }
+      if (e.target.matches('#scoresBox [data-status]')) {
+        e.target.closest('.score-row')?.classList.remove('invalid');
+        applyScoreFilters();
+      }
+    }, true);
+
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('[data-schedule-search]')) {
+        scheduleSearch = e.target.value;
+        applyScheduleFilters();
+      }
+      if (e.target.matches('[data-score-search]')) {
+        scoreSearch = e.target.value;
+        applyScoreFilters();
+      }
+    }, true);
+
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       closeDrawOverlay();
+      setMobileNav(false);
     });
   }
 
@@ -1010,6 +1153,7 @@
     activePanel = id;
     $$('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === id));
     $$('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.panelTarget === id));
+    setMobileNav(false);
     renderAll(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1466,15 +1610,20 @@
       }
     });
 
-    const ordered = state.settings.randomizeSchedule ? shuffle(matches) : matches;
     const start = parseTime(state.event.startTime || '09:00');
     const interval = intClamp(state.event.matchInterval, 1, 240, 15);
     const courtCount = intClamp(state.event.courtCount, 1, 16, 1);
+    const breakEvery = intClamp(state.event.breakEverySlots, 0, 1000, 0);
+    const breakMinutes = intClamp(state.event.breakMinutes, 0, 240, 0);
+    const ordered = state.settings.randomizeSchedule
+      ? arrangeMatchesForRest(shuffle(matches), courtCount)
+      : matches;
     ordered.forEach((m, idx) => {
       const slot = Math.floor(idx / courtCount);
       const court = (idx % courtCount) + 1;
+      const completedBreaks = breakEvery > 0 ? Math.floor(slot / breakEvery) : 0;
       m.court = court;
-      m.time = timeFromMinutes(start + (slot * interval));
+      m.time = timeFromMinutes(start + (slot * interval) + (completedBreaks * breakMinutes));
     });
 
     state.matches = ordered;
@@ -1485,6 +1634,39 @@
     audit('generate-schedule', { count: ordered.length });
     calculateStandings();
     saveState('generate-schedule');
+  }
+
+  function arrangeMatchesForRest(matches, courtCount) {
+    const remaining = [...matches];
+    const ordered = [];
+    let previousSlotTeams = new Set();
+
+    while (remaining.length) {
+      const currentSlotTeams = new Set();
+      const slotMatches = [];
+      const slotSize = Math.min(courtCount, remaining.length);
+
+      for (let court = 0; court < slotSize; court += 1) {
+        let index = remaining.findIndex((match) => {
+          const teams = [match.teamA, match.teamB];
+          return teams.every((team) => !previousSlotTeams.has(team) && !currentSlotTeams.has(team));
+        });
+        if (index < 0) {
+          index = remaining.findIndex((match) => [match.teamA, match.teamB].every((team) => !currentSlotTeams.has(team)));
+        }
+        if (index < 0) index = 0;
+
+        const [match] = remaining.splice(index, 1);
+        slotMatches.push(match);
+        currentSlotTeams.add(match.teamA);
+        currentSlotTeams.add(match.teamB);
+      }
+
+      ordered.push(...slotMatches);
+      previousSlotTeams = currentSlotTeams;
+    }
+
+    return ordered;
   }
 
   function parseTime(t) {
@@ -1499,19 +1681,37 @@
   }
 
   function readScores() {
-    state.matches = state.matches.map(m => {
+    const invalid = [];
+    const nextMatches = state.matches.map(m => {
       const row = $(`[data-match-id="${cssEscape(m.id)}"]`);
       if (!row) return m;
-      return {
+      const scoreA = row.querySelector('[data-score-a]')?.value.trim() ?? String(m.scoreA ?? '').trim();
+      const scoreB = row.querySelector('[data-score-b]')?.value.trim() ?? String(m.scoreB ?? '').trim();
+      const status = row.querySelector('[data-status]')?.value ?? m.status;
+      const next = {
         ...m,
-        scoreA: row.querySelector('[data-score-a]')?.value ?? m.scoreA,
-        scoreB: row.querySelector('[data-score-b]')?.value ?? m.scoreB,
-        status: row.querySelector('[data-status]')?.value ?? m.status
+        scoreA,
+        scoreB,
+        status
       };
+      row.classList.remove('invalid');
+      if (!matchResultIsValid(next)) {
+        row.classList.add('invalid');
+        invalid.push(`${m.teamA} vs ${m.teamB}`);
+      }
+      return next;
     });
+
+    if (invalid.length) {
+      toast(`ยังบันทึกไม่ได้: คู่ที่ Finished ต้องมีคะแนนครบทั้งสองทีม (${invalid.slice(0, 3).join(', ')}${invalid.length > 3 ? '…' : ''})`, 'warn');
+      return;
+    }
+
+    state.matches = nextMatches;
     calculateStandings();
     audit('save-scores', { count: state.matches.length });
     saveState('scores');
+    toast('บันทึกคะแนนและคำนวณอันดับแล้ว', 'good');
   }
 
   function cssEscape(v) {
@@ -1535,20 +1735,23 @@
       const a = groupTable[m.teamA];
       const b = groupTable[m.teamB];
       if (!a || !b) continue;
-      if (!['Finished', 'Bye', 'Forfeit A', 'Forfeit B'].includes(m.status)) continue;
+      const status = String(m.status || '').toLowerCase();
+      if (!['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(status)) continue;
 
-      const sa = Number(m.scoreA);
-      const sb = Number(m.scoreB);
-      const validScore = Number.isFinite(sa) && Number.isFinite(sb);
-
-      a.P += 1;
-      b.P += 1;
-
-      if (m.status === 'Forfeit A') {
+      if (status === 'forfeit a') {
+        a.P += 1;
+        b.P += 1;
         applyWinLoss(b, a, 2, 0);
-      } else if (m.status === 'Forfeit B' || m.status === 'Bye') {
+      } else if (status === 'forfeit b' || status === 'bye') {
+        a.P += 1;
+        b.P += 1;
         applyWinLoss(a, b, 2, 0);
-      } else if (validScore) {
+      } else {
+        const sa = scoreNumber(m.scoreA);
+        const sb = scoreNumber(m.scoreB);
+        if (sa == null || sb == null) continue;
+        a.P += 1;
+        b.P += 1;
         a.GF += sa; a.GA += sb;
         b.GF += sb; b.GA += sa;
         if (sa > sb) { a.W += 1; b.L += 1; a.PTS += Number(state.event.pointsWin); b.PTS += Number(state.event.pointsLoss); }
@@ -1562,6 +1765,46 @@
     });
     state.standings = table;
     return table;
+  }
+
+  function scoreNumber(value) {
+    if (value === '' || value == null) return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : null;
+  }
+
+  function matchResultIsValid(match) {
+    const status = String(match?.status || '').toLowerCase();
+    if (!['done', 'finished'].includes(status)) return true;
+    return scoreNumber(match?.scoreA) != null && scoreNumber(match?.scoreB) != null;
+  }
+
+  function isRealGroupMatch(match) {
+    return isRealTeamName(match?.teamA) && isRealTeamName(match?.teamB);
+  }
+
+  function isResolvedGroupMatch(match) {
+    if (!isRealGroupMatch(match)) return true;
+    const status = String(match?.status || '').toLowerCase();
+    if (['bye', 'forfeit a', 'forfeit b'].includes(status)) return true;
+    if (!['done', 'finished'].includes(status)) return false;
+    return matchResultIsValid(match);
+  }
+
+  function groupStageProgress() {
+    const matches = (state.matches || []).filter(isRealGroupMatch);
+    const done = matches.filter(isResolvedGroupMatch);
+    return {
+      total: matches.length,
+      done: done.length,
+      pending: Math.max(0, matches.length - done.length),
+      complete: matches.length > 0 && done.length === matches.length
+    };
+  }
+
+  function groupMatchesComplete(group) {
+    const matches = (state.matches || []).filter((match) => String(match.group || '') === String(group) && isRealGroupMatch(match));
+    return matches.length > 0 && matches.every(isResolvedGroupMatch);
   }
 
   function applyWinLoss(winner, loser, gf, ga) {
@@ -1582,22 +1825,16 @@
     );
   }
 
-  function hasCompletedGroupMatches() {
-    return (state.matches || []).some((m) => ['Finished', 'Bye', 'Forfeit A', 'Forfeit B'].includes(m.status));
-  }
-
   function knockoutSeedInfo(group, rank) {
-    const groups = getDisplayGroups(true);
     const standingsRows = sortedStandings(state.standings?.[group] || {});
-    const resolved = hasCompletedGroupMatches() && standingsRows.length >= rank;
-    const fallbackTeam = (groups[group] || []).filter((team) => team && team !== 'BYE')[rank - 1] || '';
+    const resolved = groupMatchesComplete(group) && standingsRows.length >= rank;
     return {
       group,
       rank,
       seed: `${group}${rank}`,
       label: `ที่ ${rank} สาย ${group}`,
       team: resolved ? (standingsRows[rank - 1]?.team || '') : '',
-      draftTeam: resolved ? (standingsRows[rank - 1]?.team || '') : fallbackTeam,
+      draftTeam: '',
       resolved
     };
   }
@@ -1624,7 +1861,7 @@
         teamB: b.team,
         draftTeamA: a.draftTeam,
         draftTeamB: b.draftTeam,
-        note: a.resolved || b.resolved ? 'จากอันดับปัจจุบัน' : 'รอผลอันดับจริง'
+        note: a.resolved && b.resolved ? 'จากอันดับจริง' : 'รอผลอันดับจริง'
       });
     };
 
@@ -1724,6 +1961,11 @@
 
   function generateKnockout() {
     calculateStandings();
+    const progress = groupStageProgress();
+    if (!progress.complete) {
+      toast(`ยังสร้าง Knockout จริงไม่ได้: ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบ (${progress.done}/${progress.total})`, 'warn');
+      return;
+    }
     const q = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
     const qualifiers = [];
     Object.keys(state.standings || {}).sort().forEach(g => {
@@ -1770,8 +2012,10 @@
 
   function renderAll(rebuildNav = false) {
     if (rebuildNav) buildNav();
+    refreshNavState();
     setSavePill();
     applyLayoutSettings();
+    setText($('#currentEventName'), state.event.name || 'PepsLive Tournament');
 
     if (activePanel === 'dashboard') renderDashboard();
     if (activePanel === 'teams') renderTeamValidation();
@@ -1828,24 +2072,27 @@
   function renderManualGroupsToolbar() {
     const editing = manualGroupsEditing;
     return `
-      <div class="manual-groups-toolbar">
-        <div>
-          <b>Manual Groups</b>
-          <span>${state.manualGroups?.active ? 'manual data is active' : 'use when you need to enter or fix groups by hand'}</span>
+      <details class="advanced-details manual-groups-details" ${editing ? 'open' : ''}>
+        <summary><span>จัดกลุ่มด้วยตัวเอง</span><small>${state.manualGroups?.active ? 'กำลังใช้ข้อมูลที่แก้เอง' : 'ใช้เมื่อจำเป็นต้องแก้ผลจับสาย'}</small></summary>
+        <div class="manual-groups-toolbar">
+          <div>
+            <b>Manual Groups</b>
+            <span>แก้รายชื่อและตำแหน่งในแต่ละสายโดยตรง ระบบจะถือผลนี้เป็นข้อมูลจริงเมื่อกดบันทึก</span>
+          </div>
+          <div class="row">
+            <button class="btn small" type="button" data-manual-groups-create>สร้างสายว่าง</button>
+            ${editing ? `
+              <button class="btn small" type="button" data-manual-groups-add-row>เพิ่มแถว</button>
+              <button class="btn small warn" type="button" data-manual-groups-del-row>ลบแถวท้าย</button>
+              <button class="btn small primary" type="button" data-manual-groups-save>บันทึกสาย</button>
+              <button class="btn small" type="button" data-manual-groups-cancel>ยกเลิก</button>
+            ` : `
+              <button class="btn small" type="button" data-manual-groups-edit>แก้ไขสาย</button>
+              <button class="btn small bad" type="button" data-manual-groups-clear>ล้างข้อมูลที่แก้เอง</button>
+            `}
+          </div>
         </div>
-        <div class="row">
-          <button class="btn small" type="button" data-manual-groups-create>Empty Groups</button>
-          ${editing ? `
-            <button class="btn small" type="button" data-manual-groups-add-row>Add Row</button>
-            <button class="btn small warn" type="button" data-manual-groups-del-row>Del Row</button>
-            <button class="btn small primary" type="button" data-manual-groups-save>Save Groups</button>
-            <button class="btn small" type="button" data-manual-groups-cancel>Cancel</button>
-          ` : `
-            <button class="btn small" type="button" data-manual-groups-edit>Edit Groups</button>
-            <button class="btn small bad" type="button" data-manual-groups-clear>Clear Manual</button>
-          `}
-        </div>
-      </div>
+      </details>
     `;
   }
 
@@ -1976,13 +2223,18 @@
     if (!scheduleRow || $('#manualScheduleTools')) return;
     const tools = document.createElement('div');
     tools.id = 'manualScheduleTools';
-    tools.className = 'manual-schedule-tools';
+    tools.className = 'manual-schedule-area';
     tools.innerHTML = `
-      <button class="btn" type="button" id="createEmptySchedule">Empty Schedule</button>
-      <button class="btn" type="button" id="editScheduleRows">Edit Schedule</button>
-      <button class="btn" type="button" id="addScheduleRow">Add Match</button>
-      <button class="btn primary" type="button" id="saveScheduleRows">Save Schedule</button>
-      <button class="btn" type="button" id="cancelScheduleEdit">Cancel Edit</button>
+      <details class="advanced-details" ${scheduleEditing ? 'open' : ''}>
+        <summary><span>แก้ตารางด้วยตัวเอง</span><small>สำหรับเพิ่มคู่หรือแก้เวลา/สนามแบบละเอียด</small></summary>
+        <div class="manual-schedule-tools">
+          <button class="btn" type="button" id="createEmptySchedule">สร้างตารางว่าง</button>
+          <button class="btn" type="button" id="editScheduleRows">แก้ไขตาราง</button>
+          <button class="btn" type="button" id="addScheduleRow">เพิ่มคู่แข่ง</button>
+          <button class="btn primary" type="button" id="saveScheduleRows">บันทึกตาราง</button>
+          <button class="btn" type="button" id="cancelScheduleEdit">ยกเลิก</button>
+        </div>
+      </details>
     `;
     scheduleRow.insertAdjacentElement('afterend', tools);
     on($('#createEmptySchedule'), 'click', createEmptySchedule);
@@ -2295,10 +2547,23 @@
   function renderStepper() {
     const root = $('#stepper');
     if (!root) return;
-    root.innerHTML = PANELS.slice(0, 7).map(([id, title], i) => {
-      const done = panelDone(id);
-      return `<div class="step ${done ? 'done' : ''} ${activePanel === id ? 'active' : ''}"><b>${i + 1}</b><span>${esc(title)}</span></div>`;
-    }).join('');
+    const workflow = PANELS.filter(([id]) => ['setup', 'teams', 'draw', 'schedule', 'scores', 'knockout'].includes(id));
+    const doneCount = workflow.filter(([id]) => panelDone(id)).length;
+    const current = workflow.find(([id]) => id === activePanel) || workflow.find(([id]) => !panelDone(id)) || workflow[workflow.length - 1];
+    const progress = Math.round((doneCount / workflow.length) * 100);
+    root.innerHTML = `
+      <div class="workflow-summary">
+        <div><span>ขั้นตอนปัจจุบัน</span><b>${esc(current?.[1] || 'พร้อมใช้งาน')}</b></div>
+        <strong>${doneCount}/${workflow.length}</strong>
+      </div>
+      <div class="workflow-track" aria-label="ความคืบหน้า ${progress}%"><span style="width:${progress}%"></span></div>
+      <div class="workflow-steps">
+        ${workflow.map(([id, title], index) => {
+          const done = panelDone(id);
+          return `<button type="button" class="step ${done ? 'done' : ''} ${activePanel === id ? 'active' : ''}" data-dashboard-target="${esc(id)}"><b>${index + 1}</b><span>${esc(title)}</span></button>`;
+        }).join('')}
+      </div>
+    `;
   }
 
   function panelDone(id) {
@@ -2306,30 +2571,91 @@
     if (id === 'teams') return state.teams.length > 0;
     if (id === 'draw') return hasGroups(state.groups);
     if (id === 'schedule') return state.matches.length > 0;
-    if (id === 'scores') return Object.keys(state.standings || {}).length > 0;
+    if (id === 'scores') return groupStageProgress().complete;
     if (id === 'knockout') return state.knockout.length > 0;
-    return true;
+    return false;
   }
 
   function renderDashboard() {
+    const progress = groupStageProgress();
+    const groupCount = Object.values(state.groups || {}).filter((teams) => Array.isArray(teams) && teams.some(isRealTeamName)).length;
     const stats = $('#dashboardStats');
     if (stats) {
       stats.innerHTML = [
         ['ทีม', state.teams.length],
-        ['สาย', state.event.groupCount],
-        ['คู่แข่ง', state.matches.length],
-        ['ยืนยันสาย', hasGroups(state.groups) ? 'YES' : 'NO']
-      ].map(([label, value]) => `<div class="stat"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join('');
+        ['สายที่พร้อม', `${groupCount}/${state.event.groupCount}`],
+        ['ผลที่บันทึก', `${progress.done}/${progress.total}`],
+        ['สถานะ Knockout', state.knockout.length ? 'พร้อม' : 'รอข้อมูล']
+      ].map(([label, value]) => `<div class="stat"><span class="k">${esc(label)}</span><b class="v">${esc(value)}</b></div>`).join('');
+    }
+
+    const dashboard = $('[data-panel="dashboard"]');
+    if (dashboard && !$('#dashboardWorkspace')) {
+      const workspace = document.createElement('div');
+      workspace.id = 'dashboardWorkspace';
+      workspace.className = 'dashboard-workspace';
+      workspace.innerHTML = '<div id="dashboardPrimary"></div><div id="dashboardFlow"></div>';
+      stats?.insertAdjacentElement('afterend', workspace);
+    }
+
+    const nextPanelId = !state.teams.length
+      ? 'teams'
+      : !hasGroups(state.groups)
+        ? 'draw'
+        : !state.matches.length
+          ? 'schedule'
+          : !progress.complete
+            ? 'scores'
+            : !state.knockout.length
+              ? 'knockout'
+              : 'sources';
+    const nextPanelMeta = PANELS.find(([id]) => id === nextPanelId) || PANELS[0];
+    const nextCopy = {
+      teams: 'เพิ่มรายชื่อทีมให้ครบก่อนเริ่มจับสาย',
+      draw: 'สุ่มสายและยืนยันผลเพื่อใช้สร้างตารางแข่ง',
+      schedule: 'สร้างตารางรอบแบ่งกลุ่มและตรวจเวลาพัก',
+      scores: `บันทึกผลที่เหลืออีก ${progress.pending} คู่`,
+      knockout: 'ตรวจอันดับและสร้างสาย Knockout จริง',
+      sources: 'ข้อมูลพร้อมสำหรับ OBS และการส่งออก'
+    }[nextPanelId] || 'ตรวจความพร้อมของรายการ';
+
+    const primary = $('#dashboardPrimary');
+    if (primary) {
+      primary.innerHTML = `
+        <section class="dashboard-next">
+          <div class="eyebrow">งานถัดไปที่แนะนำ</div>
+          <h3>${esc(nextPanelMeta[1])}</h3>
+          <p>${esc(nextCopy)}</p>
+          <button class="btn primary" type="button" data-dashboard-target="${esc(nextPanelId)}">ไปทำขั้นตอนนี้</button>
+        </section>
+        <section class="dashboard-readiness">
+          <div class="readiness-row"><span>Safe Live Mode</span><b class="${state.settings.safeLive ? 'good-text' : 'warn-text'}">${state.settings.safeLive ? 'เปิดอยู่' : 'ปิดอยู่'}</b></div>
+          <div class="readiness-row"><span>บันทึกล่าสุด</span><b>${new Date(state.updatedAt || Date.now()).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</b></div>
+          <div class="readiness-row"><span>Google Sheet</span><b>${state.webhook.url ? 'ตั้งค่าแล้ว' : 'ยังไม่ตั้งค่า'}</b></div>
+        </section>
+      `;
+    }
+
+    const flow = $('#dashboardFlow');
+    if (flow) {
+      const workflow = PANELS.filter(([id]) => ['setup', 'teams', 'draw', 'schedule', 'scores', 'knockout'].includes(id));
+      flow.innerHTML = `
+        <div class="dashboard-flow-head"><div><span class="eyebrow">Tournament Flow</span><h3>ลำดับงานทั้งหมด</h3></div><button class="btn small" type="button" data-dashboard-target="export">ส่งออกข้อมูล</button></div>
+        <div class="dashboard-flow-list">
+          ${workflow.map(([id, title, sub], index) => `
+            <button type="button" class="dashboard-flow-item ${panelDone(id) ? 'done' : ''} ${id === nextPanelId ? 'current' : ''}" data-dashboard-target="${esc(id)}">
+              <span>${String(index + 1).padStart(2, '0')}</span>
+              <div><b>${esc(title)}</b><small>${esc(sub)}</small></div>
+              <strong>${panelDone(id) ? 'เสร็จ' : id === nextPanelId ? 'ทำต่อ' : 'รอ'}</strong>
+            </button>
+          `).join('')}
+        </div>
+      `;
     }
 
     const next = $('#nextAction');
     if (next) {
-      let msg = 'พร้อมใช้งาน';
-      if (!state.teams.length) msg = 'ไปที่ Teams แล้วใส่รายชื่อทีม';
-      else if (!hasGroups(state.groups)) msg = 'ไปที่ Draw แล้วกด Start Draw จากนั้น Confirm Result';
-      else if (!state.matches.length) msg = 'ไปที่ Schedule แล้ว Generate Schedule';
-      else msg = 'ไปที่ Scores เพื่อกรอกผลการแข่งขัน';
-      next.textContent = msg;
+      next.textContent = nextCopy;
     }
 
     const guard = $('#guardList');
@@ -2576,7 +2902,17 @@
       box.innerHTML = '<div class="notice">Reveal Feed ยังว่างอยู่</div>';
       return;
     }
-    box.innerHTML = `<div class="feed-list">${feed.map(item => `<div class="notice">สาย ${esc(item.group)} · ลำดับ ${esc(item.slot)} · <b>${esc(item.team)}</b></div>`).join('')}</div>`;
+    const recent = feed.slice(0, 6);
+    box.innerHTML = `
+      <div class="feed-head"><span>ผลล่าสุด</span><b>${feed.length} รายการ</b></div>
+      <div class="feed-list">${recent.map(item => `<div class="feed-item"><span>สาย ${esc(item.group)} · ${esc(item.slot)}</span><b>${esc(item.team)}</b></div>`).join('')}</div>
+      ${feed.length > recent.length ? `
+        <details class="advanced-details feed-history">
+          <summary>ดูประวัติทั้งหมด ${feed.length} รายการ</summary>
+          <div class="feed-list">${feed.slice(recent.length).map(item => `<div class="feed-item"><span>สาย ${esc(item.group)} · ${esc(item.slot)}</span><b>${esc(item.team)}</b></div>`).join('')}</div>
+        </details>
+      ` : ''}
+    `;
   }
 
   function renderSchedule() {
@@ -2589,13 +2925,38 @@
     }
     if (!state.matches.length) {
       box.innerHTML = `<div class="notice">ยังไม่มีตารางแข่ง</div>${renderKnockoutPreviewHtml()}`;
+      renderScheduleWarnings();
       return;
     }
+    const groups = [...new Set(state.matches.map((match) => String(match.group || '')).filter(Boolean))].sort();
+    const courts = [...new Set(state.matches.map((match) => String(match.court || '')).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
+    const completed = state.matches.filter(isResolvedGroupMatch).length;
     box.innerHTML = `
-      <div class="tablewrap"><table><thead><tr><th>เวลา</th><th>สนาม</th><th>สาย</th><th>ทีม A</th><th>ทีม B</th><th>สถานะ</th></tr></thead>
-      <tbody>${state.matches.map(m => `<tr><td>${esc(m.time)}</td><td>${esc(m.court)}</td><td>${esc(m.group)}</td><td>${esc(m.teamA)}</td><td>${esc(m.teamB)}</td><td>${esc(m.status)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="list-toolbar">
+        <div class="toolbar-summary"><span>ตารางรอบแบ่งกลุ่ม</span><b><span id="scheduleVisibleCount">${state.matches.length}</span> / ${state.matches.length} คู่</b><small>จบแล้ว ${completed} คู่</small></div>
+        <div class="toolbar-controls">
+          <label><span>สาย</span><select data-schedule-filter-group><option value="all">ทุกสาย</option>${groups.map((group) => `<option value="${esc(group)}" ${scheduleFilterGroup === group ? 'selected' : ''}>สาย ${esc(group)}</option>`).join('')}</select></label>
+          <label><span>สนาม</span><select data-schedule-filter-court><option value="all">ทุกสนาม</option>${courts.map((court) => `<option value="${esc(court)}" ${scheduleFilterCourt === court ? 'selected' : ''}>สนาม ${esc(court)}</option>`).join('')}</select></label>
+          <label><span>สถานะ</span><select data-schedule-filter-status>
+            <option value="all" ${scheduleFilterStatus === 'all' ? 'selected' : ''}>ทั้งหมด</option>
+            <option value="open" ${scheduleFilterStatus === 'open' ? 'selected' : ''}>ยังไม่จบ</option>
+            <option value="done" ${scheduleFilterStatus === 'done' ? 'selected' : ''}>จบแล้ว</option>
+            <option value="live" ${scheduleFilterStatus === 'live' ? 'selected' : ''}>กำลังแข่ง</option>
+          </select></label>
+          <label class="toolbar-search"><span>ค้นหา</span><input data-schedule-search value="${esc(scheduleSearch)}" placeholder="ชื่อทีม เวลา หรือสนาม" /></label>
+        </div>
+      </div>
+      <div class="tablewrap schedule-table"><table><thead><tr><th>เวลา</th><th>สนาม</th><th>สาย</th><th>ทีม A</th><th>ทีม B</th><th>สถานะ</th></tr></thead>
+      <tbody>${state.matches.map(m => `
+        <tr data-schedule-row data-filter-group="${esc(m.group)}" data-filter-court="${esc(m.court)}" data-filter-status="${esc(statusBucket(m.status))}" data-filter-search="${esc(`${m.time} ${m.court} ${m.group} ${m.teamA} ${m.teamB}`.toLowerCase())}">
+          <td><b>${esc(m.time || '-')}</b></td><td>${esc(m.court || '-')}</td><td>${esc(m.group || '-')}</td><td>${esc(m.teamA)}</td><td>${esc(m.teamB)}</td><td><span class="status-badge ${esc(statusBucket(m.status))}">${esc(m.status || 'Pending')}</span></td>
+        </tr>
+      `).join('')}</tbody></table></div>
+      <div id="scheduleFilterEmpty" class="notice hidden">ไม่พบคู่แข่งตามตัวกรองนี้</div>
       ${renderKnockoutPreviewHtml()}
     `;
+    applyScheduleFilters();
+    renderScheduleWarnings();
   }
 
   function renderScores() {
@@ -2605,19 +2966,133 @@
       box.innerHTML = '<div class="notice">ยังไม่มีคู่แข่งขัน</div>';
       return;
     }
-    box.innerHTML = state.matches.map(m => `
-      <div class="score-row" data-match-id="${esc(m.id)}">
-        <b>${esc(m.time)} · สนาม ${esc(m.court)} · สาย ${esc(m.group)}</b>
-        <span>${esc(m.teamA)}</span>
-        <input data-score-a type="number" value="${esc(m.scoreA)}" placeholder="0">
-        <span>-</span>
-        <input data-score-b type="number" value="${esc(m.scoreB)}" placeholder="0">
-        <span>${esc(m.teamB)}</span>
-        <select data-status>
-          ${['Pending', 'Live', 'Finished', 'Bye', 'Forfeit A', 'Forfeit B'].map(s => `<option ${m.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
+    const groups = [...new Set(state.matches.map((match) => String(match.group || '')).filter(Boolean))].sort();
+    const progress = groupStageProgress();
+    box.innerHTML = `
+      <div class="list-toolbar score-toolbar">
+        <div class="toolbar-summary"><span>ผลรอบแบ่งกลุ่ม</span><b><span id="scoreVisibleCount">${state.matches.length}</span> / ${state.matches.length} คู่</b><small>คงเหลือ ${progress.pending} คู่</small></div>
+        <div class="toolbar-controls">
+          <label><span>สาย</span><select data-score-filter-group><option value="all">ทุกสาย</option>${groups.map((group) => `<option value="${esc(group)}" ${scoreFilterGroup === group ? 'selected' : ''}>สาย ${esc(group)}</option>`).join('')}</select></label>
+          <label><span>สถานะ</span><select data-score-filter-status>
+            <option value="all" ${scoreFilterStatus === 'all' ? 'selected' : ''}>ทั้งหมด</option>
+            <option value="open" ${scoreFilterStatus === 'open' ? 'selected' : ''}>ยังไม่จบ</option>
+            <option value="done" ${scoreFilterStatus === 'done' ? 'selected' : ''}>จบแล้ว</option>
+            <option value="live" ${scoreFilterStatus === 'live' ? 'selected' : ''}>กำลังแข่ง</option>
+          </select></label>
+          <label class="toolbar-search"><span>ค้นหาทีม</span><input data-score-search value="${esc(scoreSearch)}" placeholder="พิมพ์ชื่อทีม" /></label>
+        </div>
       </div>
-    `).join('');
+      <div class="score-list">
+        ${state.matches.map(m => `
+          <div class="score-row" data-match-id="${esc(m.id)}" data-filter-group="${esc(m.group)}" data-filter-search="${esc(`${m.teamA} ${m.teamB} ${m.time} ${m.court}`.toLowerCase())}">
+            <div class="score-meta"><b>${esc(m.time || '-')}</b><span>สนาม ${esc(m.court || '-')} · สาย ${esc(m.group || '-')}</span></div>
+            <span class="score-team team-a">${esc(m.teamA)}</span>
+            <input data-score-a type="number" min="0" value="${esc(m.scoreA)}" placeholder="0" aria-label="คะแนน ${esc(m.teamA)}">
+            <span class="score-separator">:</span>
+            <input data-score-b type="number" min="0" value="${esc(m.scoreB)}" placeholder="0" aria-label="คะแนน ${esc(m.teamB)}">
+            <span class="score-team team-b">${esc(m.teamB)}</span>
+            <select data-status aria-label="สถานะคู่ ${esc(m.teamA)} พบ ${esc(m.teamB)}">
+              ${['Pending', 'Live', 'Finished', 'Bye', 'Forfeit A', 'Forfeit B'].map(s => `<option ${m.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        `).join('')}
+      </div>
+      <div id="scoreFilterEmpty" class="notice hidden">ไม่พบคู่แข่งตามตัวกรองนี้</div>
+    `;
+    applyScoreFilters();
+  }
+
+  function statusBucket(status) {
+    const value = String(status || '').toLowerCase();
+    if (value === 'live') return 'live';
+    if (['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(value)) return 'done';
+    return 'open';
+  }
+
+  function applyScheduleFilters() {
+    const query = scheduleSearch.trim().toLowerCase();
+    let visible = 0;
+    $$('[data-schedule-row]').forEach((row) => {
+      const match = (scheduleFilterGroup === 'all' || row.dataset.filterGroup === scheduleFilterGroup)
+        && (scheduleFilterCourt === 'all' || row.dataset.filterCourt === scheduleFilterCourt)
+        && (scheduleFilterStatus === 'all' || row.dataset.filterStatus === scheduleFilterStatus)
+        && (!query || (row.dataset.filterSearch || '').includes(query));
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
+    setText($('#scheduleVisibleCount'), visible);
+    $('#scheduleFilterEmpty')?.classList.toggle('hidden', visible > 0);
+  }
+
+  function applyScoreFilters() {
+    const query = scoreSearch.trim().toLowerCase();
+    let visible = 0;
+    $$('#scoresBox .score-row').forEach((row) => {
+      const status = statusBucket(row.querySelector('[data-status]')?.value);
+      const match = (scoreFilterGroup === 'all' || row.dataset.filterGroup === scoreFilterGroup)
+        && (scoreFilterStatus === 'all' || status === scoreFilterStatus)
+        && (!query || (row.dataset.filterSearch || '').includes(query));
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
+    setText($('#scoreVisibleCount'), visible);
+    $('#scoreFilterEmpty')?.classList.toggle('hidden', visible > 0);
+  }
+
+  function renderScheduleWarnings() {
+    const box = $('#restWarnings');
+    if (!box) return;
+    const warnings = scheduleWarnings();
+    if (!state.matches.length) {
+      box.innerHTML = '';
+      return;
+    }
+    box.innerHTML = warnings.length
+      ? `<div class="notice warn"><b>ควรตรวจตาราง ${warnings.length} จุด</b><div class="warning-list">${warnings.slice(0, 6).map((warning) => `<span>${esc(warning)}</span>`).join('')}</div></div>`
+      : '<div class="notice good compact-notice">ตรวจแล้ว: ไม่พบทีมแข่งชนเวลา สนามซ้ำ หรือแข่งติด slot</div>';
+  }
+
+  function scheduleWarnings() {
+    const warnings = [];
+    const realMatches = (state.matches || []).filter(isRealGroupMatch);
+    const occupied = new Map();
+    realMatches.forEach((match) => {
+      if (!match.time || !match.court) return;
+      const key = `${match.time}|${match.court}`;
+      if (occupied.has(key)) warnings.push(`${match.time} สนาม ${match.court} มีมากกว่า 1 คู่`);
+      occupied.set(key, true);
+    });
+
+    const byTeam = new Map();
+    realMatches.forEach((match) => {
+      [match.teamA, match.teamB].forEach((team) => {
+        if (!byTeam.has(team)) byTeam.set(team, []);
+        byTeam.get(team).push(match);
+      });
+    });
+    const interval = intClamp(state.event.matchInterval, 1, 240, 15);
+    byTeam.forEach((matches, team) => {
+      matches.sort((a, b) => (scheduleMinutes(a.time) ?? 99999) - (scheduleMinutes(b.time) ?? 99999));
+      for (let index = 1; index < matches.length; index += 1) {
+        const previous = matches[index - 1];
+        const current = matches[index];
+        const previousTime = scheduleMinutes(previous.time);
+        const currentTime = scheduleMinutes(current.time);
+        if (previousTime == null || currentTime == null) continue;
+        const gap = currentTime - previousTime;
+        if (gap <= interval) warnings.push(`${team} แข่งติดกัน ${previous.time} → ${current.time}`);
+      }
+    });
+    return [...new Set(warnings)];
+  }
+
+  function scheduleMinutes(value) {
+    const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes > 59) return null;
+    return (hours * 60) + minutes;
   }
 
   function renderStandings() {
@@ -2746,12 +3221,18 @@
   function renderSource(view) {
     view = normalizeSourceView(view);
     injectSourceCss();
+    const sourceBackground = state.settings?.sourceBg === 'green'
+      ? '#00b140'
+      : state.settings?.sourceBg === 'transparent'
+        ? 'transparent'
+        : '#061426';
 
     document.documentElement.classList.add('source-mode');
     document.body.classList.add('source-mode-body');
-    document.documentElement.style.setProperty('background', 'transparent', 'important');
+    document.documentElement.style.setProperty('--source-page-bg', sourceBackground);
+    document.documentElement.style.setProperty('background', sourceBackground, 'important');
     document.documentElement.style.setProperty('background-image', 'none', 'important');
-    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background', sourceBackground, 'important');
     document.body.style.setProperty('background-image', 'none', 'important');
     document.body.style.setProperty('overflow', 'hidden', 'important');
     $('#app')?.classList.add('hidden');
@@ -4010,9 +4491,9 @@
         margin:0!important;
         width:100%!important;
         min-height:100%!important;
-        background:transparent!important;
+        background:var(--source-page-bg,transparent)!important;
         background-image:none!important;
-        background-color:transparent!important;
+        background-color:var(--source-page-bg,transparent)!important;
         overflow:hidden!important;
       }
       html.source-mode body::before,

@@ -12,7 +12,7 @@
     if (document.querySelector('link[href^="assets/draw-preview-source-sync.css"]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'assets/draw-preview-source-sync.css?v=phase10-34-20260513-1';
+    link.href = 'assets/draw-preview-source-sync.css?v=ux-refresh-20260716-1';
     document.head.appendChild(link);
   }
 
@@ -31,7 +31,7 @@
   ensureCss();
   if (!view) {
     syncDrawStyleToStorage();
-    setInterval(syncDrawStyleToStorage, 700);
     document.addEventListener('change', (e) => { if (e.target?.id === 'drawAnimation') setTimeout(syncDrawStyleToStorage, 0); }, true);
+    window.addEventListener('focus', syncDrawStyleToStorage);
   }
 })();

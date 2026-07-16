@@ -27,7 +27,8 @@
     const groups = state.groups && typeof state.groups === 'object' ? state.groups : {};
     return Object.values(groups).flat().filter((t) => cleanText(t) && !isBye(t));
   }
-  function hasScores(state) { return realMatches(state).some((m) => isDone(m) || m.scoreA !== undefined || m.scoreB !== undefined); }
+  function hasScoreValue(value) { return value !== '' && value !== undefined && value !== null; }
+  function hasScores(state) { return realMatches(state).some((m) => isDone(m) || hasScoreValue(m.scoreA) || hasScoreValue(m.scoreB)); }
 
   function parseMinutes(time) {
     const m = String(time || '').match(/^(\d{1,2}):(\d{2})/);
@@ -127,7 +128,6 @@
     document.addEventListener('click', () => setTimeout(refresh, 160));
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', refresh);
-    window.setInterval(refresh, 1500);
     refresh();
   }
 

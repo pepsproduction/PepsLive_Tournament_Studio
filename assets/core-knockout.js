@@ -42,7 +42,11 @@
     }[m]));
   }
   function asNum(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n : d; }
-  function nullableNum(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+  function nullableNum(v) {
+    if (v === '' || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
   function normalizeGroupName(v) {
     const s = clean(v).replace(/^สาย\s*/i, '').replace(/^group\s*/i, '').trim();
     return s || clean(v) || '-';
@@ -211,6 +215,27 @@
     return { groups, total, ok: groups.length >= 2 && total >= 4 };
   }
 
+  function isRealGroupMatch(match) {
+    return clean(match?.teamA) && clean(match?.teamB) && !isBye(match?.teamA) && !isBye(match?.teamB);
+  }
+
+  function isResolvedGroupMatch(match) {
+    const status = clean(match?.status).toLowerCase();
+    if (['bye', 'forfeit a', 'forfeit b'].includes(status)) return true;
+    if (!['done', 'finished'].includes(status)) return false;
+    return nullableNum(match?.scoreA) != null && nullableNum(match?.scoreB) != null;
+  }
+
+  function groupStageProgress(state) {
+    const matches = (Array.isArray(state.matches) ? state.matches : []).filter(isRealGroupMatch);
+    const done = matches.filter(isResolvedGroupMatch);
+    return {
+      total: matches.length,
+      done: done.length,
+      complete: matches.length > 0 && done.length === matches.length
+    };
+  }
+
   function buildBracketFromEntries(entries, state) {
     const q = qualifierSummary(state, entries);
     if (!q.ok) return [];
@@ -275,6 +300,11 @@
 
   function generateKnockout({ resolved = false } = {}) {
     const state = readState();
+    const progress = groupStageProgress(state);
+    if (!progress.complete) {
+      alert(`ยังสร้าง Knockout จริงไม่ได้: ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบก่อน (${progress.done}/${progress.total})`);
+      return;
+    }
     const entries = resolved ? resolvedStandingsEntries(state) : standingsEntries(state);
     const q = qualifierSummary(state, entries);
 
@@ -379,9 +409,9 @@
     if (!panel) return null;
     let box = $('#coreTieResolver') || $('#phase6TieResolver');
     if (!box) {
-      box = document.createElement('section');
+      box = document.createElement('details');
       box.id = 'coreTieResolver';
-      box.className = 'phase6-card';
+      box.className = 'phase6-card advanced-details';
       const head = panel.querySelector('.panel-head');
       if (head) head.insertAdjacentElement('afterend', box);
       else panel.prepend(box);
@@ -407,22 +437,30 @@
   function renderTieResolver() {
     const box = ensureTieResolverBox();
     if (!box) return;
+    if (isEditingKnockout()) return;
     const state = readState();
     const entries = standingsEntries(state);
     const ties = tieGroups(entries);
     const q = qualifierSummary(state, entries);
+    const progress = groupStageProgress(state);
+    const ready = q.ok && progress.complete;
     const source = standingsEntriesFromState(state).length ? 'state.standings' : (entries.length ? 'visible standings' : 'none');
+    const wasOpen = box.open;
 
-    box.className = `phase6-card ${ties.length || !q.ok ? 'warn' : 'good'}`;
+    box.className = `phase6-card advanced-details ${ties.length || !q.ok || !progress.complete ? 'warn' : 'good'}`;
     box.innerHTML = `
-      <div class="phase6-title"><span>Core Knockout · Tie Resolver & Generator</span><span class="phase6-badge ${q.ok ? 'good' : 'warn'}">${q.ok ? `พร้อมสร้าง · ${q.total} ทีม` : `ยังไม่พร้อม · ${q.total} ทีม`}</span></div>
+      <summary><span>ตรวจคะแนนเท่ากันและลำดับทีมเข้ารอบ</span><small>${progress.done}/${progress.total} คู่</small></summary>
+      <div class="phase6-body">
+      <div class="phase6-title"><span>Core Knockout · Tie Resolver & Generator</span><span class="phase6-badge ${ready ? 'good' : 'warn'}">${ready ? `พร้อมสร้าง · ${q.total} ทีม` : `รอผลครบ · ${progress.done}/${progress.total}`}</span></div>
       <div class="phase6-text">แหล่งข้อมูล: ${esc(source)} · ถ้าคะแนนเท่ากัน ให้บันทึกลำดับก่อนสร้าง Knockout จาก Resolved Order</div>
       ${ties.length ? ties.map((tie) => renderTie(tie, state)).join('') : '<div class="phase6-list"><div class="phase6-item good">ไม่พบทีมคะแนนเท่ากันในสายเดียวกัน</div></div>'}
       <div class="phase6-actions">
-        <button class="btn good" type="button" id="coreGenerateFromStandings">Generate from Standings</button>
-        <button class="btn primary" type="button" id="coreGenerateResolved">Generate from Resolved Order</button>
+        <button class="btn good" type="button" id="coreGenerateFromStandings" ${progress.complete ? '' : 'disabled'}>Generate from Standings</button>
+        <button class="btn primary" type="button" id="coreGenerateResolved" ${progress.complete ? '' : 'disabled'}>Generate from Resolved Order</button>
+      </div>
       </div>
     `;
+    box.open = ties.length > 0 || wasOpen;
   }
 
   function saveTieOrder(root) {
@@ -573,7 +611,7 @@
 
   function isEditingKnockout() {
     const active = document.activeElement;
-    return Date.now() < editModeUntil || !!active?.closest?.('#coreKnockoutScores');
+    return Date.now() < editModeUntil || !!active?.closest?.('#coreKnockoutScores, #coreTieResolver');
   }
 
   function touchEditMode() { editModeUntil = Date.now() + 3500; }
@@ -622,9 +660,9 @@
     return `
       <div class="pre6-match" data-core-ko-index="${m.index}">
         <div class="pre6-team right" title="${esc(m.teamA)}">${esc(m.teamA || 'รอทีม')}</div>
-        <input type="number" class="core-ko-score-a" value="${esc(m.scoreA)}" placeholder="0" />
+        <input type="number" min="0" class="core-ko-score-a" value="${esc(m.scoreA)}" placeholder="0" />
         <div class="pre6-vs">-</div>
-        <input type="number" class="core-ko-score-b" value="${esc(m.scoreB)}" placeholder="0" />
+        <input type="number" min="0" class="core-ko-score-b" value="${esc(m.scoreB)}" placeholder="0" />
         <div class="pre6-team" title="${esc(m.teamB)}">${esc(m.teamB || 'รอทีม')}</div>
         <select class="core-ko-winner">${winnerOptions}</select>
       </div>
@@ -714,12 +752,16 @@
     const state = readState();
     const entries = standingsEntries(state);
     const q = qualifierSummary(state, entries);
+    const progress = groupStageProgress(state);
     const coreBtn = $('#generateKnockout');
 
-    if (coreBtn && q.ok) {
-      coreBtn.disabled = false;
-      coreBtn.classList.remove('phase2-disabled');
-      coreBtn.title = 'Core Knockout พร้อมสร้างจาก Standings';
+    if (coreBtn) {
+      const ready = q.ok && progress.complete;
+      coreBtn.disabled = !ready;
+      coreBtn.classList.toggle('phase2-disabled', !ready);
+      coreBtn.title = ready
+        ? 'พร้อมสร้าง Knockout จากอันดับรอบแบ่งกลุ่ม'
+        : `ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบก่อน (${progress.done}/${progress.total})`;
     }
   }
 
@@ -732,13 +774,13 @@
   // ---------------------------------------------------------------------------
   function bind() {
     document.addEventListener('focusin', (event) => {
-      if (event.target.closest('#coreKnockoutScores')) touchEditMode();
+      if (event.target.closest('#coreKnockoutScores, #coreTieResolver')) touchEditMode();
     });
     document.addEventListener('input', (event) => {
-      if (event.target.closest('#coreKnockoutScores')) touchEditMode();
+      if (event.target.closest('#coreKnockoutScores, #coreTieResolver')) touchEditMode();
     });
     document.addEventListener('change', (event) => {
-      if (event.target.closest('#coreKnockoutScores')) touchEditMode();
+      if (event.target.closest('#coreKnockoutScores, #coreTieResolver')) touchEditMode();
     });
 
     document.addEventListener('click', (event) => {

@@ -5,7 +5,7 @@
   window.__PEPSLIVE_CORE_LIVE_SOURCES_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const DRAW_TEXT_PREVIEW_KEY = 'pepsliveDrawTextPreview';
+  const DRAW_TEXT_PREVIEW_KEY = 'pepsliveDrawTextPreviewV12';
   const SOURCE_VIEWS = ['draw-animation', 'groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
   const DRAW_SOURCE_ALIASES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex', 'winner'];
   const DEFAULT_DRAW_TEXT_SIZES = { chip: 13, groupLabel: 18, groupLetter: 18, team: 52, meta: 22, status: 18, sourceTeam: 52, sourceMeta: 22, groupTitle: 14, groupTeam: 14 };
@@ -28,6 +28,18 @@
   const teamOf = (m, side) => clean(m?.[side] || m?.[side === 'teamA' ? 'home' : 'away'] || m?.teams?.[side === 'teamA' ? 0 : 1] || '');
   const scoreOf = (m, key) => { const v = m?.[key]; return v === '' || v == null ? '' : asNum(v); };
   const isDone = (m) => ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(clean(m?.status).toLowerCase());
+  const winnerOf = (m) => {
+    const explicit = clean(m?.winner || m?.winnerTeam);
+    if (explicit) return explicit;
+    const status = clean(m?.status).toLowerCase();
+    if (status === 'forfeit a') return teamOf(m, 'teamB');
+    if (status === 'forfeit b' || status === 'bye') return teamOf(m, 'teamA');
+    const scoreA = scoreOf(m, 'scoreA');
+    const scoreB = scoreOf(m, 'scoreB');
+    if (scoreA === '' || scoreB === '') return '';
+    if (scoreA === scoreB) return 'เสมอ';
+    return scoreA > scoreB ? teamOf(m, 'teamA') : teamOf(m, 'teamB');
+  };
 
   function removeDuplicateHealthPanel() {
     $('#phase8SourceHealth')?.remove();
@@ -267,12 +279,12 @@
 
   function renderSchedule(state) { const list = realMatches(state); if (!list.length) return empty('Schedule', 'ยังไม่มีตารางแข่ง ให้ Generate Schedule ก่อน'); return shell('Schedule', state.event?.name || 'PepsLive Tournament', `<div class="phase8-panel"><table class="phase8-table"><thead><tr><th>Time</th><th>Court</th><th>Group</th><th>Team A</th><th>Team B</th><th>Status</th></tr></thead><tbody>${list.map((m) => `<tr><td>${esc(m.time || m.startTime || '')}</td><td>${esc(m.court || m.field || '')}</td><td>${esc(m.group || '')}</td><td class="team">${esc(teamOf(m, 'teamA'))}</td><td class="team">${esc(teamOf(m, 'teamB'))}</td><td>${esc(m.status || 'Pending')}</td></tr>`).join('')}</tbody></table></div>`); }
   function computeStandings(state) { const groups = state.standings && typeof state.standings === 'object' ? state.standings : {}; return Object.entries(groups).map(([g, rows]) => [g, Array.isArray(rows) ? rows : Object.entries(rows || {}).map(([team, data]) => ({ team, ...(data || {}) }))]).filter(([, rows]) => rows.length); }
-  function renderStandings(state) { const entries = computeStandings(state); if (!entries.length) return empty('Standings Table', 'ยังไม่มีตารางคะแนน ให้บันทึก Scores ก่อน'); return shell('Standings Table', state.event?.name || 'PepsLive Tournament', `<div class="phase8-panel-grid">${entries.map(([group, rows]) => `<div class="phase8-panel"><h2>สาย ${esc(group)}</h2><table class="phase8-table"><thead><tr><th>#</th><th>Team</th><th>PTS</th><th>GD</th></tr></thead><tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td class="team">${esc(r.team || r.name || '')}</td><td>${asNum(r.pts ?? r.points)}</td><td>${asNum(r.gd ?? r.diff)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`); }
+  function renderStandings(state) { const entries = computeStandings(state); if (!entries.length) return empty('Standings Table', 'ยังไม่มีตารางคะแนน ให้บันทึก Scores ก่อน'); return shell('Standings Table', state.event?.name || 'PepsLive Tournament', `<div class="phase8-panel-grid">${entries.map(([group, rows]) => `<div class="phase8-panel"><h2>สาย ${esc(group)}</h2><table class="phase8-table"><thead><tr><th>#</th><th>Team</th><th>PTS</th><th>GD</th></tr></thead><tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td class="team">${esc(r.team || r.name || '')}</td><td>${asNum(r.pts ?? r.points ?? r.PTS)}</td><td>${asNum(r.gd ?? r.diff ?? r.GD)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`); }
   function renderKnockout(state) { const list = knockout(state); if (!list.length) return empty('Knockout', 'ยังไม่มีสาย Knockout'); return shell('Knockout', state.event?.name || 'PepsLive Tournament', `<div class="phase8-panel"><table class="phase8-table"><thead><tr><th>Round</th><th>Team A</th><th>Score</th><th>Team B</th><th>Winner</th></tr></thead><tbody>${list.map((m) => `<tr><td>${esc(m.round || m.stage || '')}</td><td class="team">${esc(teamOf(m, 'teamA'))}</td><td>${esc(scoreOf(m, 'scoreA'))} - ${esc(scoreOf(m, 'scoreB'))}</td><td class="team">${esc(teamOf(m, 'teamB'))}</td><td>${esc(m.winner || '')}</td></tr>`).join('')}</tbody></table></div>`); }
   const allDoneResults = (state) => [...realMatches(state), ...knockout(state)].filter((m) => isDone(m) || clean(m.winner));
   const latestResult = (state) => clean(state.lastResult?.teamA) ? state.lastResult : allDoneResults(state).slice(-1)[0];
   const nextPending = (state) => [...realMatches(state), ...knockout(state)].find((m) => !isDone(m) && !clean(m.winner));
-  function renderLatestResult(state) { const r = latestResult(state); if (!r) return empty('Latest Result', 'ยังไม่มีผลล่าสุด'); return `<div class="phase8-result"><div><div class="phase8-sub">${esc(state.event?.name || 'PepsLive Tournament')}</div><div class="teams">${esc(teamOf(r, 'teamA'))} vs ${esc(teamOf(r, 'teamB'))}</div><div class="score">${esc(scoreOf(r, 'scoreA'))} - ${esc(scoreOf(r, 'scoreB'))}</div><div class="phase8-sub">Winner: ${esc(r.winner || '')}</div></div></div>`; }
+  function renderLatestResult(state) { const r = latestResult(state); if (!r) return empty('Latest Result', 'ยังไม่มีผลล่าสุด'); return `<div class="phase8-result"><div><div class="phase8-sub">${esc(state.event?.name || 'PepsLive Tournament')}</div><div class="teams">${esc(teamOf(r, 'teamA'))} vs ${esc(teamOf(r, 'teamB'))}</div><div class="score">${esc(scoreOf(r, 'scoreA'))} - ${esc(scoreOf(r, 'scoreB'))}</div><div class="phase8-sub">Winner: ${esc(winnerOf(r))}</div></div></div>`; }
   function renderNextMatch(state) { const m = nextPending(state); if (!m) return empty('Next Match', 'ยังไม่มีคู่ถัดไป'); return shell('Next Match', state.event?.name || 'PepsLive Tournament', `<div class="phase8-result"><div><div class="phase8-sub">${esc(m.round || m.group || '')} · ${esc(m.time || m.startTime || '')}</div><div class="teams">${esc(teamOf(m, 'teamA'))} vs ${esc(teamOf(m, 'teamB'))}</div><div class="phase8-sub">${esc(m.court || m.field || '')}</div></div></div>`); }
   function renderLowerThird(state) { const m = nextPending(state) || latestResult(state); if (!m) return empty('Lower Third', state.event?.name || 'PepsLive Tournament'); return `<div class="phase8-wrap" style="justify-content:flex-end;min-height:100vh"><div class="phase8-panel"><h2>${esc(state.event?.name || 'PepsLive Tournament')}</h2><div class="phase8-list"><div class="phase8-row"><span class="time">${esc(m.time || m.startTime || '')}</span><span class="main">${esc(teamOf(m, 'teamA'))} vs ${esc(teamOf(m, 'teamB'))}</span><span class="meta">${esc(m.round || m.group || '')}</span></div></div></div></div>`; }
   function renderByView(view, state) { if (view === 'groups') return renderGroups(state); if (view === 'schedule') return renderSchedule(state); if (view === 'standings') return renderStandings(state); if (view === 'knockout') return renderKnockout(state); if (view === 'latest-result') return renderLatestResult(state); if (view === 'next-match') return renderNextMatch(state); if (view === 'lower-third') return renderLowerThird(state); return empty('Source', 'Unknown source view'); }
@@ -304,7 +316,7 @@
     window.addEventListener('resize', () => { lastSignature = ''; paintSource(); });
     window.addEventListener('peps:draw-style-changed', () => { lastSignature = ''; lastDrawSignature = ''; paintSource(); });
   }
-  function installControlCleanup() { removeDuplicateHealthPanel(); window.addEventListener('focus', removeDuplicateHealthPanel); window.addEventListener('storage', removeDuplicateHealthPanel); document.addEventListener('click', () => setTimeout(removeDuplicateHealthPanel, 120)); setInterval(removeDuplicateHealthPanel, 1000); }
+  function installControlCleanup() { removeDuplicateHealthPanel(); window.addEventListener('focus', removeDuplicateHealthPanel); window.addEventListener('storage', removeDuplicateHealthPanel); document.addEventListener('click', () => setTimeout(removeDuplicateHealthPanel, 120)); }
   function install() { if (isObsSourceView()) installSourceView(); else installControlCleanup(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
 })();

@@ -229,7 +229,6 @@
     });
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', refresh);
-    window.setInterval(refresh, 1500);
     refresh();
   }
 

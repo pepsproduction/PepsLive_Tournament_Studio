@@ -155,7 +155,7 @@
 
     const sheets = {
       Event_Setup: [{
-        EventName: event.name || '', SportType: event.sportType || '', Preset: event.preset || '',
+        EventName: event.name || '', SportType: event.sport || event.sportType || '', Preset: event.preset || '',
         GroupCount: event.groupCount || '', CourtCount: event.courtCount || '', StartTime: event.startTime || '',
         MatchInterval: event.matchInterval || '', BreakEverySlots: event.breakEverySlots || '', BreakMinutes: event.breakMinutes || '',
         PointsWin: event.pointsWin ?? 3, PointsDraw: event.pointsDraw ?? 1, PointsLoss: event.pointsLoss ?? 0,
@@ -224,11 +224,11 @@
     const panel = $('[data-panel="export"]');
     if (!panel) return;
     if ($('#phase55SheetBox')) return;
-    const box = document.createElement('section');
+    const box = document.createElement('details');
     box.id = 'phase55SheetBox';
-    box.className = 'phase55-card';
-    const head = panel.querySelector('.panel-head');
-    if (head) head.insertAdjacentElement('afterend', box);
+    box.className = 'phase55-card advanced-details';
+    const grid = panel.querySelector('.grid.two');
+    if (grid) grid.insertAdjacentElement('afterend', box);
     else panel.prepend(box);
   }
   function renderPanel() {
@@ -237,8 +237,11 @@
     if (!box) return;
     const payload = buildPayload();
     const sheetCounts = Object.fromEntries(Object.entries(payload.sheets).map(([k, v]) => [k, Array.isArray(v) ? v.length : 0]));
-    box.className = 'phase55-card good';
+    const wasOpen = box.open;
+    box.className = 'phase55-card advanced-details good';
     box.innerHTML = `
+      <summary><span>ส่งออกฐานข้อมูลการแข่งขันแบบละเอียด</span><small>${SHEET_NAMES.length} Sheets</small></summary>
+      <div class="phase55-body">
       <div class="phase55-title"><span>Core Google Sheet · Tournament Database</span><span class="phase55-badge good">${SHEET_NAMES.length} Sheets</span></div>
       <div class="phase55-text">ส่งออกข้อมูลการแข่งขันแบบแยกหมวด เพื่อใช้ Google Sheet เป็น Tournament Database</div>
       <div class="phase55-metrics">
@@ -256,7 +259,9 @@
         <button class="btn" type="button" id="phase55CopyScriptUrl">Copy Apps Script Template Path</button>
       </div>
       <pre class="phase55-code">${esc(JSON.stringify({ action: payload.action, version: payload.version, sheets: sheetCounts }, null, 2))}</pre>
+      </div>
     `;
+    box.open = wasOpen;
   }
 
   async function sendDatabase() {
@@ -297,7 +302,7 @@
     });
     window.addEventListener('focus', renderPanel);
     window.addEventListener('storage', renderPanel);
-    setInterval(renderPanel, 1800);
+    setInterval(renderPanel, 5000);
   }
   function install() { bind(); renderPanel(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
