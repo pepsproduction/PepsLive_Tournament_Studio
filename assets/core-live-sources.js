@@ -164,9 +164,10 @@
   }
 
   function groupsForDisplay(state) {
+    const draft = window.PepsLiveTournamentStudio?.revealedDraftGroups(state);
+    if (draft) return draft;
     if (state.manualGroups?.active && state.groups && Object.keys(state.groups).length) return normalizeManualGroupsForDisplay(state, state.groups);
     if (hasGroups(state.groups)) return state.groups;
-    if (state.settings?.drawMethod === 'instant-all' && state.pendingComplete && hasGroups(state.pendingGroups)) return state.pendingGroups;
     return groupsFromRevealFeed(state);
   }
 

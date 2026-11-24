@@ -344,6 +344,7 @@
   let modalSource = null;
   let saveTimer = null;
   let drawTimer = null;
+  let nextRevealTimer = null;
   let drawTickerTimer = null;
   let scheduleTimer = null;
   let manualGroupsEditing = false;
@@ -777,6 +778,7 @@
     fillForms();
     renderAll(true);
     startStateSync();
+    resumeDrawReveal();
   }
 
   function buildNav() {
@@ -1619,8 +1621,11 @@
       return false;
     }
 
+    if (state.pendingGroups && state.pendingRevealIndex > 0
+        && !confirm('ผลสุ่มชุดนี้ยังไม่ได้ยืนยัน ต้องการทิ้งชุดนี้แล้วเริ่มสุ่มใหม่หรือไม่?')) return false;
+
+    clearDrawTimers();
     state.pendingGroups = deepClone(plan.groups);
-    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
     state.pendingSequence = deepClone(plan.sequence);
     state.pendingRevealIndex = 0;
     state.pendingComplete = false;
@@ -1680,18 +1685,7 @@
 
     saveState('draw-suspense', false);
     renderAll(false);
-    startDrawTicker();
-
-    drawTimer = setTimeout(() => {
-      state.pendingRevealIndex += 1;
-      revealDrawItem(item);
-      const finished = state.pendingRevealIndex >= state.pendingSequence.length;
-      if (finished) completeDrawSequence(false);
-      saveState('draw-reveal');
-      if (!finished && state.settings.drawMethod === 'auto-sequence') {
-        setTimeout(() => nextReveal(), 280);
-      }
-    }, duration);
+    resumeDrawReveal();
   }
 
   function revealAllAtOnce() {
@@ -1706,22 +1700,50 @@
     state.drawLive.total = state.pendingSequence.length;
     saveState('draw-bulk-suspense', false);
     renderAll(false);
-    startDrawTicker();
+    resumeDrawReveal();
+  }
 
+  function resumeDrawReveal() {
+    if (!state.pendingGroups || !state.pendingSequence?.length) return;
+    if (!state.drawLive?.waiting) {
+      if (state.drawLive?.phase === 'revealed') scheduleNextAutoReveal();
+      return;
+    }
+    const live = state.drawLive;
+    const bulk = live.phase === 'bulk-suspense';
+    const item = state.pendingSequence[state.pendingRevealIndex];
+    if (!bulk && !item) return;
+
+    startDrawTicker();
     drawTimer = setTimeout(() => {
-      state.pendingRevealIndex = state.pendingSequence.length;
-      state.pendingComplete = true;
-      state.drawLive.waiting = false;
-      state.drawLive.running = false;
-      state.drawLive.phase = 'bulk-revealed';
-      state.drawLive.current = deepClone(state.pendingSequence[state.pendingSequence.length - 1] || null);
-      state.drawLive.pendingItem = null;
-      state.drawLive.progress = state.pendingSequence.length;
-      state.drawLive.feed = [...state.pendingSequence].reverse().slice(0, 20);
-      state.lastResult = { type: 'draw-reveal-all', text: `สุ่มครบทั้งหมด ${state.pendingSequence.length} รายการแล้ว`, at: nowIso() };
-      saveState('draw-reveal-all');
-      clearDrawTimers(false);
-    }, duration);
+      drawTimer = null;
+      if (bulk) {
+        state.pendingRevealIndex = state.pendingSequence.length;
+        live.current = deepClone(state.pendingSequence.at(-1));
+        live.pendingItem = null;
+        live.progress = state.pendingRevealIndex;
+        live.feed = revealedDrawItems(state).slice(0, 20);
+        state.lastResult = { type: 'draw-reveal-all', text: `สุ่มครบทั้งหมด ${state.pendingRevealIndex} รายการแล้ว`, at: nowIso() };
+      } else {
+        state.pendingRevealIndex += 1;
+        revealDrawItem(item);
+      }
+      live.revealEndsAt = 0;
+      const finished = state.pendingRevealIndex >= state.pendingSequence.length;
+      if (finished) completeDrawSequence(false);
+      saveState(bulk ? 'draw-reveal-all' : 'draw-reveal');
+      if (!finished) scheduleNextAutoReveal();
+    }, Math.max(0, (Number(live.revealEndsAt) || 0) - Date.now()));
+  }
+
+  function scheduleNextAutoReveal() {
+    if (state.settings.drawMethod !== 'auto-sequence') return;
+    // Leave each result on screen long enough for OBS and viewers to see it.
+    clearTimeout(nextRevealTimer);
+    nextRevealTimer = setTimeout(() => {
+      nextRevealTimer = null;
+      if (state.settings.drawMethod === 'auto-sequence') nextReveal();
+    }, 1500);
   }
 
   function revealDrawItem(item) {
@@ -1781,6 +1803,8 @@
   }
 
   function resetPreparedDraw() {
+    if (state.pendingGroups && state.pendingRevealIndex > 0
+        && !confirm('ทิ้งผลสุ่มชุดที่ยังไม่ได้ยืนยันหรือไม่?')) return;
     clearDrawTimers();
     state.pendingGroups = null;
     state.pendingSequence = [];
@@ -1838,6 +1862,10 @@
   }
 
   function clearDrawTimers(clearMain = true) {
+    if (clearMain) {
+      clearTimeout(nextRevealTimer);
+      nextRevealTimer = null;
+    }
     if (clearMain && drawTimer) {
       clearTimeout(drawTimer);
       drawTimer = null;
@@ -2469,11 +2497,35 @@
     return Math.max((groups?.[group] || []).length, groupCapacities()[group] || 0);
   }
 
+  function revealedDrawItems(data) {
+    const sequence = data.pendingSequence || [];
+    if (sequence.length) {
+      return sequence.slice(0, Math.max(0, Number(data.pendingRevealIndex) || 0)).reverse();
+    }
+    return data.drawLive?.feed || [];
+  }
+
+  function revealedDraftGroups(data) {
+    if (!data.pendingGroups) return null;
+    const revealed = revealedDrawItems(data);
+    if (!revealed.length) return null;
+    const groups = Object.fromEntries(Object.entries(data.pendingGroups).map(
+      ([group, teams]) => [group, Array(teams.length).fill('')]
+    ));
+    for (const { group, slot, team } of revealed) {
+      if (groups[group] && slot >= 1 && slot <= groups[group].length) groups[group][slot - 1] = team;
+    }
+    return groups;
+  }
+
   function getDisplayGroups(confirmedOnly = false) {
+    if (!confirmedOnly) {
+      const draft = revealedDraftGroups(state);
+      if (draft) return draft;
+    }
     if (state.manualGroups?.active && Object.keys(state.groups || {}).length) return normalizeManualGroups(state.groups, manualRowsForGroups(state.groups));
     if (hasGroups(state.groups)) return state.groups;
     if (confirmedOnly) return {};
-    if (state.settings.drawMethod === 'instant-all' && state.pendingComplete && state.pendingGroups) return state.pendingGroups;
 
     const groupCount = intClamp(state.event.groupCount, 1, 26, 4);
     const groups = isCustomGroupSizing()
@@ -2595,7 +2647,8 @@
       toast('Draw is running. Wait for the current reveal before editing groups.', 'warn');
       return;
     }
-    const groups = getDisplayGroups(false);
+    const confirmed = getDisplayGroups(true);
+    const groups = hasGroups(confirmed) ? confirmed : getDisplayGroups(false);
     manualGroupsEditing = true;
     manualGroupsDraft = makeManualGroupsDraft(groups, manualRowsForGroups(groups));
     manualGroupRows = manualGroupsDraft.rows;
@@ -2666,6 +2719,7 @@
       if (!confirm('การเปลี่ยนการจัดทีมในสายจะล้างตาราง คะแนน และ Knockout เดิม ต้องการดำเนินการต่อหรือไม่?')) return;
       resetMatchDerivedData();
     }
+    clearDrawTimers();
     state.groups = normalizeManualGroups(groups, rowCount);
     state.manualGroups = { active: true, rows: rowCount, updatedAt: nowIso() };
     state.pendingGroups = null;
@@ -3403,7 +3457,7 @@
   function renderRevealFeed() {
     const box = $('#revealFeed');
     if (!box) return;
-    const feed = state.drawLive?.feed || [];
+    const feed = revealedDrawItems(state);
     if (!feed.length) {
       box.innerHTML = '<div class="notice">Reveal Feed ยังว่างอยู่</div>';
       return;
@@ -4043,6 +4097,7 @@
 
   function resetAll() {
     if (!confirm('Reset โปรเจกต์ทั้งหมด?')) return;
+    clearDrawTimers();
     state = defaultState();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     fillForms();
@@ -4064,8 +4119,11 @@
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        state = merge(defaultState(), JSON.parse(reader.result));
+        const restored = merge(defaultState(), JSON.parse(reader.result));
+        clearDrawTimers();
+        state = restored;
         saveState('load-json');
+        resumeDrawReveal();
         fillForms();
         renderAll(true);
       } catch (err) {
@@ -5420,6 +5478,7 @@
     renderAll,
     sourceUrl,
     remoteSpin,
+    revealedDraftGroups,
     groupStageProgress,
     groupStageMessage,
     knockoutSetupIssue,
