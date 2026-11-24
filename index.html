@@ -69,7 +69,7 @@
               <div class="field"><label>Preset</label><select id="preset"><option value="custom">Custom</option><option value="basket3x3">บาสเกตบอล 3x3</option><option value="football">ฟุตบอล</option><option value="esport">อีสปอร์ต</option></select></div>
               <div class="field"><label>จำนวนสาย / กลุ่ม</label><input id="groupCount" type="number" min="1" max="26" value="4" /></div>
               <div class="field"><label>การกำหนดจำนวนทีม</label><select id="groupSizingMode"><option value="auto">แบ่งอัตโนมัติใกล้เคียงกัน</option><option value="custom">กำหนดจำนวนทีมแยกแต่ละสาย</option></select></div>
-              <div class="field" id="groupCapacityField" hidden><label>จำนวนทีมต่อสาย</label><div id="groupCapacityFields" class="grid two"></div><div id="groupCapacitySummary" class="hint"></div></div>
+              <div class="field" id="groupCapacityField" hidden><label>จำนวนทีมต่อสาย</label><div id="groupCapacityFields" class="grid two"></div><div id="groupCapacitySummary" class="hint"></div><label class="switch-row"><input id="padCustomGroupsWithByes" type="checkbox" /> เติมช่อง BYE ให้สายที่มีทีมน้อยกว่าเมื่อสุ่ม</label></div>
               <div class="field"><label>จำนวนสนาม</label><input id="courtCount" type="number" min="1" value="1" /></div>
               <div class="field"><label>เวลาเริ่มแข่ง</label><input id="startTime" type="time" value="09:00" /></div>
               <div class="field"><label>ช่วงเวลาต่อ Slot (นาที)</label><input id="matchInterval" type="number" min="1" value="15" /></div>
@@ -231,9 +231,9 @@
   </div>
 
   <script src="assets/pepslive-license-gate.js?v=license-v3-20260825"></script>
-  <script src="assets/app.js?v=draw-reveal-20261124-1"></script>
-  <script defer src="assets/core-guard.js?v=draw-reveal-20261124-1"></script>
-  <script defer src="assets/core-live-sources.js?v=draw-reveal-20261124-1"></script>
+  <script src="assets/app.js?v=draw-bye-20261124-1"></script>
+  <script defer src="assets/core-guard.js?v=draw-bye-20261124-1"></script>
+  <script defer src="assets/core-live-sources.js?v=draw-bye-20261124-1"></script>
   <script defer src="assets/ux-v2.js?v=ux-v2-20260822-3"></script>
   <script defer src="assets/remote-bridge.js?v=remote-20260822-3"></script>
 </body>

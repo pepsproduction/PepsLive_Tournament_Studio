@@ -376,6 +376,7 @@
         preset: 'custom',
         groupCount: 4,
         groupSizingMode: 'auto',
+        padCustomGroupsWithByes: false,
         groupCapacities: { A: 4, B: 4, C: 4, D: 4 },
         courtCount: 1,
         startTime: '09:00',
@@ -588,6 +589,7 @@
       : readGroupCapacityDraftFromForm();
     groupCapacityDraft = { ...capacities };
     field.hidden = !custom;
+    if (useSavedCapacities) setChecked($('#padCustomGroupsWithByes'), state.event.padCustomGroupsWithByes);
     if (!custom) {
       container.innerHTML = '';
       summary.textContent = '';
@@ -654,9 +656,13 @@
     return out;
   }
 
+  function isByeSlot(team) {
+    return String(team || '').trim().toUpperCase() === 'BYE';
+  }
+
   function isRealTeamName(team) {
     const value = String(team || '').trim();
-    return !!value && value.toUpperCase() !== 'BYE';
+    return !!value && !isByeSlot(value);
   }
 
   function groupKeys(groups = state.groups) {
@@ -685,8 +691,9 @@
     const normalized = {};
     groupKeys(groups).forEach(g => {
       const source = Array.isArray(groups?.[g]) ? groups[g] : [];
-      const groupRows = isCustomGroupSizing() ? (groupCapacities()[g] || 4) : rows;
-      normalized[g] = Array.from({ length: groupRows }, (_, i) => String(source[i] || '').trim());
+      const lastSlot = source.findLastIndex(team => String(team || '').trim());
+      const groupRows = isCustomGroupSizing() ? Math.max(groupCapacities()[g] || 4, lastSlot + 1) : rows;
+      normalized[g] = Array.from({ length: groupRows }, (_, i) => isByeSlot(source[i]) ? 'BYE' : String(source[i] || '').trim());
     });
     return normalized;
   }
@@ -1411,6 +1418,7 @@
     state.event.preset = $('#preset')?.value || 'custom';
     state.event.groupCount = groupCount;
     state.event.groupSizingMode = groupSizingMode;
+    state.event.padCustomGroupsWithByes = Boolean($('#padCustomGroupsWithByes')?.checked);
     state.event.groupCapacities = nextCapacities;
     groupCapacityDraft = { ...nextCapacities };
     state.event.courtCount = intClamp($('#courtCount')?.value, 1, 16, 1);
@@ -1548,7 +1556,8 @@
     const custom = isCustomGroupSizing();
     const capacities = groupCapacities(groupCount);
     const slots = custom ? groupCapacityTotal(capacities) : Math.ceil(Math.max(teams.length, 1) / groupCount) * groupCount;
-    const reserved = teams.filter(team => String(team).trim().toUpperCase() === 'BYE');
+    const reserved = teams.filter(isByeSlot);
+    const layout = drawGroupLayout(capacities, teams.length, custom);
     const capacityMatchesRoster = !custom || teams.length === slots;
     return {
       teams,
@@ -1557,44 +1566,76 @@
       groupCount,
       slots,
       capacities,
-      byes: custom ? 0 : Math.max(0, slots - teams.length),
+      layout,
+      byes: Math.max(0, Object.values(layout).reduce((total, seats) => total + seats.length, 0) - teams.length),
       capacityMatchesRoster,
       ok: teams.length > 0 && dup.length === 0 && reserved.length === 0 && capacityMatchesRoster
     };
+  }
+
+  function drawGroupLayout(capacities, teamCount, custom) {
+    const keys = Object.keys(capacities);
+    const confirmed = state.groups || {};
+    const draft = state.pendingGroups || {};
+    const autoRows = Math.ceil(Math.max(teamCount, 1) / keys.length);
+    const customRows = state.event.padCustomGroupsWithByes ? Math.max(...Object.values(capacities)) : 0;
+    const groups = Object.fromEntries(keys.map(group => {
+      const saved = Array.isArray(confirmed[group]) ? confirmed[group] : [];
+      const pending = Array.isArray(draft[group]) ? draft[group] : [];
+      const slots = Array.from({ length: Math.max(saved.length, pending.length) }, (_, index) =>
+        isByeSlot(saved[index]) || isByeSlot(pending[index]) ? 'BYE' : '');
+      while (slots.length && !slots.at(-1)) slots.pop();
+      const byes = slots.filter(isByeSlot).length;
+      const rows = custom ? Math.max(customRows, capacities[group] + byes, slots.length) : Math.max(autoRows, slots.length);
+      return [group, Array.from({ length: rows }, (_, index) => slots[index] || '')];
+    }));
+
+    if (custom) {
+      for (const group of keys) {
+        let needed = capacities[group];
+        groups[group] = groups[group].map(slot => {
+          if (slot === 'BYE') return slot;
+          return needed-- > 0 ? '' : 'BYE';
+        });
+      }
+      return groups;
+    }
+
+    const openSeats = Object.values(groups).reduce((total, seats) => total + seats.filter(slot => slot === '').length, 0);
+    const extraRows = Math.max(0, Math.ceil((teamCount - openSeats) / keys.length));
+    if (extraRows) keys.forEach(group => groups[group].push(...Array(extraRows).fill('')));
+    return groups;
   }
 
   function buildDrawPlan() {
     const v = teamValidation();
     if (!v.ok) return null;
     const groupKeys = letters(v.groupCount);
-    const shuffled = shuffle(state.teams);
-    const groups = Object.fromEntries(groupKeys.map(g => [g, []]));
-    if (isCustomGroupSizing()) {
-      let nextTeam = 0;
-      groupKeys.forEach(group => {
-        groups[group] = shuffled.slice(nextTeam, nextTeam + v.capacities[group]);
-        nextTeam += v.capacities[group];
-      });
-    } else {
-      while (shuffled.length < v.slots) shuffled.push('BYE');
-      shuffled.forEach((team, idx) => {
-        const group = groupKeys[idx % groupKeys.length];
-        groups[group].push(team);
-      });
+    const teams = shuffle(state.teams);
+    const groups = v.layout;
+    const rows = Math.max(...Object.values(groups).map(slots => slots.length));
+    let nextTeam = 0;
+    for (let row = 0; row < rows; row += 1) {
+      for (const group of groupKeys) {
+        if (groups[group][row] === '') groups[group][row] = teams[nextTeam++] || 'BYE';
+      }
     }
 
     const items = [];
     groupKeys.forEach(g => {
-      groups[g].forEach((team, i) => items.push({
-        order: items.length + 1,
-        group: g,
-        slot: i + 1,
-        team,
-        text: `สาย ${g} · ลำดับ ${i + 1} · ${team}`
-      }));
+      groups[g].forEach((team, i) => {
+        if (!isRealTeamName(team)) return;
+        items.push({
+          order: items.length + 1,
+          group: g,
+          slot: i + 1,
+          team,
+          text: `สาย ${g} · ลำดับ ${i + 1} · ${team}`
+        });
+      });
     });
 
-    return { groups, sequence: shuffle(items), byes: v.byes };
+    return { groups, sequence: shuffle(items), byes: Object.values(groups).flat().filter(isByeSlot).length };
   }
 
   function startDraw(options = {}) {
@@ -2446,7 +2487,7 @@
   }
 
   function hasGroups(groups) {
-    return Object.values(groups || {}).some(arr => Array.isArray(arr) && arr.some(t => t && t !== 'BYE'));
+    return Object.values(groups || {}).some(arr => Array.isArray(arr) && arr.some(isRealTeamName));
   }
 
   function groupsEqual(left, right) {
@@ -2508,10 +2549,10 @@
   function revealedDraftGroups(data) {
     if (!data.pendingGroups) return null;
     const revealed = revealedDrawItems(data);
-    if (!revealed.length) return null;
     const groups = Object.fromEntries(Object.entries(data.pendingGroups).map(
-      ([group, teams]) => [group, Array(teams.length).fill('')]
+      ([group, teams]) => [group, teams.map(team => isByeSlot(team) ? 'BYE' : '')]
     ));
+    if (!revealed.length && !Object.values(groups).some(slots => slots.includes('BYE'))) return null;
     for (const { group, slot, team } of revealed) {
       if (groups[group] && slot >= 1 && slot <= groups[group].length) groups[group][slot - 1] = team;
     }
@@ -2632,6 +2673,14 @@
     on($('[data-manual-groups-edit]'), 'click', startManualGroupsEdit);
     on($('[data-manual-groups-add-row]'), 'click', addManualGroupRow);
     on($('[data-manual-groups-del-row]'), 'click', deleteManualGroupRow);
+    $$('[data-add-group-bye]').forEach(button => on(button, 'click', () => {
+      const draft = readManualGroupsDraftFromEditor();
+      if (!draft) return;
+      const slots = draft.groups[button.dataset.addGroupBye];
+      if (!slots || slots.length >= MAX_MANUAL_GROUP_ROWS) return;
+      slots.push('BYE');
+      renderGroups();
+    }));
     on($('[data-manual-groups-save]'), 'click', saveManualGroupsFromEditor);
     on($('[data-manual-groups-cancel]'), 'click', () => {
       manualGroupsEditing = false;
@@ -2750,6 +2799,8 @@
                 <input data-manual-team data-manual-slot="${i + 1}" value="${esc((groups[g] || [])[i] || '')}" placeholder="Team name or BYE" />
               </label>
             `).join('')}
+            ${isCustomGroupSizing() && (groups[g] || []).length < MAX_MANUAL_GROUP_ROWS
+              ? `<button class="btn small" type="button" data-add-group-bye="${esc(g)}">เพิ่มช่อง BYE</button>` : ''}
           </div>
         `).join('')}
       </div>
@@ -3228,7 +3279,7 @@
     if (!box) return;
     const v = teamValidation();
     const capacityLine = isCustomGroupSizing()
-      ? `กำหนดที่นั่ง ${v.slots} ทีม · ${v.capacityMatchesRoster ? 'ตรงกับรายชื่อ' : `ต้องมีรายชื่อ ${v.slots} ทีม`}`
+      ? `กำหนดทีมจริง ${v.slots} ทีม · ${v.capacityMatchesRoster ? 'ตรงกับรายชื่อ' : `ต้องมีรายชื่อ ${v.slots} ทีม`} · BYE ${v.byes}`
       : `BYE ${v.byes}`;
     box.innerHTML = `
       <div class="notice ${v.ok ? 'good' : 'warn'}">
