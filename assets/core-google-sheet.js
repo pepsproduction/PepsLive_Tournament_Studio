@@ -45,7 +45,7 @@
   }
   function matchLoser(m) {
     const w = matchWinner(m);
-    if (!w) return '';
+    if (!w || statusOf(m) === 'bye') return '';
     const a = matchTeam(m, 'teamA'), b = matchTeam(m, 'teamB');
     return w === a ? b : (w === b ? a : '');
   }
@@ -177,7 +177,7 @@
       Tie_Break: tieBreakRows(state),
       Knockout: knockout.map((m, i) => ({
         MatchID: m.id || `KO${String(i + 1).padStart(2, '0')}`, Round: m.round || m.stage || 'Knockout', TeamA: matchTeam(m, 'teamA'), ScoreA: matchScore(m, 'scoreA'), ScoreB: matchScore(m, 'scoreB'), TeamB: matchTeam(m, 'teamB'),
-        Winner: matchWinner(m), Loser: matchLoser(m), NextMatch: nextMatchFor(m), NextSlot: nextSlotFor(m), Status: m.status || 'Pending', UpdatedAt: m.updatedAt || ''
+        Winner: matchWinner(m), Loser: matchLoser(m), NextMatch: knockoutDestination(knockout, m, 'winner').id, NextSlot: knockoutDestination(knockout, m, 'winner').slot, Status: m.status || 'Pending', UpdatedAt: m.updatedAt || ''
       })),
       Knockout_Flow: knockoutFlowRows(knockout),
       Final_Result: finalResultRows(knockout, exportedAt),
@@ -191,28 +191,43 @@
     for (const [group, list] of Object.entries(groups || {})) if ((list || []).includes(team)) return group;
     return '';
   }
-  function nextMatchFor(m) {
-    const id = clean(m.id).toLowerCase();
-    if (id === 'qf1' || id === 'qf2') return 'SF1';
-    if (id === 'qf3' || id === 'qf4') return 'SF2';
-    if (id === 'sf1' || id === 'sf2') return 'Final';
-    return '';
+  function knockoutDestination(bracket, match, outcome) {
+    for (const next of bracket) {
+      for (const side of ['A', 'B']) {
+        const source = next[`source${side}`];
+        if (source?.id === match.id && source.outcome === outcome) return { id: next.id, slot: `Team${side}` };
+      }
+    }
+
+    if (!('sourceA' in match)) {
+      const id = clean(match.id).toLowerCase();
+      const legacy = outcome === 'winner'
+        ? { qf1: ['sf1', 'A'], qf2: ['sf1', 'B'], qf3: ['sf2', 'A'], qf4: ['sf2', 'B'], sf1: ['final', 'A'], sf2: ['final', 'B'] }
+        : { sf1: ['third', 'A'], sf2: ['third', 'B'] };
+      const [target, side] = Object.hasOwn(legacy, id) ? legacy[id] : [];
+      const next = bracket.find(row => clean(row.id).toLowerCase() === target);
+      if (next) return { id: next.id, slot: `Team${side}` };
+    }
+
+    return { id: '', slot: '' };
   }
-  function nextSlotFor(m) {
-    const id = clean(m.id).toLowerCase();
-    if (id === 'qf1' || id === 'qf3' || id === 'sf1') return 'TeamA';
-    if (id === 'qf2' || id === 'qf4' || id === 'sf2') return 'TeamB';
-    return '';
-  }
+
   function knockoutFlowRows(knockout) {
-    return knockout.map((m) => ({
-      FromMatch: m.id || '', Winner: matchWinner(m), Loser: matchLoser(m), WinnerToMatch: nextMatchFor(m), WinnerToSlot: nextSlotFor(m),
-      LoserToMatch: /sf1/i.test(m.id || '') || /sf2/i.test(m.id || '') ? 'Third' : '', LoserToSlot: /sf1/i.test(m.id || '') ? 'TeamA' : (/sf2/i.test(m.id || '') ? 'TeamB' : '')
-    }));
+    return knockout.map(match => {
+      const winner = knockoutDestination(knockout, match, 'winner');
+      const loser = knockoutDestination(knockout, match, 'loser');
+      return {
+        FromMatch: match.id || '', Winner: matchWinner(match), Loser: matchLoser(match),
+        WinnerToMatch: winner.id, WinnerToSlot: winner.slot, LoserToMatch: loser.id, LoserToSlot: loser.slot
+      };
+    });
   }
   function finalResultRows(knockout, exportedAt) {
-    const final = knockout.find((m) => /final/i.test(clean(m.round || m.stage || m.name)) && !/semi/i.test(clean(m.round || m.stage || m.name)));
-    const third = knockout.find((m) => /third|3/i.test(clean(m.round || m.stage || m.name)));
+    const final = knockout.find((m) => {
+      const round = clean(m.round || m.stage || m.name);
+      return /(?:^|\s)final$/i.test(round) && !/semi|quarter/i.test(round);
+    });
+    const third = knockout.find((m) => /third|^3\b/i.test(clean(m.round || m.stage || m.name)));
     return [{
       Champion: matchWinner(final), RunnerUp: matchLoser(final), ThirdPlace: matchWinner(third), FourthPlace: matchLoser(third),
       FinalScore: final ? `${matchScore(final, 'scoreA')}-${matchScore(final, 'scoreB')}` : '',

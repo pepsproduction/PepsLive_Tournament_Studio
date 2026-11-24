@@ -12,7 +12,6 @@
   if (window.__PEPSLIVE_CORE_KNOCKOUT_INSTALLED__) return;
   window.__PEPSLIVE_CORE_KNOCKOUT_INSTALLED__ = true;
 
-  const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
@@ -20,17 +19,16 @@
   let editModeUntil = 0;
   let refreshTimer = null;
 
+  const studio = window.PepsLiveTournamentStudio;
+
   function readState() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; }
-    catch { return {}; }
+    return studio.getState();
   }
 
-  function writeState(state, action = 'core-knockout-save', data = {}) {
-    state.updatedAt = new Date().toISOString();
-    state.audit = Array.isArray(state.audit) ? state.audit : [];
-    state.audit.unshift({ at: state.updatedAt, action, data });
+  function writeState(state, action, data) {
+    state.audit.unshift({ at: new Date().toISOString(), action, data });
     state.audit = state.audit.slice(0, 100);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    studio.saveState(action);
     window.dispatchEvent(new CustomEvent('pepslive-core-knockout-updated', { detail: { action, data } }));
   }
 
@@ -41,99 +39,11 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[m]));
   }
-  function asNum(v, d = 0) { const n = Number(v); return Number.isFinite(n) ? n : d; }
   function nullableNum(v) {
     if (v === '' || v == null) return null;
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : null;
   }
-  function normalizeGroupName(v) {
-    const s = clean(v).replace(/^สาย\s*/i, '').replace(/^group\s*/i, '').trim();
-    return s || clean(v) || '-';
-  }
-  function rowTeam(r) { return clean(r?.team || r?.name || r?.Team || r?.title || r?.teamName); }
-
-  // ---------------------------------------------------------------------------
-  // Canonical standings parser
-  // ---------------------------------------------------------------------------
-  function normalizeRows(rows) {
-    let list = [];
-    if (Array.isArray(rows)) list = rows.slice();
-    else if (rows && typeof rows === 'object') list = Object.entries(rows).map(([team, data]) => ({ team, ...(data || {}) }));
-
-    return list
-      .map((r, i) => ({
-        ...r,
-        rank: asNum(r.rank ?? r.no ?? r.pos ?? (i + 1), i + 1),
-        team: rowTeam(r),
-        pts: asNum(r.pts ?? r.points ?? r.PTS),
-        gd: asNum(r.gd ?? r.diff ?? r.GD),
-        gf: asNum(r.gf ?? r.for ?? r.GF),
-        ga: asNum(r.ga ?? r.against ?? r.GA),
-        w: asNum(r.w ?? r.win ?? r.W),
-        d: asNum(r.d ?? r.draw ?? r.D),
-        l: asNum(r.l ?? r.loss ?? r.L)
-      }))
-      .filter((r) => r.team && !isBye(r.team))
-      .sort((a, b) =>
-        (a.rank - b.rank) ||
-        (b.pts - a.pts) ||
-        (b.gd - a.gd) ||
-        (b.gf - a.gf) ||
-        (b.w - a.w) ||
-        a.team.localeCompare(b.team, 'th')
-      );
-  }
-
-  function standingsEntriesFromState(state) {
-    const standings = state.standings && typeof state.standings === 'object' ? state.standings : {};
-    return Object.entries(standings)
-      .map(([group, rows]) => [normalizeGroupName(group), normalizeRows(rows)])
-      .filter(([, rows]) => rows.length);
-  }
-
-  function parseVisibleStandings() {
-    const text = clean($('#standingsBox')?.innerText || '');
-    if (!text) return [];
-
-    const lines = text.split(/\r?\n/).map(clean).filter(Boolean);
-    const groups = [];
-    let current = null;
-
-    for (const line of lines) {
-      const groupMatch = line.match(/^สาย\s*([A-Zก-ฮ0-9]+)\s*$/i) || line.match(/^Group\s*([A-Z0-9]+)\s*$/i);
-      if (groupMatch) {
-        current = { group: normalizeGroupName(groupMatch[1]), rows: [] };
-        groups.push(current);
-        continue;
-      }
-
-      const rowMatch = line.match(/^(\d+)\.\s*(.+?)\s+(-?\d+)\s*pts?\b/i);
-      if (rowMatch && current) {
-        current.rows.push({
-          rank: Number(rowMatch[1]),
-          team: clean(rowMatch[2]),
-          pts: Number(rowMatch[3]),
-          gd: 0,
-          gf: 0,
-          ga: 0,
-          w: 0,
-          d: 0,
-          l: 0,
-          fromVisible: true
-        });
-      }
-    }
-
-    return groups.map((g) => [g.group, normalizeRows(g.rows)]).filter(([, rows]) => rows.length);
-  }
-
-  function standingsEntries(state) {
-    const fromState = standingsEntriesFromState(state);
-    return fromState.length ? fromState : parseVisibleStandings();
-  }
-
-  function tieKey(tie) { return `${tie.group}|${tie.pts}|${tie.teams.slice().sort().join(',')}`; }
 
   function tieGroups(entries) {
     const out = [];
@@ -156,187 +66,23 @@
     return out;
   }
 
-  function resolvedStandingsEntries(state) {
-    const entries = standingsEntries(state);
-    const overrides = state.tieResolvers || {};
-
-    return entries.map(([group, rows]) => {
-      const resolved = rows.slice();
-      const ties = tieGroups([[group, rows]]);
-
-      ties.forEach((tie) => {
-        const savedOrder = Array.isArray(overrides[tieKey(tie)]?.order) ? overrides[tieKey(tie)].order : [];
-        if (!savedOrder.length) return;
-
-        const tiedSet = new Set(tie.teams);
-        const tiedRows = resolved.filter((r) => tiedSet.has(r.team));
-        const untied = resolved.filter((r) => !tiedSet.has(r.team));
-        const ordered = savedOrder.map((name) => tiedRows.find((r) => r.team === name)).filter(Boolean);
-        tiedRows.forEach((r) => { if (!ordered.includes(r)) ordered.push(r); });
-
-        const insertAt = Math.min(...tiedRows.map((r) => resolved.indexOf(r)));
-        const nextRows = untied.slice();
-        nextRows.splice(insertAt, 0, ...ordered);
-        resolved.splice(0, resolved.length, ...nextRows);
-      });
-
-      resolved.forEach((r, i) => { r.rank = i + 1; });
-      return [group, resolved];
-    });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Canonical bracket generator
-  // ---------------------------------------------------------------------------
-  function makeMatch(id, round, teamA, teamB, label) {
-    return {
-      id,
-      round,
-      label: label || id.toUpperCase(),
-      teamA: teamA || '',
-      teamB: teamB || '',
-      scoreA: '',
-      scoreB: '',
-      winner: '',
-      status: 'Pending'
-    };
-  }
-
-  function qualifierGroups(state, entries) {
-    const perGroup = Math.max(1, Number(state.event?.qualifiersPerGroup || 2));
-    return (entries || standingsEntries(state))
-      .sort(([a], [b]) => String(a).localeCompare(String(b), 'th'))
-      .map(([group, rows]) => ({ group, rows: rows.slice(0, perGroup), allRows: rows }));
-  }
-
-  function qualifierSummary(state, entries) {
-    const groups = qualifierGroups(state, entries);
-    const total = groups.reduce((sum, g) => sum + g.rows.length, 0);
-    return { groups, total, ok: groups.length >= 2 && total >= 4 };
-  }
-
-  function isRealGroupMatch(match) {
-    return clean(match?.teamA) && clean(match?.teamB) && !isBye(match?.teamA) && !isBye(match?.teamB);
-  }
-
-  function isResolvedGroupMatch(match) {
-    const status = clean(match?.status).toLowerCase();
-    if (['bye', 'forfeit a', 'forfeit b'].includes(status)) return true;
-    if (!['done', 'finished'].includes(status)) return false;
-    return nullableNum(match?.scoreA) != null && nullableNum(match?.scoreB) != null;
-  }
-
-  function groupStageProgress(state) {
-    const matches = (Array.isArray(state.matches) ? state.matches : []).filter(isRealGroupMatch);
-    const done = matches.filter(isResolvedGroupMatch);
-    return {
-      total: matches.length,
-      done: done.length,
-      complete: matches.length > 0 && done.length === matches.length
-    };
-  }
-
-  function buildBracketFromEntries(entries, state) {
-    const q = qualifierSummary(state, entries);
-    if (!q.ok) return [];
-    const groups = q.groups;
-
-    if (groups.length === 4 && groups.every((g) => g.rows.length >= 2)) {
-      const A = groups[0], B = groups[1], C = groups[2], D = groups[3];
-      const ko = [
-        makeMatch('qf1', 'Quarter Final', A.rows[0].team, B.rows[1].team, `${A.group}1 vs ${B.group}2`),
-        makeMatch('qf2', 'Quarter Final', C.rows[0].team, D.rows[1].team, `${C.group}1 vs ${D.group}2`),
-        makeMatch('qf3', 'Quarter Final', B.rows[0].team, A.rows[1].team, `${B.group}1 vs ${A.group}2`),
-        makeMatch('qf4', 'Quarter Final', D.rows[0].team, C.rows[1].team, `${D.group}1 vs ${C.group}2`),
-        makeMatch('sf1', 'Semi Final', 'Winner QF1', 'Winner QF2', 'Winner QF1 vs Winner QF2'),
-        makeMatch('sf2', 'Semi Final', 'Winner QF3', 'Winner QF4', 'Winner QF3 vs Winner QF4'),
-        makeMatch('final', 'Final', 'Winner SF1', 'Winner SF2', 'Winner SF1 vs Winner SF2')
-      ];
-      if (state.event?.enableThird !== false) ko.push(makeMatch('third', 'Third Place', 'Loser SF1', 'Loser SF2', 'Loser SF1 vs Loser SF2'));
-      return ko;
-    }
-
-    const flat = [];
-    if (groups.length > 4 && groups.every((g) => g.rows.length >= 2)) {
-      for (let i = 0; i < groups.length; i += 2) {
-        const left = groups[i];
-        const right = groups[i + 1];
-        if (!right) break;
-        flat.push(
-          { team: left.rows[0].team, seed: `${left.group}1` },
-          { team: right.rows[1].team, seed: `${right.group}2` },
-          { team: right.rows[0].team, seed: `${right.group}1` },
-          { team: left.rows[1].team, seed: `${left.group}2` }
-        );
-      }
-      groups.forEach((g) => {
-        g.rows.slice(2).forEach((r, idx) => flat.push({ team: r.team, seed: `${g.group}${idx + 3}` }));
-      });
-    } else {
-      groups.forEach((g) => g.rows.forEach((r, idx) => flat.push({ team: r.team, seed: `${g.group}${idx + 1}` })));
-    }
-    const firstRoundName = flat.length <= 4 ? 'Semi Final' : flat.length <= 8 ? 'Quarter Final' : 'Knockout Round 1';
-    const first = [];
-
-    for (let i = 0; i < flat.length; i += 2) {
-      first.push(makeMatch(`ko${(i / 2) + 1}`, firstRoundName, flat[i]?.team || '', flat[i + 1]?.team || '', `${flat[i]?.seed || '-'} vs ${flat[i + 1]?.seed || '-'}`));
-    }
-
-    if (first.length <= 2) return [...first, makeMatch('final', 'Final', 'Winner SF1', 'Winner SF2')];
-    if (first.length > 4) {
-      const next = [];
-      for (let i = 0; i < first.length; i += 2) {
-        next.push(makeMatch(`next${(i / 2) + 1}`, 'Next Round', `Winner ${first[i]?.id || ''}`.trim(), `Winner ${first[i + 1]?.id || ''}`.trim()));
-      }
-      return [...first, ...next];
-    }
-    return [
-      ...first,
-      makeMatch('sf1', 'Semi Final', 'Winner QF1', 'Winner QF2'),
-      makeMatch('sf2', 'Semi Final', 'Winner QF3', 'Winner QF4'),
-      makeMatch('final', 'Final', 'Winner SF1', 'Winner SF2')
-    ];
-  }
-
-  function generateKnockout({ resolved = false } = {}) {
-    const state = readState();
-    const progress = groupStageProgress(state);
-    if (!progress.complete) {
-      alert(`ยังสร้าง Knockout จริงไม่ได้: ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบก่อน (${progress.done}/${progress.total})`);
-      return;
-    }
-    const entries = resolved ? resolvedStandingsEntries(state) : standingsEntries(state);
-    const q = qualifierSummary(state, entries);
-
-    if (!q.ok) {
-      alert('ยังสร้าง Knockout ไม่ได้: ต้องมี Standings อย่างน้อย 2 สาย และทีมเข้ารอบรวมอย่างน้อย 4 ทีม');
-      return;
-    }
-
-    const ko = buildBracketFromEntries(entries, state);
-    if (!ko.length) {
-      alert('ยังสร้าง Knockout ไม่ได้: ทีมเข้ารอบไม่พอ');
-      return;
-    }
-
-    state.knockout = ko;
-    state.qualifierOverrides = state.qualifierOverrides || {};
-    writeState(state, resolved ? 'core-knockout-generate-resolved' : 'core-knockout-generate-standings', {
-      matches: ko.length,
-      source: standingsEntriesFromState(state).length ? 'state.standings' : 'visible standings',
-      resolved
-    });
-
-    toast(resolved ? 'สร้าง Knockout จากลำดับที่แก้แล้ว' : `สร้าง Knockout จาก Standings แล้ว ${ko.length} คู่/ช่อง`);
-    setTimeout(() => location.reload(), 350);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Health + Tie Resolver UI
-  // ---------------------------------------------------------------------------
   function getKnockoutMatches(state) {
     const raw = Array.isArray(state.knockout) ? state.knockout : [];
-    return raw.map((m, i) => normalizeKOMatch(m, i)).filter((m) => m.teamA || m.teamB);
+    const byId = new Map(raw.map(match => [match.id, match]));
+    return raw.map((match, index) => {
+      const row = normalizeKOMatch(match, index);
+      const sideReady = side => {
+        const team = row[`team${side}`];
+        if (!team || isBye(team)) return false;
+        if (!(`source${side}` in match)) return !/^(?:winner|loser)\s+(?:qf|sf|ko|next)/i.test(team);
+        const source = match[`source${side}`];
+        if (!source) return true;
+        const parent = byId.get(source.id);
+        return Boolean(parent?.winner && (source.outcome === 'winner' || parent.status !== 'Bye'));
+      };
+      row.ready = row.status.toLowerCase() !== 'bye' && sideReady('A') && sideReady('B');
+      return row;
+    }).filter(row => row.teamA || row.teamB);
   }
 
   function normalizeKOMatch(m, i) {
@@ -365,38 +111,6 @@
     return 'Knockout Round 1';
   }
 
-  function analyzeKnockout(state) {
-    const ko = getKnockoutMatches(state);
-    const byes = [];
-    const placeholders = [];
-    const firstRoundTeams = new Map();
-
-    ko.forEach((m) => ['teamA', 'teamB'].forEach((side) => {
-      const team = clean(m[side]);
-      if (!team) return;
-      if (isBye(team)) byes.push(`${m.id || m.round}: ${team}`);
-      else if (/^(winner|loser|รอทีม)/i.test(team)) placeholders.push(`${m.id || m.round}: ${team}`);
-    }));
-
-    ko.filter((m) => /quarter|knockout|semi/i.test(clean(m.round))).slice(0, 8).forEach((m) => ['teamA', 'teamB'].forEach((side) => {
-      const team = clean(m[side]);
-      if (!team || isBye(team) || /^(winner|loser|รอทีม)/i.test(team)) return;
-      firstRoundTeams.set(team, (firstRoundTeams.get(team) || 0) + 1);
-    }));
-
-    const duplicates = Array.from(firstRoundTeams.entries()).filter(([, n]) => n > 1).map(([t, n]) => `${t} x${n}`);
-    const final = ko.find((m) => /final/i.test(clean(m.round)) && !/semi/i.test(clean(m.round)) && !/third|3/i.test(clean(m.round)));
-
-    return {
-      ko,
-      count: ko.length,
-      byes,
-      placeholders,
-      duplicates,
-      finalReady: !!(final && clean(final.teamA) && clean(final.teamB) && !/^winner/i.test(clean(final.teamA)) && !/^winner/i.test(clean(final.teamB)))
-    };
-  }
-
   function removeOldPanels() {
     const p1 = $('#coreKnockoutHealth');
     if (p1) p1.remove();
@@ -421,9 +135,9 @@
   }
 
   function renderTie(tie, state) {
-    const saved = state.tieResolvers?.[tieKey(tie)]?.order || tie.teams;
+    const saved = state.tieResolvers?.[studio.tieKey(tie)]?.order || tie.teams;
     return `
-      <div class="phase6-tie" data-core-tie-key="${esc(tieKey(tie))}" data-core-teams="${esc(tie.teams.join('|'))}">
+      <div class="phase6-tie" data-core-tie-key="${esc(studio.tieKey(tie))}" data-core-teams="${esc(JSON.stringify(tie.teams))}">
         <div class="phase6-tie-head">สาย ${esc(tie.group)} · ${esc(tie.pts)} pts · อันดับ ${esc(tie.ranks.join(', '))}</div>
         <textarea class="phase6-tie-order">${esc(saved.join('\n'))}</textarea>
         <div class="phase6-actions">
@@ -439,25 +153,19 @@
     if (!box) return;
     if (isEditingKnockout()) return;
     const state = readState();
-    const entries = standingsEntries(state);
-    const ties = tieGroups(entries);
-    const q = qualifierSummary(state, entries);
-    const progress = groupStageProgress(state);
-    const ready = q.ok && progress.complete;
-    const source = standingsEntriesFromState(state).length ? 'state.standings' : (entries.length ? 'visible standings' : 'none');
+    const progress = studio.groupStageProgress();
+    const ties = tieGroups(studio.standingsEntries(progress));
+    const issue = studio.knockoutSetupIssue();
+    const ready = !issue && progress.complete;
     const wasOpen = box.open;
 
-    box.className = `phase6-card advanced-details ${ties.length || !q.ok || !progress.complete ? 'warn' : 'good'}`;
+    box.className = `phase6-card advanced-details ${ties.length || !ready ? 'warn' : 'good'}`;
     box.innerHTML = `
       <summary><span>ตรวจคะแนนเท่ากันและลำดับทีมเข้ารอบ</span><small>${progress.done}/${progress.total} คู่</small></summary>
       <div class="phase6-body">
-      <div class="phase6-title"><span>Core Knockout · Tie Resolver & Generator</span><span class="phase6-badge ${ready ? 'good' : 'warn'}">${ready ? `พร้อมสร้าง · ${q.total} ทีม` : `รอผลครบ · ${progress.done}/${progress.total}`}</span></div>
-      <div class="phase6-text">แหล่งข้อมูล: ${esc(source)} · ถ้าคะแนนเท่ากัน ให้บันทึกลำดับก่อนสร้าง Knockout จาก Resolved Order</div>
+      <div class="phase6-title"><span>Core Knockout · Tie Resolver & Generator</span><span class="phase6-badge ${ready ? 'good' : 'warn'}">${ready ? 'พร้อมสร้าง' : 'รอข้อมูล'}</span></div>
+      <div class="phase6-text">${esc(ready ? 'บันทึกลำดับทีมคะแนนเท่ากัน แล้วเลือกใช้ลำดับจาก Tie Resolver ใน Knockout Builder' : progress.complete ? issue : studio.groupStageMessage(progress))}</div>
       ${ties.length ? ties.map((tie) => renderTie(tie, state)).join('') : '<div class="phase6-list"><div class="phase6-item good">ไม่พบทีมคะแนนเท่ากันในสายเดียวกัน</div></div>'}
-      <div class="phase6-actions">
-        <button class="btn good" type="button" id="coreGenerateFromStandings" ${progress.complete ? '' : 'disabled'}>Generate from Standings</button>
-        <button class="btn primary" type="button" id="coreGenerateResolved" ${progress.complete ? '' : 'disabled'}>Generate from Resolved Order</button>
-      </div>
       </div>
     `;
     box.open = ties.length > 0 || wasOpen;
@@ -468,11 +176,12 @@
     const state = readState();
     state.tieResolvers = state.tieResolvers || {};
     const key = root.dataset.coreTieKey || root.dataset.tieKey;
-    const teams = (root.dataset.coreTeams || root.dataset.teams || '').split('|').filter(Boolean);
+    const teams = JSON.parse(root.dataset.coreTeams || '[]');
     const typed = clean(root.querySelector('.phase6-tie-order')?.value || '').split(/\r?\n/).map(clean).filter(Boolean);
-    const valid = typed.filter((t) => teams.includes(t));
+    const valid = [...new Set(typed.filter(t => teams.includes(t)))];
     teams.forEach((t) => { if (!valid.includes(t)) valid.push(t); });
     state.tieResolvers[key] = { order: valid, method: 'manual', updatedAt: new Date().toISOString() };
+    editModeUntil = 0;
     writeState(state, 'core-knockout-save-tie-order', { key, order: valid });
     toast('บันทึกลำดับคะแนนเท่ากันแล้ว');
     refresh();
@@ -480,7 +189,7 @@
 
   function randomTieOrder(root) {
     if (!root) return;
-    const teams = (root.dataset.coreTeams || root.dataset.teams || '').split('|').filter(Boolean);
+    const teams = JSON.parse(root.dataset.coreTeams || '[]');
     const shuffled = teams.slice().sort(() => Math.random() - 0.5);
     const textarea = root.querySelector('.phase6-tie-order');
     if (textarea) textarea.value = shuffled.join('\n');
@@ -492,7 +201,8 @@
   // ---------------------------------------------------------------------------
   function roundOrder(name) {
     const s = String(name || '').toLowerCase();
-    if (s.includes('final') && !s.includes('semi') && !s.includes('third')) return 99;
+    if (s === 'final') return 99;
+    if (s.startsWith('round of ')) return -Number(s.slice(9));
     if (s.includes('third') || s.includes('3')) return 98;
     if (s.includes('semi')) return 80;
     if (s.includes('quarter') || s.includes('8')) return 40;
@@ -551,6 +261,10 @@
 
   function advanceKnockoutBracket(state) {
     if (!Array.isArray(state.knockout)) return;
+    if (state.knockout.some(match => 'sourceA' in match)) {
+      studio.advancePlannedKnockout(state.knockout);
+      return;
+    }
 
     const qf1 = byId(state, 'qf1');
     const qf2 = byId(state, 'qf2');
@@ -561,19 +275,19 @@
     const final = byId(state, 'final');
     const third = byId(state, 'third');
 
-    if (sf1) {
+    if (sf1 && qf1 && qf2) {
       setTeam(sf1, 'teamA', winnerOf(qf1), 'Winner QF1');
       setTeam(sf1, 'teamB', winnerOf(qf2), 'Winner QF2');
     }
-    if (sf2) {
+    if (sf2 && qf3 && qf4) {
       setTeam(sf2, 'teamA', winnerOf(qf3), 'Winner QF3');
       setTeam(sf2, 'teamB', winnerOf(qf4), 'Winner QF4');
     }
-    if (final) {
+    if (final && sf1 && sf2) {
       setTeam(final, 'teamA', winnerOf(sf1), 'Winner SF1');
       setTeam(final, 'teamB', winnerOf(sf2), 'Winner SF2');
     }
-    if (third) {
+    if (third && sf1 && sf2) {
       setTeam(third, 'teamA', loserOf(sf1), 'Loser SF1');
       setTeam(third, 'teamB', loserOf(sf2), 'Loser SF2');
     }
@@ -584,7 +298,7 @@
 
   function advanceGenericBracket(state) {
     const normalized = getKnockoutMatches(state);
-    const grouped = groupByRound(normalized).filter(([round]) => !/final|third|3/i.test(round));
+    const grouped = groupByRound(normalized).filter(([round]) => !/^(final|third place)$/i.test(round));
     if (!grouped.length) return;
     const raw = state.knockout;
 
@@ -601,7 +315,7 @@
       });
     }
 
-    const final = raw.find((m) => /final/i.test(clean(m.round || m.stage || m.name)) && !/semi|third|3/i.test(clean(m.round || m.stage || m.name)));
+    const final = raw.find((m) => /^final$/i.test(clean(m.round || m.stage || m.name)));
     const semis = normalized.filter((m) => /semi/i.test(m.round));
     if (final && semis.length >= 2) {
       final.teamA = winnerOf(raw[semis[0].index]) || final.teamA || 'Winner SF1';
@@ -617,7 +331,7 @@
   function touchEditMode() { editModeUntil = Date.now() + 3500; }
 
   function knockoutSignature(matches) {
-    return JSON.stringify(matches.map((m) => [m.id, m.round, m.teamA, m.teamB, m.scoreA, m.scoreB, m.winner, m.status]));
+    return JSON.stringify(matches.map((m) => [m.id, m.round, m.teamA, m.teamB, m.scoreA, m.scoreB, m.winner, m.status, m.ready]));
   }
 
   function predictWinner(m) {
@@ -629,7 +343,7 @@
   }
 
   function finalPreview(matches) {
-    const explicitFinal = matches.find((m) => /final/i.test(m.round) && !/semi/i.test(m.round) && !/third|3/i.test(m.round));
+    const explicitFinal = matches.find(m => /^final$/i.test(m.round));
     if (explicitFinal && (explicitFinal.teamA || explicitFinal.teamB)) return [explicitFinal.teamA, explicitFinal.teamB].filter(Boolean);
     const semis = matches.filter((m) => /semi/i.test(m.round));
     return semis.map(predictWinner).filter(Boolean).slice(0, 2);
@@ -652,19 +366,20 @@
   }
 
   function matchRow(m) {
+    const disabled = m.ready ? '' : 'disabled';
     const winnerOptions = ['', m.teamA, m.teamB]
       .filter((v, i) => i === 0 || clean(v))
       .map((t) => `<option value="${esc(t)}" ${t === m.winner ? 'selected' : ''}>${t ? esc(t) : 'เลือกผู้ชนะ'}</option>`)
       .join('');
 
     return `
-      <div class="pre6-match" data-core-ko-index="${m.index}">
+      <div class="pre6-match" data-core-ko-index="${m.index}" data-core-ko-id="${esc(m.id)}">
         <div class="pre6-team right" title="${esc(m.teamA)}">${esc(m.teamA || 'รอทีม')}</div>
-        <input type="number" min="0" class="core-ko-score-a" value="${esc(m.scoreA)}" placeholder="0" />
+        <input type="number" min="0" class="core-ko-score-a" ${disabled} value="${esc(m.scoreA)}" placeholder="0" />
         <div class="pre6-vs">-</div>
-        <input type="number" min="0" class="core-ko-score-b" value="${esc(m.scoreB)}" placeholder="0" />
+        <input type="number" min="0" class="core-ko-score-b" ${disabled} value="${esc(m.scoreB)}" placeholder="0" />
         <div class="pre6-team" title="${esc(m.teamB)}">${esc(m.teamB || 'รอทีม')}</div>
-        <select class="core-ko-winner">${winnerOptions}</select>
+        <select class="core-ko-winner" ${disabled}>${winnerOptions}</select>
       </div>
     `;
   }
@@ -710,23 +425,38 @@
     const state = readState();
     if (!Array.isArray(state.knockout)) return;
 
-    $$('#coreKnockoutScores .pre6-match').forEach((row) => {
-      const i = Number(row.dataset.coreKoIndex);
-      const m = state.knockout[i];
-      if (!m) return;
-
+    const ready = new Map(getKnockoutMatches(state).filter(row => row.ready).map(row => [row.index, row]));
+    const changes = [];
+    for (const row of $$('#coreKnockoutScores .pre6-match')) {
+      const index = Number(row.dataset.coreKoIndex);
+      const current = ready.get(index);
+      if (!current || current.id !== row.dataset.coreKoId || row.querySelector('.core-ko-score-a')?.disabled) continue;
       const a = row.querySelector('.core-ko-score-a')?.value ?? '';
       const b = row.querySelector('.core-ko-score-b')?.value ?? '';
-      const winner = row.querySelector('.core-ko-winner')?.value || '';
+      const selected = row.querySelector('.core-ko-winner')?.value || '';
+      if (a === String(current.scoreA) && b === String(current.scoreB) && selected === current.winner) continue;
+      if ([a, b].some(score => score !== '' && nullableNum(score) == null)) {
+        toast('คะแนน Knockout ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป');
+        return;
+      }
 
-      m.scoreA = a === '' ? '' : Number(a);
-      m.scoreB = b === '' ? '' : Number(b);
-      m.winner = winner || inferWinnerFromScores(m);
-      m.status = m.winner ? 'Done' : (a !== '' || b !== '' ? 'Pending' : (m.status || 'Pending'));
-    });
+      const match = state.knockout[index];
+      const scoreA = a === '' ? '' : Number(a);
+      const scoreB = b === '' ? '' : Number(b);
+      const inferred = inferWinnerFromScores({ ...match, scoreA, scoreB });
+      const tied = a !== '' && b !== '' && scoreA === scoreB;
+      const winner = selected !== current.winner ? selected || inferred : inferred || (tied ? selected : '');
+      changes.push({ match, scoreA, scoreB, winner });
+    }
+
+    for (const { match, scoreA, scoreB, winner } of changes) {
+      Object.assign(match, { scoreA, scoreB, winner, status: winner ? 'Done' : 'Pending' });
+      if ('winnerTeam' in match) match.winnerTeam = winner;
+    }
 
     advanceKnockoutBracket(state);
-    state.lastResult = findLatestKnockoutResult(state) || state.lastResult;
+    const latest = findLatestKnockoutResult(state);
+    if (latest || state.lastResult?.round) state.lastResult = latest;
     writeState(state, 'core-knockout-save-scores', { matches: state.knockout.length });
 
     editModeUntil = 0;
@@ -736,7 +466,7 @@
   }
 
   function findLatestKnockoutResult(state) {
-    const done = getKnockoutMatches(state).reverse().find((m) => m.winner || isCompleteStatus(m.status));
+    const done = getKnockoutMatches(state).reverse().find(m => m.status.toLowerCase() !== 'bye' && (m.winner || isCompleteStatus(m.status)));
     if (!done) return null;
     return {
       teamA: done.teamA,
@@ -749,20 +479,13 @@
   }
 
   function ensureCoreButtons() {
-    const state = readState();
-    const entries = standingsEntries(state);
-    const q = qualifierSummary(state, entries);
-    const progress = groupStageProgress(state);
     const coreBtn = $('#generateKnockout');
-
-    if (coreBtn) {
-      const ready = q.ok && progress.complete;
-      coreBtn.disabled = !ready;
-      coreBtn.classList.toggle('phase2-disabled', !ready);
-      coreBtn.title = ready
-        ? 'พร้อมสร้าง Knockout จากอันดับรอบแบ่งกลุ่ม'
-        : `ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบก่อน (${progress.done}/${progress.total})`;
-    }
+    if (!coreBtn) return;
+    const progress = studio.groupStageProgress();
+    const issue = progress.complete ? studio.knockoutSetupIssue() : studio.groupStageMessage(progress);
+    coreBtn.disabled = Boolean(issue);
+    coreBtn.classList.toggle('phase2-disabled', Boolean(issue));
+    coreBtn.title = issue || 'พร้อมสร้าง Knockout จากอันดับรอบแบ่งกลุ่ม';
   }
 
   function toast(message) {
@@ -785,22 +508,6 @@
 
     document.addEventListener('click', (event) => {
       const target = event.target;
-
-      if (target.closest('#generateKnockout') || target.closest('#coreGenerateFromStandings') || target.closest('#pre6GenerateFromStandings')) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        generateKnockout({ resolved: false });
-        return;
-      }
-
-      if (target.closest('#coreGenerateResolved') || target.closest('#phase6GenerateResolved')) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        generateKnockout({ resolved: true });
-        return;
-      }
 
       const saveTie = target.closest('[data-core-save-tie], [data-phase6-save-tie]');
       if (saveTie) {
@@ -841,10 +548,9 @@
     refresh();
     window.PepsLiveCoreKnockout = {
       readState,
-      standingsEntries,
-      resolvedStandingsEntries,
-      buildBracketFromEntries,
-      generateKnockout,
+      standingsEntries: studio.standingsEntries,
+      buildKnockoutPreviewPlan: studio.buildKnockoutPreviewPlan,
+      generateKnockout: studio.generateKnockout,
       advanceKnockoutBracket,
       saveKnockoutScores,
       refresh

@@ -57,16 +57,6 @@
     const confirmed = Object.values(groups).flat().filter((t) => cleanText(t) && !isBye(t)).length;
     return { state, typed, unique, dup, groupCount, slots, byes, confirmed };
   }
-  function hasDerivedData(state = readState()) {
-    return !!(
-      (state.groups && Object.keys(state.groups).length) ||
-      (state.pendingGroups && Object.keys(state.pendingGroups).length) ||
-      (Array.isArray(state.matches) && state.matches.length) ||
-      (state.standings && Object.keys(state.standings).length) ||
-      (Array.isArray(state.knockout) && state.knockout.length)
-    );
-  }
-
   function showToast(message) {
     if (window.pepsToast) window.pepsToast(message, 'info');
   }
@@ -133,15 +123,6 @@
     copyText(text, `คัดลอก ${s.unique.length} ทีมแล้ว`);
   }
 
-  function warnBeforeSaveTeams(event) {
-    const btn = event.target.closest('#saveTeams');
-    if (!btn) return;
-    if (!hasDerivedData()) return;
-    if (confirm('การบันทึก Teams ใหม่จะรีเซ็ต Draw, Schedule, Scores, Standings และ Knockout เดิม ต้องการทำต่อไหม?')) return;
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
   function bind() {
     document.addEventListener('input', (event) => {
       if (event.target?.id === 'teamText') refresh();
@@ -151,7 +132,6 @@
       if (event.target.closest('#phase3ClearTeams')) clearTeams();
       window.setTimeout(refresh, 150);
     });
-    document.addEventListener('click', warnBeforeSaveTeams, true);
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', refresh);
   }

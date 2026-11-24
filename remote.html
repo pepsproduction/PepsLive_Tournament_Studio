@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>PepsLive Mobile Remote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Prompt:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/remote.css?v=remote-20260822-2" />
+</head>
+<body>
+  <main class="remote-app">
+    <section class="remote-card" aria-labelledby="remoteTitle">
+      <div class="remote-brand"><span class="remote-logo">PL</span><span>PEPSLIVE REMOTE</span></div>
+      <div class="remote-kicker">TOURNAMENT CONTROL</div>
+      <h1 id="remoteTitle">สั่งหมุนวงล้อ</h1>
+      <p class="remote-description">กดปุ่มนี้เพื่อสั่งให้เครื่องหลักเริ่ม Animation เท่านั้น ไม่มีสิทธิ์แก้รายชื่อหรือข้อมูลการแข่งขัน</p>
+
+      <div class="remote-status" id="remoteStatus" data-state="checking" role="status" aria-live="polite">กำลังตรวจสอบลิงก์...</div>
+      <button class="spin-button" id="spinButton" type="button" disabled>
+        <span class="spin-icon" aria-hidden="true">↻</span>
+        <span>หมุนวงล้อ</span>
+      </button>
+      <p class="remote-hint" id="remoteHint">ใช้มือถือและคอมเครื่องหลักใน Wi‑Fi เดียวกัน</p>
+    </section>
+  </main>
+  <script src="assets/remote.js?v=remote-20260822-1"></script>
+</body>
+</html>

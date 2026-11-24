@@ -1,0 +1,207 @@
+:root {
+  color-scheme: dark;
+  --remote-bg: #070707;
+  --remote-panel: #15100d;
+  --remote-line: rgba(255, 166, 74, .28);
+  --remote-orange: #ff6a00;
+  --remote-gold: #ffd166;
+  --remote-text: #fff8ef;
+  --remote-muted: #b8aaa0;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body { min-height: 100%; margin: 0; }
+
+body {
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 106, 0, .22), transparent 42%),
+    radial-gradient(circle at 10% 90%, rgba(255, 209, 102, .08), transparent 35%),
+    #070707;
+  color: var(--remote-text);
+  font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: .17;
+  background-image:
+    linear-gradient(rgba(255, 179, 71, .08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 179, 71, .08) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+}
+
+.remote-app {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.remote-card {
+  position: relative;
+  width: min(100%, 430px);
+  padding: 28px 24px 24px;
+  overflow: hidden;
+  border: 1px solid var(--remote-line);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(255, 106, 0, .16), transparent 31%),
+    linear-gradient(180deg, rgba(30, 21, 15, .97), rgba(11, 10, 9, .98));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255, 255, 255, .05);
+  text-align: center;
+}
+
+.remote-card::after {
+  position: absolute;
+  right: 18%;
+  bottom: 0;
+  left: 18%;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--remote-orange), var(--remote-gold), transparent);
+  box-shadow: 0 0 18px rgba(255, 106, 0, .54);
+}
+
+.remote-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #ffd8a4;
+  font: 800 11px/1 "Chakra Petch", sans-serif;
+  letter-spacing: .14em;
+}
+
+.remote-logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 224, 178, .5);
+  border-radius: 9px;
+  background: linear-gradient(145deg, #fff3d8, #ffb347 45%, #ff6a00);
+  color: #1e0c03;
+  font: 950 13px/1 "Chakra Petch", sans-serif;
+}
+
+.remote-kicker {
+  margin-top: 34px;
+  color: var(--remote-gold);
+  font: 800 10px/1 "Chakra Petch", sans-serif;
+  letter-spacing: .17em;
+}
+
+h1 {
+  margin: 12px 0 8px;
+  font: 900 clamp(30px, 9vw, 44px)/1.2 "Prompt", sans-serif;
+  letter-spacing: -.03em;
+}
+
+.remote-description {
+  max-width: 330px;
+  margin: 0 auto;
+  color: var(--remote-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.remote-status {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  margin: 26px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 179, 71, .22);
+  border-radius: 13px;
+  background: rgba(255, 106, 0, .06);
+  color: #e7d4bf;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.remote-status[data-state="ready"] {
+  border-color: rgba(110, 231, 173, .42);
+  background: rgba(110, 231, 173, .07);
+  color: #c9ffe5;
+}
+
+.remote-status[data-state="busy"],
+.remote-status[data-state="sent"] {
+  border-color: rgba(255, 209, 102, .45);
+  background: rgba(255, 209, 102, .08);
+  color: #ffe9ad;
+}
+
+.remote-status[data-state="error"] {
+  border-color: rgba(255, 119, 119, .46);
+  background: rgba(255, 119, 119, .08);
+  color: #ffcaca;
+}
+
+.spin-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 76px;
+  border: 1px solid rgba(255, 238, 194, .62);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ff6a00, #ff9d2e 54%, #ffd166);
+  color: #1d0b03;
+  cursor: pointer;
+  font: 900 22px/1 "Prompt", sans-serif;
+  box-shadow: 0 16px 38px rgba(255, 106, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .55);
+  transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spin-button:not(:disabled):hover {
+  filter: saturate(1.12) brightness(1.06);
+  box-shadow: 0 20px 48px rgba(255, 106, 0, .38), 0 0 0 1px rgba(255, 238, 194, .32);
+  transform: translateY(-2px);
+}
+
+.spin-button:not(:disabled):active {
+  transform: translateY(1px) scale(.99);
+}
+
+.spin-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.42) saturate(.66);
+  opacity: .66;
+}
+
+.spin-icon {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font: 700 25px/1 "Chakra Petch", sans-serif;
+}
+
+.remote-hint {
+  margin: 17px 0 0;
+  color: #887a70;
+  font-size: 11px;
+}
+
+@media (max-width: 480px) {
+  .remote-app { padding: 12px; }
+  .remote-card { padding: 24px 18px 22px; border-radius: 23px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .001ms !important; }
+}

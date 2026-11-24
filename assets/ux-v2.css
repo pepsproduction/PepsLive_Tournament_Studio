@@ -1,0 +1,974 @@
+/*
+ * PepsLive Tournament Studio — UX/UI refresh
+ *
+ * This layer is intentionally separate from the legacy visual rules. It keeps
+ * the existing selectors and render contracts intact while giving the control
+ * surface one readable black / orange / gold system. OBS source transparency
+ * is handled at the bottom of this file.
+ */
+
+:root {
+  --bg: #070707;
+  --bg2: #100c09;
+  --panel: #11100f;
+  --panel2: #1a1511;
+  --line: rgba(255, 166, 74, .24);
+  --line-strong: rgba(255, 106, 0, .72);
+  --text: #fff8ef;
+  --muted: #b7aaa0;
+  --accent: #ff6a00;
+  --accent2: #ffb347;
+  --orange: #ff6a00;
+  --orange2: #ffb347;
+  --gold: #ffd166;
+  --good: #6ee7ad;
+  --warn: #ffd166;
+  --bad: #ff7777;
+  --surface-1: rgba(20, 16, 13, .96);
+  --surface-2: rgba(28, 20, 15, .92);
+  --shadow: 0 18px 55px rgba(0, 0, 0, .34);
+  --peps-radius: 20px;
+}
+
+html.peps-ux-v2 {
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+html.peps-ux-v2 body {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 88% -8%, rgba(255, 106, 0, .17), transparent 28%),
+    radial-gradient(circle at -8% 78%, rgba(255, 179, 71, .08), transparent 27%),
+    linear-gradient(145deg, #060606 0%, #0b0908 48%, #070707 100%);
+  color: var(--text);
+  font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+}
+
+html.peps-ux-v2 body::before {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  opacity: .18;
+  background-image:
+    linear-gradient(rgba(255, 179, 71, .06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 179, 71, .06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, #000, transparent 72%);
+}
+
+html.peps-ux-v2 body > * {
+  position: relative;
+  z-index: 1;
+}
+
+html.peps-ux-v2 h1,
+html.peps-ux-v2 h2,
+html.peps-ux-v2 h3,
+html.peps-ux-v2 h4,
+html.peps-ux-v2 .brand h1,
+html.peps-ux-v2 .nav-copy b,
+html.peps-ux-v2 .btn,
+html.peps-ux-v2 .eyebrow,
+html.peps-ux-v2 .nav-group-title,
+html.peps-ux-v2 .nav-index {
+  font-family: "Prompt", "IBM Plex Sans Thai", system-ui, sans-serif;
+}
+
+html.peps-ux-v2 .app-shell {
+  width: min(var(--app-max, 1280px), calc(100% - 32px));
+  margin: 0 auto;
+  padding: 18px 0 32px;
+}
+
+/* Top bar: compact live-production header with a clear hierarchy. */
+html.peps-ux-v2 .topbar {
+  position: relative;
+  overflow: hidden;
+  min-height: 74px;
+  gap: 18px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 106, 0, .48) !important;
+  border-radius: 22px;
+  background:
+    linear-gradient(120deg, rgba(255, 106, 0, .10), transparent 36%),
+    linear-gradient(180deg, rgba(29, 21, 16, .96), rgba(12, 11, 10, .96)) !important;
+  box-shadow: 0 16px 55px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .05);
+  backdrop-filter: blur(16px);
+}
+
+html.peps-ux-v2 .topbar::after {
+  position: absolute;
+  right: 10%;
+  bottom: 0;
+  left: 10%;
+  height: 1px;
+  content: "";
+  opacity: .7;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--gold), transparent);
+}
+
+html.peps-ux-v2 .logo {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 224, 178, .56);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fff4dc 0%, #ffb347 43%, #ff6a00 100%);
+  color: #1c0c03;
+  font: 950 20px/1 "Chakra Petch", sans-serif;
+  letter-spacing: -.04em;
+  box-shadow: 0 8px 26px rgba(255, 106, 0, .23), inset 0 1px 0 rgba(255, 255, 255, .65);
+}
+
+html.peps-ux-v2 .brand h1 {
+  color: #fffaf4;
+  font-weight: 850;
+  letter-spacing: .01em;
+}
+
+html.peps-ux-v2 .brand p,
+html.peps-ux-v2 .top-actions small {
+  color: #c6b9ae;
+}
+
+html.peps-ux-v2 .top-actions {
+  gap: 8px;
+}
+
+html.peps-ux-v2 .iconbtn,
+html.peps-ux-v2 .mobile-menu-trigger {
+  border-color: rgba(255, 179, 71, .34) !important;
+  background: rgba(255, 106, 0, .08) !important;
+  color: #ffe2b7 !important;
+}
+
+/* Main navigation: the existing menu names and grouping remain unchanged. */
+html.peps-ux-v2 .layout {
+  grid-template-columns: var(--sidebar-w, 284px) minmax(0, 1fr);
+  gap: 20px !important;
+}
+
+html.peps-ux-v2 .sidebar {
+  position: sticky;
+  top: 18px !important;
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  padding: 14px 10px 12px;
+  border: 1px solid rgba(255, 166, 74, .29) !important;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(27, 19, 14, .94), rgba(8, 8, 8, .98)) !important;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, .04);
+  scrollbar-color: rgba(255, 106, 0, .55) transparent;
+}
+
+html.peps-ux-v2 .nav-group {
+  padding: 7px 0 10px;
+}
+
+html.peps-ux-v2 .nav-group + .nav-group {
+  margin-top: 9px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 179, 71, .17) !important;
+}
+
+html.peps-ux-v2 .nav-group-title {
+  padding: 3px 12px 9px;
+  color: #d8a867 !important;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .15em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+html.peps-ux-v2 .navbtn {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 30px minmax(0, 1fr) 8px;
+  align-items: center;
+  min-height: 62px;
+  gap: 8px;
+  width: 100%;
+  margin: 3px 0;
+  padding: 9px 12px 9px 10px;
+  overflow: hidden;
+  border: 1px solid transparent !important;
+  border-radius: 13px;
+  background: transparent !important;
+  color: #f7ede3 !important;
+  text-align: left;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+html.peps-ux-v2 .navbtn::before {
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: 3px;
+  content: "";
+  border-radius: 0 5px 5px 0;
+  background: transparent;
+  transition: background .18s ease, box-shadow .18s ease;
+}
+
+html.peps-ux-v2 .navbtn:hover {
+  border-color: rgba(255, 166, 74, .30) !important;
+  background: rgba(255, 106, 0, .10) !important;
+  transform: translateX(2px);
+}
+
+html.peps-ux-v2 .navbtn.active {
+  border-color: rgba(255, 106, 0, .70) !important;
+  background:
+    linear-gradient(100deg, rgba(255, 106, 0, .20), rgba(255, 179, 71, .06) 75%),
+    rgba(19, 12, 8, .96) !important;
+  box-shadow: 0 8px 24px rgba(255, 106, 0, .12), inset 0 1px 0 rgba(255, 209, 102, .10);
+}
+
+html.peps-ux-v2 .navbtn.active::before {
+  background: linear-gradient(180deg, var(--gold), var(--accent));
+  box-shadow: 0 0 16px rgba(255, 106, 0, .8);
+}
+
+html.peps-ux-v2 .nav-index {
+  color: #81776f !important;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+html.peps-ux-v2 .navbtn.active .nav-index {
+  color: var(--gold) !important;
+}
+
+html.peps-ux-v2 .nav-copy {
+  min-width: 0;
+}
+
+html.peps-ux-v2 .nav-copy b {
+  display: block;
+  overflow: hidden;
+  color: #fff7ed !important;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.peps-ux-v2 .nav-copy small {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #a99b90 !important;
+  font-size: 11px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.peps-ux-v2 .navbtn.active .nav-copy small {
+  color: #ffd29b !important;
+}
+
+html.peps-ux-v2 .nav-state {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #514941 !important;
+  box-shadow: none;
+}
+
+html.peps-ux-v2 .nav-state.active {
+  background: var(--accent2) !important;
+  box-shadow: 0 0 13px rgba(255, 179, 71, .82);
+}
+
+html.peps-ux-v2 .nav-state.done {
+  background: var(--good) !important;
+  box-shadow: 0 0 12px rgba(110, 231, 173, .55);
+}
+
+/* Content hierarchy and contrast. */
+html.peps-ux-v2 .content {
+  min-width: 0;
+}
+
+html.peps-ux-v2 .panel {
+  border: 1px solid rgba(255, 166, 74, .25) !important;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 94% 0%, rgba(255, 106, 0, .10), transparent 25%),
+    linear-gradient(180deg, rgba(21, 16, 13, .97), rgba(10, 10, 10, .96)) !important;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+html.peps-ux-v2 .panel-head {
+  min-height: 66px;
+  gap: 16px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 179, 71, .18) !important;
+}
+
+html.peps-ux-v2 .panel-head h2 {
+  color: #fffaf4 !important;
+  font-size: clamp(21px, 2.1vw, 30px);
+  font-weight: 850;
+  letter-spacing: -.02em;
+}
+
+html.peps-ux-v2 .eyebrow {
+  color: var(--gold) !important;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+html.peps-ux-v2 .panel-head p,
+html.peps-ux-v2 .muted,
+html.peps-ux-v2 .hint,
+html.peps-ux-v2 .card p,
+html.peps-ux-v2 .source-card p {
+  color: #b6a99f !important;
+}
+
+html.peps-ux-v2 .card,
+html.peps-ux-v2 .stat,
+html.peps-ux-v2 .groupcard,
+html.peps-ux-v2 .tablewrap,
+html.peps-ux-v2 .side-card,
+html.peps-ux-v2 .notice,
+html.peps-ux-v2 .draw-stage,
+html.peps-ux-v2 .draw-graphic,
+html.peps-ux-v2 .source-section,
+html.peps-ux-v2 .source-card {
+  border-color: rgba(255, 166, 74, .22) !important;
+  background: linear-gradient(180deg, rgba(31, 22, 16, .90), rgba(14, 13, 12, .94)) !important;
+  box-shadow: 0 12px 38px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+
+html.peps-ux-v2 .card h3,
+html.peps-ux-v2 .source-card h3,
+html.peps-ux-v2 .source-section > h3 {
+  color: #fff4e7 !important;
+  font-weight: 800;
+}
+
+html.peps-ux-v2 .field > label,
+html.peps-ux-v2 .field label {
+  color: #ffd39a !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .015em;
+}
+
+html.peps-ux-v2 input,
+html.peps-ux-v2 select,
+html.peps-ux-v2 textarea {
+  border-color: rgba(255, 166, 74, .25) !important;
+  background: rgba(7, 7, 7, .86) !important;
+  color: #fff9f1 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+
+html.peps-ux-v2 input::placeholder,
+html.peps-ux-v2 textarea::placeholder {
+  color: #81766d;
+}
+
+html.peps-ux-v2 input:focus,
+html.peps-ux-v2 select:focus,
+html.peps-ux-v2 textarea:focus {
+  border-color: var(--accent) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, .14), 0 0 22px rgba(255, 106, 0, .10) !important;
+}
+
+html.peps-ux-v2 .btn {
+  min-height: 38px;
+  border: 1px solid rgba(255, 179, 71, .35) !important;
+  border-radius: 11px;
+  background: rgba(255, 106, 0, .07) !important;
+  color: #ffe8cb !important;
+  font-weight: 750;
+  letter-spacing: .01em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+html.peps-ux-v2 .btn:hover {
+  border-color: rgba(255, 179, 71, .75) !important;
+  background: rgba(255, 106, 0, .16) !important;
+  box-shadow: 0 8px 22px rgba(255, 106, 0, .12);
+  transform: translateY(-1px);
+}
+
+html.peps-ux-v2 .btn.primary,
+html.peps-ux-v2 .btn.good {
+  border-color: rgba(255, 221, 168, .56) !important;
+  background: linear-gradient(135deg, #ff6a00, #ff9d2e 56%, #ffd166) !important;
+  color: #1b0b03 !important;
+  text-shadow: none;
+  box-shadow: 0 10px 26px rgba(255, 106, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .42);
+}
+
+html.peps-ux-v2 .btn.primary:hover,
+html.peps-ux-v2 .btn.good:hover {
+  background: linear-gradient(135deg, #ff7b1a, #ffc05e 58%, #ffe09a) !important;
+  box-shadow: 0 14px 32px rgba(255, 106, 0, .34), 0 0 0 1px rgba(255, 221, 168, .30);
+}
+
+html.peps-ux-v2 .btn.warn {
+  border-color: rgba(255, 209, 102, .54) !important;
+  color: #ffe8a5 !important;
+}
+
+html.peps-ux-v2 .btn.bad {
+  border-color: rgba(255, 119, 119, .54) !important;
+  color: #ffc7c7 !important;
+}
+
+html.peps-ux-v2 .stepper {
+  gap: 9px;
+  padding: 2px;
+}
+
+html.peps-ux-v2 .step {
+  min-height: 45px;
+  border-color: rgba(255, 166, 74, .20) !important;
+  background: rgba(17, 13, 10, .86) !important;
+  color: #d8cbc0;
+}
+
+html.peps-ux-v2 .step b {
+  background: rgba(255, 179, 71, .10) !important;
+  color: #ffd29a;
+}
+
+html.peps-ux-v2 .step.done b {
+  background: rgba(110, 231, 173, .18) !important;
+  color: var(--good);
+}
+
+html.peps-ux-v2 .step.active {
+  border-color: rgba(255, 106, 0, .64) !important;
+  outline: 1px solid rgba(255, 179, 71, .25);
+  background: linear-gradient(90deg, rgba(255, 106, 0, .16), rgba(255, 179, 71, .05)) !important;
+  color: #fff4e8;
+}
+
+html.peps-ux-v2 .notice {
+  color: #f2e6db !important;
+}
+
+html.peps-ux-v2 .notice.good {
+  border-color: rgba(110, 231, 173, .44) !important;
+  background: rgba(110, 231, 173, .07) !important;
+  color: #c7ffe5 !important;
+}
+
+html.peps-ux-v2 .notice.warn {
+  border-color: rgba(255, 209, 102, .45) !important;
+  background: rgba(255, 209, 102, .07) !important;
+  color: #ffe7a9 !important;
+}
+
+/* Sources panel: clear separation between the hero animation and data feeds. */
+html.peps-ux-v2 .source-holder,
+html.peps-ux-v2 .peps-source-holder-clean {
+  gap: 18px;
+}
+
+html.peps-ux-v2 .source-section {
+  position: relative;
+  padding: 18px;
+}
+
+html.peps-ux-v2 .source-section > h3 {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: #ffd28f !important;
+  font-size: 14px;
+  letter-spacing: .04em;
+}
+
+html.peps-ux-v2 .source-section > h3::before {
+  width: 4px;
+  height: 20px;
+  content: "";
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--gold), var(--accent));
+  box-shadow: 0 0 14px rgba(255, 106, 0, .45);
+}
+
+html.peps-ux-v2 .source-card {
+  display: flex;
+  min-height: 184px;
+  flex-direction: column;
+  padding: 17px;
+}
+
+html.peps-ux-v2 .source-card p {
+  flex: 1;
+  line-height: 1.55;
+}
+
+html.peps-ux-v2 .source-card .row {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+html.peps-ux-v2 .source-url {
+  border-color: rgba(255, 179, 71, .25) !important;
+  background: rgba(5, 5, 5, .74) !important;
+  color: #ffdca7 !important;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Draw stage: stronger focal point without filling OBS with a solid plate. */
+html.peps-ux-v2 .draw-stage {
+  border-color: rgba(255, 106, 0, .40) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 106, 0, .16), transparent 38%),
+    linear-gradient(180deg, rgba(29, 18, 11, .97), rgba(10, 10, 10, .95)) !important;
+}
+
+html.peps-ux-v2 .draw-graphic {
+  border-color: rgba(255, 106, 0, .40) !important;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 106, 0, .08), transparent 35%),
+    linear-gradient(180deg, rgba(24, 16, 11, .95), rgba(12, 12, 12, .93)) !important;
+}
+
+html.peps-ux-v2 .draw-chip,
+html.peps-ux-v2 .draw-group-badge,
+html.peps-ux-v2 .draw-style-label,
+html.peps-ux-v2 .draw-group-pill {
+  border-color: rgba(255, 179, 71, .45) !important;
+  background: rgba(255, 106, 0, .10) !important;
+  color: #ffe0b4 !important;
+}
+
+html.peps-ux-v2 .draw-team-name,
+html.peps-ux-v2 .draw-team-name span,
+html.peps-ux-v2 .draw-result-zone .draw-team-name {
+  color: #fffaf4 !important;
+  text-shadow: 0 0 26px rgba(255, 179, 71, .16), 0 9px 28px rgba(0, 0, 0, .62) !important;
+}
+
+html.peps-ux-v2 .draw-team-sub,
+html.peps-ux-v2 .draw-subtitle {
+  color: #cbbcaf !important;
+}
+
+html.peps-ux-v2 .draw-progress,
+html.peps-ux-v2 .draw-progress-track {
+  background: rgba(255, 255, 255, .09) !important;
+  border-color: rgba(255, 179, 71, .22) !important;
+}
+
+html.peps-ux-v2 .draw-progress-bar,
+html.peps-ux-v2 .draw-progress-bar[data-draw-bar] {
+  background: linear-gradient(90deg, #ff6a00, #ffb347, #fff0bd) !important;
+  box-shadow: 0 0 18px rgba(255, 106, 0, .45) !important;
+}
+
+/* Wheel: keep every selectable draw mode, but make the primary wheel more natural. */
+html.peps-ux-v2 .wheel-visual {
+  overflow: visible;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .42));
+  animation: none !important;
+}
+
+html.peps-ux-v2 .wheel-rotor {
+  background: conic-gradient(
+    #ff6a00 0 45deg,
+    #ffd166 45deg 90deg,
+    #ff9142 90deg 135deg,
+    #fff0bd 135deg 180deg,
+    #f4511e 180deg 225deg,
+    #ffb347 225deg 270deg,
+    #d84d16 270deg 315deg,
+    #ffe4a8 315deg 360deg
+  ) !important;
+  box-shadow: 0 0 0 10px #241208, 0 0 0 16px rgba(255, 106, 0, .16), 0 22px 52px rgba(0, 0, 0, .44) !important;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+}
+
+html.peps-ux-v2 .wheel-rotor::before {
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, .20), transparent 25%),
+    radial-gradient(circle, #ff6a00 0 20%, #1b0b04 21% 100%) !important;
+  box-shadow: inset 0 0 0 4px rgba(255, 242, 205, .10), inset 0 -12px 22px rgba(0, 0, 0, .22);
+}
+
+html.peps-ux-v2 .wheel-rotor::after {
+  background: #160d08 !important;
+  border-color: rgba(255, 179, 71, .55) !important;
+  color: #ffe6b4 !important;
+  box-shadow: 0 0 20px rgba(255, 106, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+html.peps-ux-v2 .wheel-dots i {
+  background: linear-gradient(145deg, #fff8e8, #ffb347) !important;
+  color: #291006 !important;
+  box-shadow: 0 0 13px rgba(255, 179, 71, .46) !important;
+}
+
+html.peps-ux-v2 .wheel-pointer {
+  border-top-color: #ffd166 !important;
+  filter: drop-shadow(0 5px 10px rgba(255, 106, 0, .42));
+}
+
+html.peps-ux-v2 .wheel-pulse-ring {
+  border-color: rgba(255, 179, 71, .30) !important;
+}
+
+html.peps-ux-v2 .draw-graphic.idle .wheel-rotor,
+html.peps-ux-v2 .draw-source-card.idle .wheel-rotor {
+  animation: pepsWheelIdle 9s linear infinite !important;
+}
+
+html.peps-ux-v2 .draw-graphic.active .wheel-rotor,
+html.peps-ux-v2 .draw-source-card.active .wheel-rotor {
+  animation: pepsWheelActive .72s cubic-bezier(.45, .05, .25, 1) infinite !important;
+  filter: saturate(1.32) drop-shadow(0 0 24px rgba(255, 106, 0, .46));
+}
+
+html.peps-ux-v2 .draw-graphic.result .wheel-rotor,
+html.peps-ux-v2 .draw-source-card.result .wheel-rotor {
+  animation: pepsWheelResult 4.8s cubic-bezier(.4, .1, .2, 1) infinite !important;
+  filter: saturate(1.08) drop-shadow(0 0 13px rgba(255, 179, 71, .28));
+}
+
+@keyframes pepsWheelIdle {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pepsWheelActive {
+  0% { transform: rotate(0deg); }
+  80% { transform: rotate(290deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pepsWheelResult {
+  0% { transform: rotate(0deg); }
+  72% { transform: rotate(286deg); }
+  86% { transform: rotate(331deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Live Source pages: transparent canvas; only the information/FX is painted. */
+html.peps-ux-v2.src-mode,
+html.peps-ux-v2.src-mode body,
+html.peps-ux-v2.src-mode body.phase8-body,
+html.peps-ux-v2.src-mode #coreSourceRoot,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-anim-source,
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-wrap {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+html.peps-ux-v2.src-mode body::before,
+html.peps-ux-v2.src-mode body::after {
+  display: none !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .draw-source-card {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .draw-source-card .draw-layout,
+html.peps-ux-v2.src-mode #coreSourceRoot .draw-source-card .draw-fx-zone,
+html.peps-ux-v2.src-mode #coreSourceRoot .draw-source-card .draw-result-zone {
+  background: transparent !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-panel,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-groups-board,
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-empty {
+  border-color: rgba(255, 179, 71, .30) !important;
+  background: rgba(8, 7, 6, .72) !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .30);
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-h1,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-groups-head h1,
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-result .teams {
+  color: #fff8ed !important;
+  text-shadow: 0 0 20px rgba(255, 179, 71, .16);
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-sub,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-groups-head p {
+  color: #e2bf8e !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-table th,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-group-title {
+  background: rgba(255, 106, 0, .15) !important;
+  color: #ffe1af !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-table td,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-group-row {
+  border-color: rgba(255, 179, 71, .16) !important;
+  color: #fff7ed !important;
+}
+
+/* OBS readability: sourceOpacity changes the painted panel strength while
+   keeping the outer canvas transparent for camera/scene compositing. */
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-panel,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-groups-board,
+html.peps-ux-v2.src-mode #coreSourceRoot .phase8-empty {
+  background: rgba(8, 7, 6, var(--source-opacity, .90)) !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-group-card {
+  border-color: rgba(255, 179, 71, .30) !important;
+  background: rgba(24, 17, 12, var(--source-opacity, .90)) !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-group-title {
+  background: linear-gradient(135deg, rgba(255, 106, 0, .26), rgba(255, 179, 71, .12)) !important;
+  color: #fff3dc !important;
+}
+
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-group-row:not(.empty) .team,
+html.peps-ux-v2.src-mode #coreSourceRoot .pl-group-row:not(.empty) .no {
+  color: #fffaf2 !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
+}
+
+/* Mobile: the existing slide-in behavior stays intact, with clearer spacing. */
+@media (max-width: 1180px) {
+  html.peps-ux-v2 .app-shell {
+    width: min(var(--app-max, 1280px), calc(100% - 24px));
+    padding-top: 12px;
+  }
+
+  html.peps-ux-v2 .topbar {
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 720px) {
+  html.peps-ux-v2 .app-shell {
+    width: calc(100% - 16px);
+  }
+
+  html.peps-ux-v2 .topbar {
+    min-height: 66px;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  html.peps-ux-v2 .brand h1 {
+    font-size: 15px;
+  }
+
+  html.peps-ux-v2 .brand p {
+    font-size: 10px;
+  }
+
+  html.peps-ux-v2 .panel,
+  html.peps-ux-v2 .source-section {
+    border-radius: 18px;
+  }
+
+  html.peps-ux-v2 .source-section {
+    padding: 13px;
+  }
+
+  html.peps-ux-v2 .source-card .row .btn {
+    flex: 1 1 120px;
+  }
+
+  html.peps-ux-v2 .stepper {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    scrollbar-width: thin;
+  }
+
+  html.peps-ux-v2 .step {
+    min-width: 142px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.peps-ux-v2 *,
+  html.peps-ux-v2 *::before,
+  html.peps-ux-v2 *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* Mobile Remote / QR control card. */
+html.peps-ux-v2 .remote-source-section {
+  grid-column: 1 / -1;
+}
+
+html.peps-ux-v2 .remote-control-card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 106, 0, .40);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 86% 0%, rgba(255, 106, 0, .13), transparent 29%),
+    linear-gradient(135deg, rgba(38, 22, 12, .96), rgba(11, 11, 10, .96));
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+html.peps-ux-v2 .remote-control-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 18px 13px;
+  border-bottom: 1px solid rgba(255, 179, 71, .16);
+}
+
+html.peps-ux-v2 .remote-control-head h3 {
+  margin: 0 0 5px;
+  color: #fff7ed;
+  font: 850 18px/1.15 "Prompt", sans-serif;
+}
+
+html.peps-ux-v2 .remote-control-head p,
+html.peps-ux-v2 .remote-control-details p {
+  margin: 0;
+  color: #bcae9f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+html.peps-ux-v2 .remote-control-head p b {
+  color: #ffd166;
+}
+
+html.peps-ux-v2 .remote-status-pill {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 179, 71, .28);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 106, 0, .08);
+  color: #e7d1b7;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+html.peps-ux-v2 .remote-status-pill[data-state="ready"] {
+  border-color: rgba(110, 231, 173, .42);
+  background: rgba(110, 231, 173, .08);
+  color: #c9ffe5;
+}
+
+html.peps-ux-v2 .remote-status-pill[data-state="error"] {
+  border-color: rgba(255, 119, 119, .45);
+  background: rgba(255, 119, 119, .07);
+  color: #ffc8c8;
+}
+
+html.peps-ux-v2 .remote-status-pill[data-state="sent"] {
+  border-color: rgba(255, 209, 102, .45);
+  background: rgba(255, 209, 102, .08);
+  color: #ffe8aa;
+}
+
+html.peps-ux-v2 .remote-control-body {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 17px 18px 19px;
+}
+
+html.peps-ux-v2 .remote-qr-frame {
+  display: grid;
+  place-items: center;
+  width: 190px;
+  height: 190px;
+  border: 8px solid #fff;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .30), 0 0 24px rgba(255, 179, 71, .10);
+}
+
+html.peps-ux-v2 .remote-qr-frame img {
+  display: block;
+  width: 174px;
+  height: 174px;
+  image-rendering: pixelated;
+}
+
+html.peps-ux-v2 .remote-qr-empty {
+  color: #6c5c50;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+html.peps-ux-v2 .remote-control-details {
+  min-width: 0;
+}
+
+html.peps-ux-v2 .remote-url {
+  margin-bottom: 9px;
+  padding: 10px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(255, 179, 71, .25);
+  border-radius: 10px;
+  background: rgba(4, 4, 4, .65);
+  color: #ffdca7;
+  font: 700 11px/1.45 ui-monospace, Consolas, monospace;
+}
+
+html.peps-ux-v2 .remote-control-details .row {
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+html.peps-ux-v2 .remote-control-details .btn {
+  flex: 1 1 145px;
+}
+
+html.peps-ux-v2 .remote-control-details .btn:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+@media (max-width: 720px) {
+  html.peps-ux-v2 .remote-control-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  html.peps-ux-v2 .remote-control-body {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  html.peps-ux-v2 .remote-control-details {
+    width: 100%;
+  }
+}

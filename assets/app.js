@@ -2,7 +2,7 @@
    - Replaces old source model directly in assets/app.js
    - Draw Animation Source is single: ?view=draw-animation
    - Old aliases wheel/slot/card/lottery/glitch/galaxy/crystal/plasma/vortex/winner map to draw-animation
-   - Live Sources remain: groups/schedule/standings/knockout/lower-third/next-match/latest-result
+   - Live Sources remain: Draw Animation and Groups Table
 */
 (() => {
   'use strict';
@@ -48,17 +48,12 @@
   const DRAW_SOURCE_ALIASES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex', 'winner'];
 
   const SOURCES = [
-    ['draw-animation', 'Draw Animation Source', 'ลิงก์เดียวสำหรับ OBS ดึง Animation Style จากหน้า Draw Control'],
-    ['groups', 'Groups Table', 'แสดงตารางแบ่งสาย / กลุ่ม ตามผล Reveal Feed เท่านั้น'],
-    ['schedule', 'Schedule Table', 'แสดงตารางแข่งพร้อมเวลาและสนาม'],
-    ['standings', 'Standings Table', 'แสดงตารางคะแนนอัตโนมัติ'],
-    ['knockout', 'Knockout Bracket', 'แสดงสายรอบ 8 ทีม / 4 ทีม / ชิง'],
-    ['lower-third', 'Lower Third', 'แถบล่างสำหรับผลล่าสุด'],
-    ['next-match', 'Next Match', 'แสดงคู่ถัดไปในตาราง'],
-    ['latest-result', 'Latest Result', 'แสดงผลการแข่งขันล่าสุด']
+    ['draw-animation', 'Draw Animation Source', 'ใช้รูปแบบ Animation และผลล่าสุดจาก Draw Control แบบ real-time'],
+    ['groups', 'Groups Table', 'ใช้ข้อมูลและรูปแบบตารางเดียวกับ Groups ในหน้าเว็บ']
   ];
 
   const SOURCE_META = Object.fromEntries(SOURCES.map(([id, title, desc]) => [id, { id, title, desc }]));
+  const OBS_SOURCE_VIEWS = SOURCES.map(([id]) => id);
 
   const PANEL_HELP = {
     dashboard: 'หน้าภาพรวม ใช้ดูว่าตั้งค่า ทีม สุ่มสาย ตาราง คะแนน และรอบ Knockout ไปถึงขั้นตอนไหนแล้ว',
@@ -68,7 +63,7 @@
     schedule: 'หน้าสร้างและแก้ตารางแข่งรอบแบ่งกลุ่ม พร้อมดูตัวอย่างคู่ Knockout ที่จะรอไว้ล่วงหน้า',
     scores: 'หน้ากรอกผลการแข่งขัน ระบบจะคำนวณตารางคะแนนและอันดับให้ทันที',
     knockout: 'หน้าสร้างสายรอบ Knockout จากอันดับในรอบแบ่งกลุ่ม และบันทึกผลรอบต่อไป',
-    sources: 'หน้ารวม URL สำหรับเอาไปใส่ใน OBS Browser Source เช่น ตาราง กลุ่ม ผลล่าสุด และคู่ถัดไป',
+    sources: 'หน้ารวม URL สำหรับเอาไปใส่ใน OBS Browser Source เฉพาะ Draw Animation และ Groups Table',
     export: 'หน้าส่งออกข้อมูลเป็นข้อความ, Excel, JSON หรือ Google Sheet สำหรับนำไปใช้ต่อ',
     settings: 'หน้าปรับขนาดหน้าจอ แผงควบคุม รูปแบบหน้า Draw และการแสดงผลของ OBS Source'
   };
@@ -132,6 +127,7 @@
     testWebhook: 'ส่งข้อมูลทดสอบไปยัง Webhook เพื่อตรวจว่าตั้งค่าถูกหรือไม่',
     sendWebhook: 'ส่งข้อมูลรายการจริงไป Google Sheet ผ่าน Apps Script',
     sourceBg: 'เลือกพื้นหลังของ OBS Source เช่น Dark, Transparent หรือ Green Screen',
+    sourceOpacity: 'ปรับความเข้มของพื้นผิวและตารางใน OBS Live Sources ให้อ่านง่ายขึ้นบนภาพกล้อง',
     fontScale: 'ปรับขนาดตัวอักษรโดยรวมของ OBS Source',
     drawAnimationScale: 'ปรับขนาดกราฟิก animation ใน Draw Source',
     sidebarWidth: 'ปรับความกว้างของแถบ Control Center ด้านซ้าย',
@@ -162,13 +158,13 @@
   };
 
   const COPY_HELP = {
-    draw: 'คัดลอกผลแบ่งสายเป็นข้อความ',
-    schedule: 'คัดลอกตารางแข่งเป็นข้อความ',
-    scores: 'คัดลอกผลคะแนนทุกคู่เป็นข้อความ',
-    standings: 'คัดลอกตารางคะแนนเป็นข้อความ',
-    knockout: 'คัดลอกสาย Knockout เป็นข้อความ',
+    draw: 'คัดลอกผลแบ่งสายเป็นตารางแนวนอน: หัวตารางอยู่แถวแรก และแต่ละทีมอยู่คนละแถว',
+    schedule: 'คัดลอกตารางแข่งเป็นตารางแนวนอน: เวลา, สนาม, สาย, ทีม A และทีม B แยกเป็นคอลัมน์',
+    scores: 'คัดลอกผลคะแนนเป็นตารางแนวนอน: แต่ละคู่แยกเป็นคนละแถว',
+    standings: 'คัดลอกตารางคะแนนเป็นตารางแนวนอน: แต่ละทีมแยกเป็นคนละแถว',
+    knockout: 'คัดลอกสาย Knockout เป็นตารางแนวนอน: แต่ละคู่แยกเป็นคนละแถว',
     caption: 'คัดลอกข้อความแคปชันสำหรับโพสต์ Facebook',
-    all: 'คัดลอกข้อมูลสำคัญทั้งหมดในครั้งเดียว',
+    all: 'คัดลอกทุกตารางแบบแนวนอน โดยแต่ละส่วนมีหัวตารางและข้อมูลแยกเป็นแถว',
     script: 'คัดลอกสคริปต์สำหรับผู้บรรยายหรือพิธีกร'
   };
 
@@ -362,6 +358,11 @@
   let scoreFilterGroup = 'all';
   let scoreFilterStatus = 'all';
   let scoreSearch = '';
+  let groupCapacityDraft = null;
+  let stateSyncTimer = null;
+  let stateSyncHeartbeat = null;
+  let stateSyncInFlight = false;
+  let stateSyncQueued = false;
   const MAX_MANUAL_GROUP_ROWS = 64;
 
   function defaultState() {
@@ -373,6 +374,8 @@
         sport: 'Basketball 3x3',
         preset: 'custom',
         groupCount: 4,
+        groupSizingMode: 'auto',
+        groupCapacities: { A: 4, B: 4, C: 4, D: 4 },
         courtCount: 1,
         startTime: '09:00',
         matchInterval: 15,
@@ -411,11 +414,13 @@
       scheduleLive: { running: false, waiting: false, revealEndsAt: 0, total: 0, style: 'shuffle' },
       standings: {},
       qualifierOverrides: {},
+      knockoutUseResolvedOrder: false,
       knockout: [],
       lastResult: null,
       settings: {
         safeLive: true,
-        sourceBg: 'dark',
+        sourceBg: 'transparent',
+        sourceOpacity: 0.90,
         fontScale: 1,
         drawAnimation: 'wheel',
         drawAnimationScale: 0.80,
@@ -482,7 +487,42 @@
     setSavePill();
     applyLayoutSettings();
     if (render) renderAll(false);
+    queueStateSync();
     if (note) console.debug('[PepsLive] saved', note);
+  }
+
+  function canSyncState() {
+    return location.protocol === 'http:' || location.protocol === 'https:';
+  }
+
+  function queueStateSync() {
+    if (!canSyncState()) return;
+    stateSyncQueued = true;
+    clearTimeout(stateSyncTimer);
+    stateSyncTimer = setTimeout(syncStateToLocalServer, 60);
+  }
+
+  async function syncStateToLocalServer() {
+    if (!canSyncState()) return;
+    if (stateSyncInFlight) return;
+    if (!stateSyncQueued) return;
+    stateSyncQueued = false;
+    stateSyncInFlight = true;
+    try {
+      await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state })
+      });
+    } catch {}
+    stateSyncInFlight = false;
+    if (stateSyncQueued) queueStateSync();
+  }
+
+  function startStateSync() {
+    if (!canSyncState() || stateSyncHeartbeat) return;
+    queueStateSync();
+    stateSyncHeartbeat = setInterval(queueStateSync, 3000);
   }
 
   function scheduleSave(note) {
@@ -509,6 +549,84 @@
   function letters(count) {
     const n = intClamp(count, 1, 26, 4);
     return Array.from({ length: n }, (_, i) => String.fromCharCode(65 + i));
+  }
+
+  function isCustomGroupSizing(event = state.event) {
+    return event?.groupSizingMode === 'custom';
+  }
+
+  function groupCapacities(count = state.event.groupCount, source = state.event.groupCapacities) {
+    return Object.fromEntries(letters(count).map(group => [group, intClamp(source?.[group], 1, 64, 4)]));
+  }
+
+  function groupCapacityTotal(capacities) {
+    return Object.values(capacities || {}).reduce((total, capacity) => total + Number(capacity || 0), 0);
+  }
+
+  function readGroupCapacityDraftFromForm() {
+    const container = $('#groupCapacityFields');
+    if (!container) return groupCapacityDraft || groupCapacities();
+    const next = { ...(groupCapacityDraft || state.event.groupCapacities || {}) };
+    container.querySelectorAll('[data-group-capacity]').forEach(input => {
+      next[input.dataset.groupCapacity] = input.value;
+    });
+    groupCapacityDraft = next;
+    return next;
+  }
+
+  function renderGroupCapacitySetup(useSavedCapacities = false) {
+    const field = $('#groupCapacityField');
+    const container = $('#groupCapacityFields');
+    const summary = $('#groupCapacitySummary');
+    if (!field || !container || !summary) return;
+
+    const mode = $('#groupSizingMode')?.value || state.event.groupSizingMode || 'auto';
+    const custom = mode === 'custom';
+    const capacities = useSavedCapacities
+      ? { ...(state.event.groupCapacities || {}) }
+      : readGroupCapacityDraftFromForm();
+    groupCapacityDraft = { ...capacities };
+    field.hidden = !custom;
+    if (!custom) {
+      container.innerHTML = '';
+      summary.textContent = '';
+      return;
+    }
+
+    const count = intClamp($('#groupCount')?.value, 1, 26, state.event.groupCount || 4);
+    const activeCapacities = groupCapacities(count, capacities);
+    container.innerHTML = Object.entries(activeCapacities).map(([group, capacity]) => `
+      <div class="field"><label for="groupCapacity${group}">สาย ${group}</label><input id="groupCapacity${group}" data-group-capacity="${group}" type="number" min="1" max="64" step="1" value="${capacity}" /></div>
+    `).join('');
+    groupCapacityDraft = { ...capacities, ...activeCapacities };
+    updateGroupCapacitySummary();
+  }
+
+  function updateGroupCapacitySummary() {
+    const summary = $('#groupCapacitySummary');
+    const container = $('#groupCapacityFields');
+    if (!summary || !container || $('#groupSizingMode')?.value !== 'custom') return;
+    const values = Array.from(container.querySelectorAll('[data-group-capacity]')).map(input => Number(input.value));
+    if (values.some(value => !Number.isInteger(value) || value < 1 || value > 64)) {
+      summary.textContent = 'กำหนดจำนวนเต็ม 1–64 ทีมในทุกสาย';
+      return;
+    }
+    const total = values.reduce((sum, value) => sum + value, 0);
+    const teamCount = (state.teams || []).length;
+    const difference = total - teamCount;
+    let rosterSummary = `รวม ${total} ที่นั่ง · ยังไม่มีรายชื่อทีม`;
+    if (teamCount) {
+      rosterSummary = difference === 0
+        ? `รวม ${total} ที่นั่ง ตรงกับรายชื่อ ${teamCount} ทีม`
+        : difference > 0
+          ? `รวม ${total} ที่นั่ง มากกว่ารายชื่อ ${teamCount} ทีมอยู่ ${difference} ทีม`
+          : `รวม ${total} ที่นั่ง น้อยกว่ารายชื่อ ${teamCount} ทีมอยู่ ${Math.abs(difference)} ทีม`;
+    }
+    const quota = Number($('#qualifiersPerGroup')?.value);
+    const quotaHint = values.some(value => value < quota)
+      ? ` · ลดโควตาเข้ารอบเหลือไม่เกิน ${Math.min(...values)} ทีมก่อนสร้าง Knockout`
+      : '';
+    summary.textContent = `${rosterSummary} · กำหนดได้สายละ 1–64 ทีม${quotaHint}`;
   }
 
   function deepClone(v) {
@@ -555,7 +673,10 @@
 
   function emptyGroups(rowCount = manualRowsForGroups({})) {
     const rows = Math.max(1, Number(rowCount) || 2);
-    return Object.fromEntries(letters(state.event.groupCount || 4).map(g => [g, Array.from({ length: rows }, () => '')]));
+    return Object.fromEntries(letters(state.event.groupCount || 4).map(g => [
+      g,
+      Array.from({ length: isCustomGroupSizing() ? (groupCapacities()[g] || 4) : rows }, () => '')
+    ]));
   }
 
   function normalizeManualGroups(groups, rowCount = manualRowsForGroups(groups)) {
@@ -563,7 +684,8 @@
     const normalized = {};
     groupKeys(groups).forEach(g => {
       const source = Array.isArray(groups?.[g]) ? groups[g] : [];
-      normalized[g] = Array.from({ length: rows }, (_, i) => String(source[i] || '').trim());
+      const groupRows = isCustomGroupSizing() ? (groupCapacities()[g] || 4) : rows;
+      normalized[g] = Array.from({ length: groupRows }, (_, i) => String(source[i] || '').trim());
     });
     return normalized;
   }
@@ -654,12 +776,14 @@
     installHelpTooltips();
     fillForms();
     renderAll(true);
+    startStateSync();
   }
 
   function buildNav() {
     const nav = $('#nav');
     if (!nav) return;
 
+    const progress = groupStageProgress();
     const panelMap = new Map(PANELS.map((panel, index) => [panel[0], [...panel, index]]));
     nav.innerHTML = NAV_GROUPS.map(([groupTitle, ids]) => `
       <div class="nav-group">
@@ -672,7 +796,7 @@
             <button class="navbtn ${id === activePanel ? 'active' : ''}" data-panel-target="${esc(id)}" type="button">
               <span class="nav-index">${String(index + 1).padStart(2, '0')}</span>
               <span class="nav-copy"><b>${esc(title)}</b><small>${esc(sub)}</small></span>
-              <span class="nav-state ${panelDone(id) ? 'done' : ''}" aria-hidden="true"></span>
+              <span class="nav-state ${panelDone(id, progress) ? 'done' : ''}" aria-hidden="true"></span>
             </button>
           `;
         }).join('')}
@@ -685,10 +809,11 @@
   }
 
   function refreshNavState() {
+    const progress = groupStageProgress();
     $$('#nav [data-panel-target]').forEach((button) => {
       const id = button.dataset.panelTarget;
       button.classList.toggle('active', id === activePanel);
-      button.querySelector('.nav-state')?.classList.toggle('done', panelDone(id));
+      button.querySelector('.nav-state')?.classList.toggle('done', panelDone(id, progress));
     });
   }
 
@@ -969,6 +1094,9 @@
   }
 
   function bindEvents() {
+    window.addEventListener('peps:remote-info', () => {
+      if (activePanel === 'sources') renderSourceCards();
+    });
     on($('#mobileMenuButton'), 'click', () => setMobileNav(!document.body.classList.contains('nav-open')));
     on($('#sidebarClose'), 'click', () => setMobileNav(false));
     on($('#sidebarBackdrop'), 'click', () => setMobileNav(false));
@@ -981,6 +1109,10 @@
     });
 
     on($('#preset'), 'change', applyPreset);
+    on($('#groupCount'), 'change', renderGroupCapacitySetup);
+    on($('#groupSizingMode'), 'change', renderGroupCapacitySetup);
+    on($('#groupCapacityFields'), 'input', updateGroupCapacitySummary);
+    on($('#qualifiersPerGroup'), 'input', updateGroupCapacitySummary);
     on($('#saveSetup'), 'click', saveSetupFromForm);
     on($('#resetAll'), 'click', resetAll);
 
@@ -1042,7 +1174,11 @@
       state.event.enableFinal = !!e.target.checked;
       saveState('enable-final');
     });
-    on($('#generateKnockout'), 'click', generateKnockout);
+    on($('#knockoutUseResolvedOrder'), 'change', e => {
+      state.knockoutUseResolvedOrder = e.target.checked;
+      saveState('knockout-seed-order');
+    });
+    on($('#generateKnockout'), 'click', () => generateKnockout());
     on($('#copyKnockoutBtn'), 'click', () => copyKind('knockout'));
     on($('#clearOverrides'), 'click', () => {
       state.qualifierOverrides = {};
@@ -1058,6 +1194,11 @@
     on($('#sourceBg'), 'change', e => {
       state.settings.sourceBg = e.target.value;
       saveState('source-bg');
+    });
+    on($('#sourceOpacity'), 'input', e => {
+      state.settings.sourceOpacity = Number(e.target.value || 0.90);
+      setText($('#sourceOpacityValue'), `${Math.round(state.settings.sourceOpacity * 100)}%`);
+      scheduleSave('source-opacity');
     });
     on($('#fontScale'), 'input', e => {
       state.settings.fontScale = Number(e.target.value || 1);
@@ -1168,6 +1309,9 @@
     setValue($('#sportType'), state.event.sport);
     setValue($('#preset'), state.event.preset);
     setValue($('#groupCount'), state.event.groupCount);
+    setValue($('#groupSizingMode'), state.event.groupSizingMode || 'auto');
+    groupCapacityDraft = { ...(state.event.groupCapacities || {}) };
+    renderGroupCapacitySetup(true);
     setValue($('#courtCount'), state.event.courtCount);
     setValue($('#startTime'), state.event.startTime);
     setValue($('#matchInterval'), state.event.matchInterval);
@@ -1177,6 +1321,7 @@
     setValue($('#pointsDraw'), state.event.pointsDraw);
     setValue($('#pointsLoss'), state.event.pointsLoss);
     setValue($('#qualifiersPerGroup'), state.event.qualifiersPerGroup);
+    updateGroupCapacitySummary();
     setValue($('#teamText'), state.teams.join('\n'));
     setChecked($('#safeLiveToggle'), state.settings.safeLive);
     setValue($('#drawAnimation'), state.settings.drawAnimation);
@@ -1188,11 +1333,14 @@
     setChecked($('#randomizeSchedule'), state.settings.randomizeSchedule !== false);
     setValue($('#scheduleRevealStyle'), state.settings.scheduleRevealStyle);
     setChecked($('#enableThird'), state.event.enableThird);
-    setChecked($('#enableFinal'), state.event.enableFinal);
+    setChecked($('#enableFinal'), state.event.enableFinal !== false);
+    setChecked($('#knockoutUseResolvedOrder'), state.knockoutUseResolvedOrder);
     setValue($('#webhookUrl'), state.webhook.url);
     setValue($('#webhookToken'), state.webhook.token);
     setValue($('#sheetId'), state.webhook.sheetId);
     setValue($('#sourceBg'), state.settings.sourceBg);
+    setValue($('#sourceOpacity'), state.settings.sourceOpacity ?? 0.90);
+    setText($('#sourceOpacityValue'), `${Math.round((state.settings.sourceOpacity ?? 0.90) * 100)}%`);
     setValue($('#fontScale'), state.settings.fontScale);
     setValue($('#drawAnimationScale'), state.settings.drawAnimationScale || 0.85);
     setText($('#drawAnimationScaleValue'), (state.settings.drawAnimationScale || 0.85).toFixed(2));
@@ -1221,10 +1369,48 @@
 
   function saveSetupFromForm() {
     if (window.pepsActionGuard && !window.pepsActionGuard('saveSetup', 1000)) return;
+    const groupCount = Number($('#groupCount')?.value);
+    if (!Number.isInteger(groupCount) || groupCount < 1 || groupCount > 26) {
+      toast('จำนวนสายต้องเป็นจำนวนเต็ม 1–26 สาย', 'warn');
+      return;
+    }
+    const groupSizingMode = $('#groupSizingMode')?.value === 'custom' ? 'custom' : 'auto';
+    const capacityDraft = readGroupCapacityDraftFromForm();
+    const nextCapacities = {};
+    if (groupSizingMode === 'custom') {
+      for (const group of letters(groupCount)) {
+        const value = Number(capacityDraft[group]);
+        if (!Number.isInteger(value) || value < 1 || value > 64) {
+          toast(`กรุณากำหนดจำนวนทีมสาย ${group} เป็นจำนวนเต็ม 1–64 ทีม`, 'warn');
+          return;
+        }
+        nextCapacities[group] = value;
+      }
+    } else {
+      Object.assign(nextCapacities, groupCapacities(groupCount, capacityDraft));
+    }
+
+    const previousMode = isCustomGroupSizing() ? 'custom' : 'auto';
+    const previousCapacities = groupCapacities(state.event.groupCount, state.event.groupCapacities);
+    const capacityChanged = groupSizingMode === 'custom' && letters(groupCount).some(group => nextCapacities[group] !== previousCapacities[group]);
+    const groupSetupChanged = groupCount !== intClamp(state.event.groupCount, 1, 26, 4)
+      || groupSizingMode !== previousMode
+      || capacityChanged;
+    if (groupSetupChanged && hasTournamentDerivedData()) {
+      if (!confirm('การเปลี่ยนจำนวนสายหรือจำนวนทีมต่อสายจะล้างผลจับสาย ตาราง คะแนน และ Knockout ที่มีอยู่ ต้องการดำเนินการต่อหรือไม่?')) {
+        fillForms();
+        return;
+      }
+      resetTournamentDerivedData();
+    }
+
     state.event.name = $('#eventName')?.value.trim() || 'PepsLive Tournament';
     state.event.sport = $('#sportType')?.value || 'Custom';
     state.event.preset = $('#preset')?.value || 'custom';
-    state.event.groupCount = intClamp($('#groupCount')?.value, 1, 26, 4);
+    state.event.groupCount = groupCount;
+    state.event.groupSizingMode = groupSizingMode;
+    state.event.groupCapacities = nextCapacities;
+    groupCapacityDraft = { ...nextCapacities };
     state.event.courtCount = intClamp($('#courtCount')?.value, 1, 16, 1);
     state.event.startTime = $('#startTime')?.value || '09:00';
     state.event.matchInterval = intClamp($('#matchInterval')?.value, 1, 240, 15);
@@ -1237,6 +1423,30 @@
     audit('save-setup', state.event);
     saveState('setup');
     toast('บันทึก Setup แล้ว', 'good');
+  }
+
+  function hasTournamentDerivedData() {
+    return hasGroups(state.groups)
+      || hasGroups(state.pendingGroups)
+      || !!state.manualGroups?.active
+      || (state.pendingSequence || []).length > 0
+      || (state.matches || []).length > 0
+      || Object.keys(state.standings || {}).length > 0
+      || (state.knockout || []).length > 0;
+  }
+
+  function resetMatchDerivedData() {
+    clearTimeout(scheduleTimer);
+    scheduleEditing = false;
+    scheduleDraft = null;
+    state.matches = [];
+    state.manualSchedule = { active: false, updatedAt: '' };
+    state.pendingSchedule = [];
+    state.scheduleLive = { running: false, waiting: false, revealEndsAt: 0, total: 0, style: state.settings.scheduleRevealStyle || 'shuffle' };
+    state.standings = {};
+    state.qualifierOverrides = {};
+    state.knockout = [];
+    state.lastResult = null;
   }
 
   function applyPreset() {
@@ -1263,12 +1473,24 @@
       setValue($('#pointsDraw'), 0);
       setValue($('#pointsLoss'), 0);
     }
+    renderGroupCapacitySetup();
   }
 
   function saveTeamsFromText() {
     if (window.pepsActionGuard && !window.pepsActionGuard('saveTeams', 1000)) return;
-    state.teams = uniqueTeams(parseTeams($('#teamText')?.value || ''));
-    setValue($('#teamText'), state.teams.join('\n'));
+    const nextTeams = uniqueTeams(parseTeams($('#teamText')?.value || ''));
+    const sameTeams = nextTeams.length === state.teams.length
+      && nextTeams.every((team, index) => String(team).trim() === String(state.teams[index]).trim());
+    if (sameTeams) {
+      setValue($('#teamText'), state.teams.join('\n'));
+      toast('รายชื่อทีมไม่เปลี่ยนแปลง เก็บข้อมูลการแข่งขันเดิมไว้แล้ว', 'good');
+      return;
+    }
+    if (hasTournamentDerivedData() && !confirm('การเปลี่ยนรายชื่อทีมจะล้างผลจับสาย ตาราง คะแนน และ Knockout ที่มีอยู่ ต้องการดำเนินการต่อหรือไม่?')) {
+      setValue($('#teamText'), state.teams.join('\n'));
+      return;
+    }
+    state.teams = nextTeams;
     resetTournamentDerivedData();
     audit('save-teams', { count: state.teams.length });
     saveState('teams');
@@ -1296,13 +1518,7 @@
       total: 0,
       feed: []
     };
-    state.matches = [];
-    state.manualSchedule = { active: false, updatedAt: '' };
-    state.pendingSchedule = [];
-    state.scheduleLive = { running: false, waiting: false, revealEndsAt: 0, total: 0, style: state.settings.scheduleRevealStyle || 'shuffle' };
-    state.standings = {};
-    state.qualifierOverrides = {};
-    state.knockout = [];
+    resetMatchDerivedData();
     state.lastResult = null;
   }
 
@@ -1327,8 +1543,22 @@
       seen.set(k, true);
     }
     const groupCount = intClamp(state.event.groupCount, 1, 26, 4);
-    const slots = Math.ceil(Math.max(teams.length, 1) / groupCount) * groupCount;
-    return { teams, dup, groupCount, slots, byes: Math.max(0, slots - teams.length), ok: teams.length > 0 && dup.length === 0 };
+    const custom = isCustomGroupSizing();
+    const capacities = groupCapacities(groupCount);
+    const slots = custom ? groupCapacityTotal(capacities) : Math.ceil(Math.max(teams.length, 1) / groupCount) * groupCount;
+    const reserved = teams.filter(team => String(team).trim().toUpperCase() === 'BYE');
+    const capacityMatchesRoster = !custom || teams.length === slots;
+    return {
+      teams,
+      dup,
+      reserved,
+      groupCount,
+      slots,
+      capacities,
+      byes: custom ? 0 : Math.max(0, slots - teams.length),
+      capacityMatchesRoster,
+      ok: teams.length > 0 && dup.length === 0 && reserved.length === 0 && capacityMatchesRoster
+    };
   }
 
   function buildDrawPlan() {
@@ -1336,13 +1566,20 @@
     if (!v.ok) return null;
     const groupKeys = letters(v.groupCount);
     const shuffled = shuffle(state.teams);
-    while (shuffled.length < v.slots) shuffled.push('BYE');
-
     const groups = Object.fromEntries(groupKeys.map(g => [g, []]));
-    shuffled.forEach((team, idx) => {
-      const g = groupKeys[idx % groupKeys.length];
-      groups[g].push(team);
-    });
+    if (isCustomGroupSizing()) {
+      let nextTeam = 0;
+      groupKeys.forEach(group => {
+        groups[group] = shuffled.slice(nextTeam, nextTeam + v.capacities[group]);
+        nextTeam += v.capacities[group];
+      });
+    } else {
+      while (shuffled.length < v.slots) shuffled.push('BYE');
+      shuffled.forEach((team, idx) => {
+        const group = groupKeys[idx % groupKeys.length];
+        groups[group].push(team);
+      });
+    }
 
     const items = [];
     groupKeys.forEach(g => {
@@ -1358,18 +1595,28 @@
     return { groups, sequence: shuffle(items), byes: v.byes };
   }
 
-  function startDraw() {
-    if (window.pepsActionGuard && !window.pepsActionGuard('startDraw', 1000)) return;
+  function startDraw(options = {}) {
+    const source = options?.source === 'remote' ? 'remote' : 'control';
+    if (window.pepsActionGuard && !window.pepsActionGuard('startDraw', 1000)) return false;
     if (state.drawLive?.waiting) {
       toast('กำลังเล่นอนิเมชั่นอยู่ รอก่อน', 'warn');
-      return;
+      return false;
     }
 
     const plan = buildDrawPlan();
     if (!plan) {
-      toast('กรุณาบันทึกรายชื่อทีมก่อนสุ่ม', 'warn');
-      showPanel('teams');
-      return;
+      const validation = teamValidation();
+      const message = !validation.teams.length
+        ? 'กรุณาบันทึกรายชื่อทีมก่อนสุ่ม'
+        : validation.dup.length
+          ? `พบชื่อทีมซ้ำ: ${validation.dup.join(', ')}`
+          : validation.reserved.length
+            ? 'ชื่อทีม BYE สงวนไว้สำหรับระบบ กรุณาเปลี่ยนชื่อทีม'
+            : `จำนวนทีม ${validation.teams.length} ทีมไม่ตรงกับจำนวนที่กำหนด ${validation.slots} ที่นั่ง`;
+      toast(message, 'warn');
+      if (!validation.teams.length || validation.dup.length || validation.reserved.length) showPanel('teams');
+      else showPanel('setup');
+      return false;
     }
 
     state.pendingGroups = deepClone(plan.groups);
@@ -1389,7 +1636,7 @@
       total: plan.sequence.length,
       feed: []
     };
-    audit('prepare-draw', { total: plan.sequence.length, byes: plan.byes, method: state.settings.drawMethod });
+    audit('prepare-draw', { total: plan.sequence.length, byes: plan.byes, method: state.settings.drawMethod, source });
     saveState('draw-prepared', false);
 
     if (state.settings.drawMethod === 'instant-all') {
@@ -1397,6 +1644,7 @@
     } else {
       nextReveal();
     }
+    return true;
   }
 
   function nextReveal() {
@@ -1511,8 +1759,18 @@
       toast('รอให้ผลออกก่อนค่อย Confirm', 'warn');
       return;
     }
-    state.groups = deepClone(state.pendingGroups);
+    if (!state.pendingComplete) {
+      toast('ต้องเปิดผลให้ครบทุกทีมก่อนยืนยันผลแบ่งสาย', 'warn');
+      return;
+    }
+    const nextGroups = deepClone(state.pendingGroups);
+    const groupsChanged = !groupsEqual(state.groups, nextGroups);
+    const hasMatchesToClear = (state.matches || []).length > 0 || (state.knockout || []).length > 0;
+    if (groupsChanged && hasMatchesToClear && !confirm('ผลแบ่งสายใหม่ไม่ตรงกับชุดที่ยืนยันไว้ ตาราง คะแนน และ Knockout เดิมจะถูกล้าง ต้องการยืนยันผลใหม่หรือไม่?')) return;
+    if (groupsChanged) resetMatchDerivedData();
+    state.groups = nextGroups;
     state.manualGroups = { active: false, rows: 0, updatedAt: '' };
+    state.pendingGroups = null;
     state.pendingComplete = true;
     state.drawHistory.unshift({ at: nowIso(), groups: deepClone(state.groups), teams: deepClone(state.teams) });
     state.drawHistory = state.drawHistory.slice(0, 20);
@@ -1533,12 +1791,48 @@
   }
 
   function undoDraw() {
-    const prev = state.drawHistory.shift();
+    const prev = state.drawHistory[0];
     if (!prev) {
       toast('ไม่มีประวัติให้ Undo', 'warn');
       return;
     }
-    state.groups = deepClone(prev.groups || {});
+    const previousTeams = (prev.teams || []).map(team => String(team).trim()).sort();
+    const currentTeams = (state.teams || []).map(team => String(team).trim()).sort();
+    if (JSON.stringify(previousTeams) !== JSON.stringify(currentTeams)) {
+      toast('Undo ไม่ได้ เพราะรายชื่อทีมเปลี่ยนจากตอนบันทึกประวัตินี้แล้ว', 'warn');
+      return;
+    }
+    const previousGroups = prev.groups || {};
+    const expectedGroups = letters(state.event.groupCount);
+    const extraGroup = Object.keys(previousGroups).find(group => !expectedGroups.includes(group) && (previousGroups[group] || []).some(isRealTeamName));
+    if (extraGroup) {
+      toast('Undo ไม่ได้ เพราะจำนวนสายในประวัติไม่ตรงกับ Setup ปัจจุบัน', 'warn');
+      return;
+    }
+    if (expectedGroups.some(group => !Array.isArray(previousGroups[group]))) {
+      toast('Undo ไม่ได้ เพราะจำนวนสายในประวัติไม่ตรงกับ Setup ปัจจุบัน', 'warn');
+      return;
+    }
+    if (isCustomGroupSizing()) {
+      const capacities = groupCapacities();
+      const mismatch = expectedGroups.find(group => (previousGroups[group] || []).filter(isRealTeamName).length !== capacities[group]);
+      if (mismatch) {
+        toast(`Undo ไม่ได้ เพราะจำนวนทีมสาย ${mismatch} ในประวัติไม่ตรงกับ Setup ปัจจุบัน`, 'warn');
+        return;
+      }
+    }
+    const groupsChanged = !groupsEqual(state.groups, previousGroups);
+    if (groupsChanged && ((state.matches || []).length || (state.knockout || []).length)
+      && !confirm('Undo จะเปลี่ยนผลแบ่งสายและล้างตาราง คะแนน และ Knockout เดิม ต้องการดำเนินการต่อหรือไม่?')) return;
+    state.drawHistory.shift();
+    if (groupsChanged) resetMatchDerivedData();
+    clearDrawTimers();
+    state.pendingGroups = null;
+    state.pendingSequence = [];
+    state.pendingRevealIndex = 0;
+    state.pendingComplete = false;
+    state.drawLive = defaultState().drawLive;
+    state.groups = deepClone(previousGroups);
     state.manualGroups = { active: false, rows: 0, updatedAt: '' };
     saveState('undo-draw');
   }
@@ -1574,10 +1868,12 @@
     const progress = 1 - Math.min(1, left / totalMs);
     const interval = 32 + Math.round(progress * progress * 260);
     const tick = Math.floor(Date.now() / interval);
+    const group = groups[(tick * 3) % groups.length];
+    const slotCount = isCustomGroupSizing() ? (groupCapacities()[group] || 1) : Math.max(1, Math.ceil(teams.length / groups.length));
     return {
       team: teams[tick % teams.length],
-      group: groups[(tick * 3) % groups.length],
-      slot: ((tick * 5) % Math.max(1, Math.ceil(teams.length / groups.length))) + 1
+      group,
+      slot: ((tick * 5) % slotCount) + 1
     };
   }
 
@@ -1590,41 +1886,38 @@
     }
 
     const matches = [];
-    const groupKeys = Object.keys(groups).sort();
-    groupKeys.forEach(g => {
-      const teams = (groups[g] || []).filter(t => t && t !== 'BYE');
-      for (let i = 0; i < teams.length; i += 1) {
-        for (let j = i + 1; j < teams.length; j += 1) {
-          matches.push({
-            id: `G${g}-${i + 1}-${j + 1}-${Date.now()}-${matches.length}`,
-            group: g,
-            teamA: teams[i],
-            teamB: teams[j],
-            scoreA: '',
-            scoreB: '',
-            status: 'Pending',
-            court: '',
-            time: ''
-          });
-        }
-      }
+    const previousMatches = state.matches || [];
+    const preservedMatches = new Set();
+    groupFixtures(groups).forEach(({ group, teamA, teamB }) => {
+      const nextMatch = {
+        id: `G${group}-${Date.now()}-${matches.length}`,
+        group, teamA, teamB, scoreA: '', scoreB: '', status: 'Pending', court: '', time: ''
+      };
+      const previous = findExistingGroupMatch(group, teamA, teamB, preservedMatches);
+      if (previous) preservedMatches.add(previous);
+      matches.push(previous ? preserveGroupMatchResult(previous, nextMatch) : nextMatch);
     });
+
+    const droppedResults = previousMatches.filter(match => hasSavedMatchResult(match) && !preservedMatches.has(match));
+    if (droppedResults.length && !confirm(`ตารางใหม่นี้ไม่มีคู่เดิมที่มีผลบันทึก ${droppedResults.length} คู่ คะแนนของคู่นั้นจะถูกล้าง ต้องการดำเนินการต่อหรือไม่?`)) return;
 
     const start = parseTime(state.event.startTime || '09:00');
     const interval = intClamp(state.event.matchInterval, 1, 240, 15);
     const courtCount = intClamp(state.event.courtCount, 1, 16, 1);
     const breakEvery = intClamp(state.event.breakEverySlots, 0, 1000, 0);
     const breakMinutes = intClamp(state.event.breakMinutes, 0, 240, 0);
-    const ordered = state.settings.randomizeSchedule
-      ? arrangeMatchesForRest(shuffle(matches), courtCount)
-      : matches;
-    ordered.forEach((m, idx) => {
-      const slot = Math.floor(idx / courtCount);
-      const court = (idx % courtCount) + 1;
-      const completedBreaks = breakEvery > 0 ? Math.floor(slot / breakEvery) : 0;
-      m.court = court;
-      m.time = timeFromMinutes(start + (slot * interval) + (completedBreaks * breakMinutes));
+    const candidates = state.settings.randomizeSchedule ? shuffle(matches) : matches;
+    const slots = arrangeMatchesForRest(candidates, courtCount, Boolean(state.settings.randomizeSchedule));
+    slots.forEach((slotMatches, slotIndex) => {
+      const completedBreaks = breakEvery > 0 ? Math.floor(slotIndex / breakEvery) : 0;
+      const time = timeFromMinutes(start + (slotIndex * interval) + (completedBreaks * breakMinutes));
+      slotMatches.forEach((m, courtIndex) => {
+        m.court = courtIndex + 1;
+        m.time = time;
+      });
     });
+
+    const ordered = slots.flat();
 
     state.matches = ordered;
     state.manualSchedule = { active: false, updatedAt: '' };
@@ -1636,37 +1929,67 @@
     saveState('generate-schedule');
   }
 
-  function arrangeMatchesForRest(matches, courtCount) {
+  function arrangeMatchesForRest(matches, courtCount, preferRest = true) {
     const remaining = [...matches];
-    const ordered = [];
+    const slots = [];
     let previousSlotTeams = new Set();
 
     while (remaining.length) {
       const currentSlotTeams = new Set();
       const slotMatches = [];
-      const slotSize = Math.min(courtCount, remaining.length);
-
-      for (let court = 0; court < slotSize; court += 1) {
-        let index = remaining.findIndex((match) => {
-          const teams = [match.teamA, match.teamB];
-          return teams.every((team) => !previousSlotTeams.has(team) && !currentSlotTeams.has(team));
-        });
-        if (index < 0) {
-          index = remaining.findIndex((match) => [match.teamA, match.teamB].every((team) => !currentSlotTeams.has(team)));
-        }
-        if (index < 0) index = 0;
+      while (slotMatches.length < courtCount && remaining.length) {
+        const canJoinSlot = match => !currentSlotTeams.has(normalizeName(match.teamA)) && !currentSlotTeams.has(normalizeName(match.teamB));
+        let index = preferRest
+          ? remaining.findIndex(match => canJoinSlot(match) && !previousSlotTeams.has(normalizeName(match.teamA)) && !previousSlotTeams.has(normalizeName(match.teamB)))
+          : -1;
+        if (index < 0) index = remaining.findIndex(canJoinSlot);
+        if (index < 0) break;
 
         const [match] = remaining.splice(index, 1);
         slotMatches.push(match);
-        currentSlotTeams.add(match.teamA);
-        currentSlotTeams.add(match.teamB);
+        currentSlotTeams.add(normalizeName(match.teamA));
+        currentSlotTeams.add(normalizeName(match.teamB));
       }
 
-      ordered.push(...slotMatches);
+      slots.push(slotMatches);
       previousSlotTeams = currentSlotTeams;
     }
 
-    return ordered;
+    return slots;
+  }
+
+  function groupMatchKey(group, teamA, teamB) {
+    return JSON.stringify([group, ...[teamA, teamB].sort()]);
+  }
+
+  function findExistingGroupMatch(group, teamA, teamB, alreadyPreserved = new Set()) {
+    const key = groupMatchKey(group, teamA, teamB);
+    const matches = (state.matches || []).filter(match => !alreadyPreserved.has(match)
+      && groupMatchKey(match.group, match.teamA, match.teamB) === key);
+    return matches.find(hasSavedMatchResult) || matches[0] || null;
+  }
+
+  function hasSavedMatchResult(match) {
+    const status = String(match?.status || '').toLowerCase();
+    return (match?.scoreA !== '' && match?.scoreA != null)
+      || (match?.scoreB !== '' && match?.scoreB != null)
+      || ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(status);
+  }
+
+  function preserveGroupMatchResult(previous, nextMatch) {
+    const sameOrientation = normalizeName(previous.teamA) === normalizeName(nextMatch.teamA);
+    const previousStatus = String(previous.status || 'Pending');
+    let status = previousStatus;
+    if (!sameOrientation && previousStatus.toLowerCase() === 'forfeit a') status = 'Forfeit B';
+    else if (!sameOrientation && previousStatus.toLowerCase() === 'forfeit b') status = 'Forfeit A';
+    return {
+      ...previous,
+      ...nextMatch,
+      id: previous.id || nextMatch.id,
+      status,
+      scoreA: sameOrientation ? previous.scoreA : previous.scoreB,
+      scoreB: sameOrientation ? previous.scoreB : previous.scoreA
+    };
   }
 
   function parseTime(t) {
@@ -1719,17 +2042,17 @@
     return String(v).replace(/["\\]/g, '\\$&');
   }
 
-  function calculateStandings() {
+  function calculateStandings(progress = groupStageProgress()) {
     const groups = getDisplayGroups(true);
-    const table = {};
+    const table = Object.create(null);
     Object.keys(groups).forEach(g => {
-      table[g] = {};
-      (groups[g] || []).filter(t => t && t !== 'BYE').forEach(team => {
+      table[g] = Object.create(null);
+      (groups[g] || []).filter(isRealTeamName).forEach(team => {
         table[g][team] = { team, group: g, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0 };
       });
     });
 
-    for (const m of state.matches || []) {
+    for (const m of progress.resolvedMatches) {
       const groupTable = table[m.group];
       if (!groupTable) continue;
       const a = groupTable[m.teamA];
@@ -1742,7 +2065,7 @@
         a.P += 1;
         b.P += 1;
         applyWinLoss(b, a, 2, 0);
-      } else if (status === 'forfeit b' || status === 'bye') {
+      } else if (status === 'forfeit b') {
         a.P += 1;
         b.P += 1;
         applyWinLoss(a, b, 2, 0);
@@ -1768,7 +2091,7 @@
   }
 
   function scoreNumber(value) {
-    if (value === '' || value == null) return null;
+    if (value == null || (typeof value !== 'number' && (typeof value !== 'string' || !value.trim()))) return null;
     const number = Number(value);
     return Number.isFinite(number) && number >= 0 ? number : null;
   }
@@ -1784,27 +2107,81 @@
   }
 
   function isResolvedGroupMatch(match) {
-    if (!isRealGroupMatch(match)) return true;
     const status = String(match?.status || '').toLowerCase();
-    if (['bye', 'forfeit a', 'forfeit b'].includes(status)) return true;
-    if (!['done', 'finished'].includes(status)) return false;
-    return matchResultIsValid(match);
+    if (['forfeit a', 'forfeit b'].includes(status)) return true;
+    return ['done', 'finished'].includes(status) && matchResultIsValid(match);
+  }
+
+  function groupFixtures(groups) {
+    const fixtures = [];
+    for (const group of Object.keys(groups).sort()) {
+      const teams = [...new Set((groups[group] || []).filter(isRealTeamName))];
+      for (let i = 0; i < teams.length; i += 1) {
+        for (let j = i + 1; j < teams.length; j += 1) {
+          fixtures.push({ group, teamA: teams[i], teamB: teams[j] });
+        }
+      }
+    }
+    return fixtures;
   }
 
   function groupStageProgress() {
-    const matches = (state.matches || []).filter(isRealGroupMatch);
-    const done = matches.filter(isResolvedGroupMatch);
+    const groups = getDisplayGroups(true);
+    const roster = Object.values(groups).flat().filter(isRealTeamName);
+    const duplicateTeams = uniqueTeams(roster).length !== roster.length;
+    const expected = new Map(groupFixtures(groups).map(match => [
+      groupMatchKey(match.group, match.teamA, match.teamB), match.group
+    ]));
+    const rows = new Map();
+    let invalid = 0;
+    for (const match of state.matches || []) {
+      if (!match) continue;
+      if ([match.teamA, match.teamB].some(team => normalizeName(team) === 'bye')) continue;
+      if (!normalizeName(match.teamA) && !normalizeName(match.teamB)) continue;
+      const key = groupMatchKey(match.group, match.teamA, match.teamB);
+      if (!expected.has(key)) {
+        invalid += 1;
+        continue;
+      }
+      if (!rows.has(key)) rows.set(key, []);
+      rows.get(key).push(match);
+    }
+
+    const resolvedMatches = [];
+    const incompleteGroups = new Set();
+    let duplicates = 0;
+    for (const [key, group] of expected) {
+      const matches = rows.get(key) || [];
+      if (matches.length > 1) duplicates += matches.length - 1;
+      if (matches.length === 1 && isResolvedGroupMatch(matches[0])) resolvedMatches.push(matches[0]);
+      else incompleteGroups.add(group);
+    }
+    const missing = expected.size - rows.size;
+    const scheduleReady = roster.length > 0 && !duplicateTeams && !invalid && !missing && !duplicates;
     return {
-      total: matches.length,
-      done: done.length,
-      pending: Math.max(0, matches.length - done.length),
-      complete: matches.length > 0 && done.length === matches.length
+      total: expected.size,
+      done: resolvedMatches.length,
+      pending: expected.size - resolvedMatches.length,
+      missing,
+      duplicates,
+      invalid,
+      duplicateTeams,
+      confirmed: roster.length > 0,
+      scheduleReady,
+      complete: scheduleReady && resolvedMatches.length === expected.size,
+      resolvedMatches,
+      incompleteGroups
     };
   }
 
-  function groupMatchesComplete(group) {
-    const matches = (state.matches || []).filter((match) => String(match.group || '') === String(group) && isRealGroupMatch(match));
-    return matches.length > 0 && matches.every(isResolvedGroupMatch);
+  function groupStageMessage(progress) {
+    if (!progress.confirmed) return 'ยืนยันผลแบ่งสายก่อนสร้าง Knockout';
+    const details = [`ผลที่บันทึก ${progress.done}/${progress.total} คู่`];
+    if (progress.missing) details.push(`ขาดคู่แข่ง ${progress.missing} คู่`);
+    if (progress.duplicates) details.push(`คู่ซ้ำ ${progress.duplicates} แถว`);
+    if (progress.invalid) details.push(`คู่ผิดผัง ${progress.invalid} แถว`);
+    if (progress.duplicateTeams) details.push('มีชื่อทีมซ้ำในผังสาย');
+    return details.join(' · ');
   }
 
   function applyWinLoss(winner, loser, gf, ga) {
@@ -1825,172 +2202,271 @@
     );
   }
 
-  function knockoutSeedInfo(group, rank) {
-    const standingsRows = sortedStandings(state.standings?.[group] || {});
-    const resolved = groupMatchesComplete(group) && standingsRows.length >= rank;
-    return {
-      group,
-      rank,
-      seed: `${group}${rank}`,
-      label: `ที่ ${rank} สาย ${group}`,
-      team: resolved ? (standingsRows[rank - 1]?.team || '') : '',
-      draftTeam: '',
-      resolved
-    };
+  function knockoutSetupIssue() {
+    const groups = Object.entries(getDisplayGroups(true))
+      .map(([group, teams]) => [group, teams.filter(isRealTeamName).length])
+      .filter(([, count]) => count > 0);
+    const quota = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
+    const tooSmall = groups.filter(([, count]) => count < quota);
+    if (isCustomGroupSizing() && tooSmall.length) {
+      return `โควตาเข้ารอบ ${quota} ทีม เกินจำนวนทีมในสาย ${tooSmall.map(([group]) => group).join(', ')} · แก้ได้ที่ Setup`;
+    }
+    const total = groups.reduce((sum, [, count]) => sum + Math.min(count, quota), 0);
+    if (total < 2) return 'ต้องมีทีมเข้ารอบอย่างน้อย 2 ทีม';
+    if (total === 2 && state.event.enableFinal === false) return 'เปิดรอบชิงชนะเลิศเพื่อจัดคู่สำหรับผู้เข้ารอบ 2 ทีม';
+    return '';
   }
 
-  function buildKnockoutPreviewPlan() {
-    calculateStandings();
-    const groups = getDisplayGroups(true);
-    const groupKeys = Object.keys(groups || {})
-      .sort()
-      .filter((group) => (groups[group] || []).some((team) => team && team !== 'BYE'));
-    const perGroup = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
-    if (groupKeys.length < 2) return [];
+  function standingsEntries(progress = groupStageProgress()) {
+    return Object.entries(calculateStandings(progress))
+      .sort(([a], [b]) => a.localeCompare(b, 'th'))
+      .map(([group, table]) => [group, sortedStandings(table).map((row, i) => ({
+        ...row, rank: i + 1, pts: row.PTS
+      }))])
+      .filter(([, rows]) => rows.length > 0);
+  }
 
-    const firstRound = [];
+  function tieKey({ group, pts, teams }) {
+    return `${group}|${pts}|${teams.slice().sort().join(',')}`;
+  }
+
+  function orderBySavedTies(group, rows) {
+    const points = new Set(rows.map(row => row.pts));
+    const ordered = rows.slice();
+    for (const pts of points) {
+      const tied = rows.filter(row => row.pts === pts);
+      if (tied.length < 2) continue;
+      const key = tieKey({ group, pts, teams: tied.map(row => row.team) });
+      const saved = state.tieResolvers?.[key]?.order;
+      if (!Array.isArray(saved)) continue;
+      const order = [...new Set(saved)].map(team => tied.find(row => row.team === team)).filter(Boolean);
+      order.push(...tied.filter(row => !order.includes(row)));
+      const first = ordered.findIndex(row => row.pts === pts);
+      ordered.splice(first, tied.length, ...order);
+    }
+    return ordered;
+  }
+
+  function firstKnockoutPairs(seeds, size) {
+    // Keep the established four-group crossover and separate each group's two seeds.
+    if (seeds.length === 8 && new Set(seeds.map(seed => seed.group)).size === 4 && seeds.every(seed => seed.rank <= 2)) {
+      const [a1, b1, c1, d1, a2, b2, c2, d2] = seeds;
+      return [[a1, b2], [c1, d2], [b1, a2], [d1, c2]];
+    }
+
+    const byeCount = size - seeds.length;
+    const byes = seeds.slice(0, byeCount).map(seed => [seed, { seed: 'BYE', label: 'BYE', team: 'BYE' }]);
+    const remaining = seeds.slice(byeCount);
+    const played = [];
+    while (remaining.length) {
+      const first = remaining.shift();
+      const counts = new Map();
+      for (const { group } of remaining) counts.set(group, (counts.get(group) || 0) + 1);
+      const pairsLeft = (remaining.length - 1) / 2;
+      let bestIndex = remaining.length - 1;
+      let bestConflicts = Infinity;
+      // Prefer a lower seed while avoiding any same-group match that can still be avoided.
+      for (let i = remaining.length - 1; i >= 0; i -= 1) {
+        const opponent = remaining[i].group;
+        const largestGroup = Math.max(...Array.from(counts, ([group, count]) => count - Number(group === opponent)));
+        const conflicts = Number(first.group === opponent) + Math.max(0, largestGroup - pairsLeft);
+        if (conflicts < bestConflicts) {
+          bestIndex = i;
+          bestConflicts = conflicts;
+          if (!conflicts) break;
+        }
+      }
+      played.push([first, remaining.splice(bestIndex, 1)[0]]);
+    }
+
+    const pairs = [];
+    const slots = size / 2;
+    for (let i = 0; i < slots; i += 1) {
+      // Space BYEs across the bracket, with higher seeds assigned in group order within each rank.
+      const before = Math.ceil(i * byeCount / slots);
+      const after = Math.ceil((i + 1) * byeCount / slots);
+      pairs.push(after > before ? byes[before] : played[i - before]);
+    }
+    return pairs;
+  }
+
+  function buildKnockoutPreviewPlan({ resolved = state.knockoutUseResolvedOrder, progress = groupStageProgress() } = {}) {
+    if (knockoutSetupIssue() || progress.duplicateTeams) return [];
+    const quota = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
+    const seeds = standingsEntries(progress).flatMap(([group, rows]) => {
+      const ranked = resolved ? orderBySavedTies(group, rows) : rows;
+      return ranked.slice(0, quota).map((row, index) => ({
+        group,
+        rank: index + 1,
+        seed: `${group}${index + 1}`,
+        label: `ที่ ${index + 1} สาย ${group}`,
+        team: progress.incompleteGroups.has(group) || progress.invalid ? '' : row.team
+      }));
+    }).sort((a, b) => a.rank - b.rank || a.group.localeCompare(b.group, 'th'));
+
+    const plan = [];
     const addMatch = (id, round, a, b) => {
-      firstRound.push({
-        id,
-        round,
-        seedA: a.seed,
-        seedB: b.seed,
-        labelA: a.label,
-        labelB: b.label,
-        teamA: a.team,
-        teamB: b.team,
-        draftTeamA: a.draftTeam,
-        draftTeamB: b.draftTeam,
-        note: a.resolved && b.resolved ? 'จากอันดับจริง' : 'รอผลอันดับจริง'
-      });
+      const bye = b.seed === 'BYE';
+      const match = {
+        id, round, seedA: a.seed, seedB: b.seed, labelA: a.label, labelB: b.label,
+        sourceA: a.source || null, sourceB: b.source || null,
+        teamA: a.team, teamB: b.team,
+        scoreA: '', scoreB: '', winner: bye ? a.team : '', status: bye ? 'Bye' : 'Pending',
+        note: bye ? 'BYE · ผ่านรอบอัตโนมัติ' : a.source || b.source ? 'รอผลรอบก่อน' : a.team && b.team ? 'จากอันดับรอบแบ่งกลุ่ม' : 'รอผลรอบแบ่งกลุ่ม'
+      };
+      plan.push(match);
+      return match;
     };
 
-    if (perGroup >= 2) {
-      for (let i = 0; i < groupKeys.length; i += 2) {
-        const left = groupKeys[i];
-        const right = groupKeys[i + 1];
-        if (!right) break;
-        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', knockoutSeedInfo(left, 1), knockoutSeedInfo(right, 2));
-        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', knockoutSeedInfo(right, 1), knockoutSeedInfo(left, 2));
-      }
-    } else {
-      for (let i = 0; i < groupKeys.length; i += 2) {
-        const left = groupKeys[i];
-        const right = groupKeys[i + 1];
-        if (!right) break;
-        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', knockoutSeedInfo(left, 1), knockoutSeedInfo(right, 1));
-      }
-    }
-
-    if (perGroup > 2) {
-      const extraSeeds = [];
-      groupKeys.forEach((group) => {
-        for (let rank = 3; rank <= perGroup; rank += 1) extraSeeds.push(knockoutSeedInfo(group, rank));
+    const fromMatch = (match, outcome = 'winner') => {
+      const seed = `${outcome === 'winner' ? 'Winner' : 'Loser'} ${match.id.toUpperCase()}`;
+      return { seed, label: seed, team: seed, source: { id: match.id, outcome } };
+    };
+    const size = 2 ** Math.ceil(Math.log2(seeds.length));
+    let pairs = firstKnockoutPairs(seeds, size);
+    let semis = [];
+    for (let field = size; field >= 2; field /= 2) {
+      if (field === 2 && state.event.enableFinal === false) break;
+      const round = field === 2 ? 'Final' : field === 4 ? 'Semi Final' : field === 8 ? 'Quarter Final' : `Round of ${field}`;
+      const matches = pairs.map(([a, b], i) => {
+        const id = field === 2 ? 'final' : field === 4 ? `sf${i + 1}` : field === 8 ? `qf${i + 1}` : `r${field}-${i + 1}`;
+        return addMatch(id, round, a, b);
       });
-      for (let i = 0; i < extraSeeds.length; i += 2) {
-        if (!extraSeeds[i + 1]) break;
-        addMatch(`KO-${firstRound.length + 1}`, 'Knockout Round 1', extraSeeds[i], extraSeeds[i + 1]);
+      if (field === 4) semis = matches;
+      pairs = [];
+      for (let i = 0; i + 1 < matches.length; i += 2) {
+        pairs.push([fromMatch(matches[i]), fromMatch(matches[i + 1])]);
       }
     }
-
-    const firstCount = firstRound.length;
-    firstRound.forEach((match) => {
-      match.round = firstCount <= 2 ? 'Semi Final' : firstCount <= 4 ? 'Quarter Final' : 'Knockout Round 1';
-    });
-
-    const plan = [...firstRound];
-    if (firstCount === 4) {
-      for (let i = 0; i < 2; i += 1) {
-        const left = firstRound[i * 2]?.id || `KO-${i * 2 + 1}`;
-        const right = firstRound[i * 2 + 1]?.id || `KO-${i * 2 + 2}`;
-        plan.push({
-          id: `SF-${i + 1}`,
-          round: 'Semi Final',
-          seedA: `Winner ${left}`,
-          seedB: `Winner ${right}`,
-          labelA: `ผู้ชนะ ${left}`,
-          labelB: `ผู้ชนะ ${right}`,
-          teamA: '',
-          teamB: '',
-          draftTeamA: '',
-          draftTeamB: '',
-          note: 'รอผลรอบก่อนหน้า'
-        });
-      }
-      plan.push({ id: 'FINAL', round: 'Final', seedA: 'Winner SF-1', seedB: 'Winner SF-2', labelA: 'ผู้ชนะ SF-1', labelB: 'ผู้ชนะ SF-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
-      if (state.event.enableThird !== false) plan.push({ id: 'THIRD', round: 'Third Place', seedA: 'Loser SF-1', seedB: 'Loser SF-2', labelA: 'ผู้แพ้ SF-1', labelB: 'ผู้แพ้ SF-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
-    } else if (firstCount > 4) {
-      for (let i = 0; i < firstCount; i += 2) {
-        const left = firstRound[i]?.id || `KO-${i + 1}`;
-        const right = firstRound[i + 1]?.id || `KO-${i + 2}`;
-        plan.push({
-          id: `NEXT-${(i / 2) + 1}`,
-          round: 'Next Round',
-          seedA: `Winner ${left}`,
-          seedB: `Winner ${right}`,
-          labelA: `ผู้ชนะ ${left}`,
-          labelB: `ผู้ชนะ ${right}`,
-          teamA: '',
-          teamB: '',
-          draftTeamA: '',
-          draftTeamB: '',
-          note: 'รอบต่อไปสำหรับจัดต่อใน Excel'
-        });
-      }
-    } else if (firstCount === 2) {
-      plan.push({ id: 'FINAL', round: 'Final', seedA: 'Winner KO-1', seedB: 'Winner KO-2', labelA: 'ผู้ชนะ KO-1', labelB: 'ผู้ชนะ KO-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
-      if (state.event.enableThird !== false) plan.push({ id: 'THIRD', round: 'Third Place', seedA: 'Loser KO-1', seedB: 'Loser KO-2', labelA: 'ผู้แพ้ KO-1', labelB: 'ผู้แพ้ KO-2', teamA: '', teamB: '', draftTeamA: '', draftTeamB: '', note: 'รอผลรอบรอง' });
+    if (seeds.length >= 4 && semis.length === 2 && state.event.enableThird !== false) {
+      addMatch('third', 'Third Place', fromMatch(semis[0], 'loser'), fromMatch(semis[1], 'loser'));
     }
+    advancePlannedKnockout(plan);
     return plan;
   }
 
-  function renderKnockoutPreviewHtml() {
-    const plan = buildKnockoutPreviewPlan();
-    if (!plan.length) return '<div class="notice">Knockout Preview: ต้องมีอย่างน้อย 2 สายก่อน จึงจะจัดคู่จำลองได้</div>';
+  function advancePlannedKnockout(matches) {
+    const byId = new Map();
+    for (const match of matches) {
+      for (const side of ['A', 'B']) {
+        const source = match[`source${side}`];
+        if (!source) continue;
+        const parent = byId.get(source.id);
+        const winner = parent?.winner;
+        let team = match[`seed${side}`];
+        if (winner && (winner === parent.teamA || winner === parent.teamB)) {
+          if (source.outcome === 'winner') team = winner;
+          else if (parent.status !== 'Bye') team = winner === parent.teamA ? parent.teamB : parent.teamA;
+        }
+        if (match[`team${side}`] !== team) {
+          match[`team${side}`] = team;
+          match.scoreA = '';
+          match.scoreB = '';
+          match.winner = '';
+          match.status = 'Pending';
+        }
+      }
+      byId.set(match.id, match);
+    }
+  }
+
+  function renderKnockoutPreviewHtml(progress = groupStageProgress(), plan = buildKnockoutPreviewPlan({ progress })) {
+    if (!plan.length) return `<div class="notice">${esc(knockoutSetupIssue() || 'ตรวจชื่อทีมซ้ำในผังสายก่อนจัดคู่')}</div>`;
     return `
       <div class="card compact knockout-preview-card">
-        <h3>Knockout Preview / Seed Plan</h3>
-        <p class="hint">แบบจำลองคู่รอบ Knockout สำหรับเตรียมไฟล์งาน: ใช้ seed เช่น ที่ 1 สาย A vs ที่ 2 สาย B และจะเติมชื่อทีมเมื่อมีอันดับจริงแล้ว</p>
+        <h3>Knockout Preview</h3>
+        ${progress.complete ? '' : `<div class="notice warn">${esc(groupStageMessage(progress))}</div>`}
+        <p class="hint">${state.knockoutUseResolvedOrder ? 'ใช้ลำดับที่บันทึกใน Tie Resolver' : 'ใช้อันดับจากตารางคะแนน'} · หากจำนวนทีมไม่ลงตัว ระบบให้ BYE ตามอันดับในสาย แล้วเรียงตามชื่อสายเมื่ออันดับเท่ากัน</p>
         <div class="tablewrap"><table>
           <thead><tr><th>รอบ</th><th>Match</th><th>Seed A</th><th>ทีม A</th><th>Seed B</th><th>ทีม B</th><th>หมายเหตุ</th></tr></thead>
-          <tbody>${plan.map((match) => `<tr><td>${esc(match.round)}</td><td>${esc(match.id)}</td><td>${esc(match.labelA)}</td><td>${esc(match.teamA || match.draftTeamA || '')}</td><td>${esc(match.labelB)}</td><td>${esc(match.teamB || match.draftTeamB || '')}</td><td>${esc(match.note)}</td></tr>`).join('')}</tbody>
+          <tbody>${plan.map(match => `<tr><td>${esc(match.round)}</td><td>${esc(match.id)}</td><td>${esc(match.labelA)}</td><td>${esc(match.teamA)}</td><td>${esc(match.labelB)}</td><td>${esc(match.teamB)}</td><td>${esc(match.note)}</td></tr>`).join('')}</tbody>
         </table></div>
       </div>
     `;
   }
 
-  function generateKnockout() {
-    calculateStandings();
-    const progress = groupStageProgress();
-    if (!progress.complete) {
-      toast(`ยังสร้าง Knockout จริงไม่ได้: ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบ (${progress.done}/${progress.total})`, 'warn');
-      return;
-    }
-    const q = intClamp(state.event.qualifiersPerGroup, 1, 8, 2);
-    const qualifiers = [];
-    Object.keys(state.standings || {}).sort().forEach(g => {
-      sortedStandings(state.standings[g]).slice(0, q).forEach((row, i) => {
-        qualifiers.push({ seed: `${g}${i + 1}`, team: row.team });
-      });
-    });
+  function knockoutDrawSignature(matches) {
+    return JSON.stringify(matches.map(match => [
+      match.id, match.seedA, match.seedB,
+      match.sourceA ? null : match.teamA, match.sourceB ? null : match.teamB
+    ]));
+  }
 
-    const pairs = [];
-    for (let i = 0; i < qualifiers.length; i += 2) {
-      pairs.push({
-        id: `KO-${i + 1}`,
-        round: qualifiers.length <= 4 ? 'Semi Final' : 'Quarter Final',
-        teamA: qualifiers[i]?.team || 'TBD',
-        teamB: qualifiers[i + 1]?.team || 'TBD',
-        winner: ''
-      });
+  function generateKnockout({ resolved = state.knockoutUseResolvedOrder } = {}) {
+    const progress = groupStageProgress();
+    const issue = progress.complete ? knockoutSetupIssue() : groupStageMessage(progress);
+    if (issue) {
+      toast(issue, 'warn');
+      return false;
     }
-    state.knockout = pairs;
-    audit('generate-knockout', { count: pairs.length });
+    const plan = buildKnockoutPreviewPlan({ resolved, progress });
+    const unchanged = knockoutDrawSignature(plan) === knockoutDrawSignature(state.knockout);
+    const played = state.knockout.some(match => String(match.status || '').toLowerCase() !== 'bye'
+      && (match.winner || match.winnerTeam || hasSavedMatchResult(match)));
+    if (!unchanged && played && !confirm('ผัง Knockout ใหม่จะแทนที่สายแข่งและคะแนน Knockout ที่บันทึกไว้ ต้องการสร้างผังใหม่หรือไม่?')) return false;
+    if (!unchanged) {
+      state.knockout = plan;
+      if (state.lastResult?.round) state.lastResult = null;
+    }
+    state.knockoutUseResolvedOrder = resolved;
+    setChecked($('#knockoutUseResolvedOrder'), resolved);
+    audit('generate-knockout', { count: plan.length, resolved });
     saveState('knockout');
+    window.PepsLiveCoreKnockout?.refresh();
+    toast(unchanged ? 'ผัง Knockout ตรงกับผลเดิม' : `สร้างสาย Knockout แล้ว ${plan.length} ช่อง`, 'good');
+    return true;
   }
 
   function hasGroups(groups) {
     return Object.values(groups || {}).some(arr => Array.isArray(arr) && arr.some(t => t && t !== 'BYE'));
+  }
+
+  function groupsEqual(left, right) {
+    const keys = uniqueTeams([...Object.keys(left || {}), ...Object.keys(right || {})]).sort();
+    return keys.every(group => {
+      const leftTeams = (Array.isArray(left?.[group]) ? left[group] : []).filter(isRealTeamName).map(team => String(team).trim()).sort();
+      const rightTeams = (Array.isArray(right?.[group]) ? right[group] : []).filter(isRealTeamName).map(team => String(team).trim()).sort();
+      return JSON.stringify(leftTeams) === JSON.stringify(rightTeams);
+    });
+  }
+
+  function validateCustomManualGroups(groups) {
+    const capacities = groupCapacities();
+    const groupNames = letters(state.event.groupCount);
+    const unexpected = Object.keys(groups || {}).filter(group => !groupNames.includes(group) && (groups[group] || []).some(isRealTeamName));
+    if (unexpected.length) return { ok: false, message: `พบสายที่ไม่ได้กำหนดใน Setup: ${unexpected.join(', ')}` };
+
+    const assignedTeams = groupNames.flatMap(group => (groups[group] || []).filter(isRealTeamName));
+    const seen = new Set();
+    const duplicates = [];
+    assignedTeams.forEach(team => {
+      const key = normalizeName(team);
+      if (seen.has(key)) duplicates.push(team);
+      seen.add(key);
+    });
+    if (duplicates.length) return { ok: false, message: `มีทีมซ้ำในหลายสาย: ${uniqueTeams(duplicates).join(', ')}` };
+
+    const underfilled = groupNames.filter(group => assignedTeamsIn(groups, group) !== capacities[group]);
+    if (underfilled.length) return { ok: false, message: `จำนวนทีมในสาย ${underfilled.map(group => `${group} ${assignedTeamsIn(groups, group)}/${capacities[group]}`).join(', ')} ยังไม่ครบตาม Setup` };
+
+    const roster = new Set((state.teams || []).map(normalizeName));
+    const unknown = assignedTeams.filter(team => !roster.has(normalizeName(team)));
+    if (unknown.length) return { ok: false, message: `มีทีมที่ไม่อยู่ในรายชื่อ Teams: ${uniqueTeams(unknown).join(', ')}` };
+    if (assignedTeams.length !== (state.teams || []).length) {
+      const assigned = new Set(assignedTeams.map(normalizeName));
+      const missing = state.teams.filter(team => !assigned.has(normalizeName(team)));
+      return { ok: false, message: `ยังไม่ได้จัดทีมจากรายชื่อ Teams: ${missing.join(', ')}` };
+    }
+    return { ok: true, message: '' };
+  }
+
+  function assignedTeamsIn(groups, group) {
+    return (groups[group] || []).filter(isRealTeamName).length;
+  }
+
+  function rowsForGroup(groups, group, defaultRows) {
+    if (!isCustomGroupSizing()) return defaultRows;
+    return Math.max((groups?.[group] || []).length, groupCapacities()[group] || 0);
   }
 
   function getDisplayGroups(confirmedOnly = false) {
@@ -2000,7 +2476,9 @@
     if (state.settings.drawMethod === 'instant-all' && state.pendingComplete && state.pendingGroups) return state.pendingGroups;
 
     const groupCount = intClamp(state.event.groupCount, 1, 26, 4);
-    const groups = Object.fromEntries(letters(groupCount).map(g => [g, []]));
+    const groups = isCustomGroupSizing()
+      ? emptyGroups(manualRowsForGroups({}))
+      : Object.fromEntries(letters(groupCount).map(g => [g, []]));
     const feed = [...(state.drawLive?.feed || [])].reverse();
     feed.forEach(item => {
       if (!item || !item.group || item.group === 'ALL') return;
@@ -2017,6 +2495,7 @@
     applyLayoutSettings();
     setText($('#currentEventName'), state.event.name || 'PepsLive Tournament');
 
+    if (activePanel === 'setup') updateGroupCapacitySummary();
     if (activePanel === 'dashboard') renderDashboard();
     if (activePanel === 'teams') renderTeamValidation();
     if (activePanel === 'draw') { renderDrawStage(); renderDrawTools(); renderGroups(); renderRevealFeed(); }
@@ -2071,6 +2550,7 @@
 
   function renderManualGroupsToolbar() {
     const editing = manualGroupsEditing;
+    const fixedGroupSizes = isCustomGroupSizing();
     return `
       <details class="advanced-details manual-groups-details" ${editing ? 'open' : ''}>
         <summary><span>จัดกลุ่มด้วยตัวเอง</span><small>${state.manualGroups?.active ? 'กำลังใช้ข้อมูลที่แก้เอง' : 'ใช้เมื่อจำเป็นต้องแก้ผลจับสาย'}</small></summary>
@@ -2082,8 +2562,7 @@
           <div class="row">
             <button class="btn small" type="button" data-manual-groups-create>สร้างสายว่าง</button>
             ${editing ? `
-              <button class="btn small" type="button" data-manual-groups-add-row>เพิ่มแถว</button>
-              <button class="btn small warn" type="button" data-manual-groups-del-row>ลบแถวท้าย</button>
+              ${fixedGroupSizes ? '' : '<button class="btn small" type="button" data-manual-groups-add-row>เพิ่มแถว</button><button class="btn small warn" type="button" data-manual-groups-del-row>ลบแถวท้าย</button>'}
               <button class="btn small primary" type="button" data-manual-groups-save>บันทึกสาย</button>
               <button class="btn small" type="button" data-manual-groups-cancel>ยกเลิก</button>
             ` : `
@@ -2128,27 +2607,19 @@
       toast('Draw is running. Wait for the current reveal before creating manual groups.', 'warn');
       return;
     }
-    const rows = Math.max(2, Math.ceil(Math.max(1, state.teams.length) / Math.max(1, state.event.groupCount || 4)));
-    state.groups = emptyGroups(rows);
-    state.manualGroups = { active: true, rows, updatedAt: nowIso() };
-    state.pendingGroups = null;
-    state.pendingSequence = [];
-    state.pendingRevealIndex = 0;
-    state.pendingComplete = true;
-    state.drawLive = { ...defaultState().drawLive, feed: [] };
+    const rows = isCustomGroupSizing()
+      ? Math.max(...Object.values(groupCapacities()))
+      : Math.max(2, Math.ceil(Math.max(1, state.teams.length) / Math.max(1, state.event.groupCount || 4)));
     manualGroupsEditing = true;
     manualGroupRows = rows;
-    manualGroupsDraft = makeManualGroupsDraft(state.groups, rows);
-    audit('manual-empty-groups', { rows, groups: Object.keys(state.groups).length });
-    saveState('manual-empty-groups');
+    manualGroupsDraft = makeManualGroupsDraft(emptyGroups(rows), rows);
+    renderGroups();
   }
 
   function clearManualGroups() {
     if (!state.manualGroups?.active && !hasGroups(state.groups)) return;
-    if (!confirm('Clear manual groups?')) return;
-    state.groups = {};
-    state.manualGroups = { active: false, rows: 0, updatedAt: '' };
-    state.drawLive.feed = [];
+    if (!confirm('ล้างผลแบ่งสายและตาราง คะแนน กับ Knockout ที่เกี่ยวข้องทั้งหมดหรือไม่? รายชื่อทีมและ Setup จะยังอยู่')) return;
+    resetTournamentDerivedData();
     manualGroupsEditing = false;
     manualGroupRows = 0;
     manualGroupsDraft = null;
@@ -2157,6 +2628,7 @@
   }
 
   function addManualGroupRow() {
+    if (isCustomGroupSizing()) return;
     const draft = readManualGroupsDraftFromEditor() || ensureManualGroupsDraft();
     if (draft.rows >= MAX_MANUAL_GROUP_ROWS) {
       toast(`Manual groups limited to ${MAX_MANUAL_GROUP_ROWS} rows`, 'warn');
@@ -2166,6 +2638,7 @@
   }
 
   function deleteManualGroupRow() {
+    if (isCustomGroupSizing()) return;
     const draft = readManualGroupsDraftFromEditor() || ensureManualGroupsDraft();
     if (draft.rows <= 1) {
       toast('Manual groups need at least 1 row', 'warn');
@@ -2182,6 +2655,17 @@
     if (!draft) return;
     const groups = draft.groups;
     const rowCount = draft.rows;
+    if (isCustomGroupSizing()) {
+      const validation = validateCustomManualGroups(groups);
+      if (!validation.ok) {
+        toast(validation.message, 'warn');
+        return;
+      }
+    }
+    if (!groupsEqual(state.groups, groups) && ((state.matches || []).length || (state.knockout || []).length)) {
+      if (!confirm('การเปลี่ยนการจัดทีมในสายจะล้างตาราง คะแนน และ Knockout เดิม ต้องการดำเนินการต่อหรือไม่?')) return;
+      resetMatchDerivedData();
+    }
     state.groups = normalizeManualGroups(groups, rowCount);
     state.manualGroups = { active: true, rows: rowCount, updatedAt: nowIso() };
     state.pendingGroups = null;
@@ -2206,7 +2690,7 @@
         ${keys.map(g => `
           <div class="manual-group-card" data-manual-group-row="${esc(g)}">
             <div class="manual-group-head"><span>Group ${esc(g)}</span><small>${(groups[g] || []).filter(isRealTeamName).length} teams</small></div>
-            ${Array.from({ length: maxRows }, (_, i) => `
+            ${Array.from({ length: isCustomGroupSizing() ? ((groups[g] || []).length || groupCapacities()[g] || 4) : maxRows }, (_, i) => `
               <label class="manual-group-row">
                 <span>${i + 1}</span>
                 <input data-manual-team data-manual-slot="${i + 1}" value="${esc((groups[g] || [])[i] || '')}" placeholder="Team name or BYE" />
@@ -2277,13 +2761,10 @@
 
   function createEmptySchedule() {
     const rows = Math.max(4, Number(state.event.groupCount || 4) || 4);
-    state.matches = Array.from({ length: rows }, (_, i) => scheduleBlankMatch(i));
-    state.manualSchedule = { active: true, updatedAt: nowIso() };
-    state.pendingSchedule = [];
     scheduleEditing = true;
-    scheduleDraft = deepClone(state.matches);
-    audit('manual-empty-schedule', { rows });
-    saveState('manual-empty-schedule');
+    scheduleDraft = Array.from({ length: rows }, (_, i) => scheduleBlankMatch(i));
+    syncScheduleToolState();
+    renderSchedule();
   }
 
   function addScheduleDraftRow() {
@@ -2304,30 +2785,48 @@
     if (!scheduleEditing) return;
     const rows = Array.from(document.querySelectorAll('[data-schedule-edit-row]'));
     if (!rows.length) return;
-    scheduleDraft = rows.map((row, i) => ({
-      id: row.dataset.matchId || scheduleBlankMatch(i).id,
+    scheduleDraft = rows.map((row, index) => ({
+      id: row.dataset.matchId || scheduleBlankMatch(index).id,
       time: row.querySelector('[data-schedule-time]')?.value.trim() || '',
       court: row.querySelector('[data-schedule-court]')?.value.trim() || '',
       group: row.querySelector('[data-schedule-group]')?.value.trim() || '',
       teamA: row.querySelector('[data-schedule-team-a]')?.value.trim() || '',
       teamB: row.querySelector('[data-schedule-team-b]')?.value.trim() || '',
-      status: row.querySelector('[data-schedule-status]')?.value || 'Pending',
-      scoreA: state.matches.find(m => m.id === row.dataset.matchId)?.scoreA || '',
-      scoreB: state.matches.find(m => m.id === row.dataset.matchId)?.scoreB || ''
+      status: row.querySelector('[data-schedule-status]')?.value || 'Pending'
     }));
   }
 
   function saveScheduleFromEditor() {
     if (!scheduleEditing) return;
     readScheduleDraftFromEditor();
-    state.matches = (scheduleDraft || []).map((m, i) => ({ ...scheduleBlankMatch(i), ...m, id: m.id || scheduleBlankMatch(i).id }));
+    const previousById = new Map(state.matches.map(match => [match.id, match]));
+    const retained = new Set();
+    const next = scheduleDraft.map((draft, index) => {
+      const match = { ...scheduleBlankMatch(index), ...draft };
+      const previous = previousById.get(match.id);
+      if (!previous) return match;
+      if (groupMatchKey(previous.group, previous.teamA, previous.teamB) !== groupMatchKey(match.group, match.teamA, match.teamB)) {
+        if (hasSavedMatchResult(previous)) match.status = 'Pending';
+        return match;
+      }
+
+      retained.add(previous.id);
+      const result = preserveGroupMatchResult(previous, match);
+      const oldStatus = previous.status === 'Done' ? 'Finished' : previous.status;
+      if (match.status !== oldStatus) result.status = match.status;
+      return result;
+    });
+    if (state.matches.some(match => hasSavedMatchResult(match) && !retained.has(match.id))
+        && !confirm('การแก้ตารางครั้งนี้จะล้างคะแนนของคู่ที่ถูกเปลี่ยนหรือนำออก ต้องการบันทึกหรือไม่?')) return;
+
+    state.matches = next;
     state.manualSchedule = { active: true, updatedAt: nowIso() };
     scheduleEditing = false;
     scheduleDraft = null;
     calculateStandings();
     audit('manual-save-schedule', { count: state.matches.length });
     saveState('manual-save-schedule');
-    toast('Manual schedule saved', 'good');
+    toast('บันทึกตารางแข่งแล้ว', 'good');
   }
 
   function renderScheduleEditorRows() {
@@ -2345,7 +2844,7 @@
                 <td><input data-schedule-group value="${esc(m.group || '')}" placeholder="A" /></td>
                 <td><input data-schedule-team-a value="${esc(m.teamA || '')}" placeholder="Team A" /></td>
                 <td><input data-schedule-team-b value="${esc(m.teamB || '')}" placeholder="Team B" /></td>
-                <td><select data-schedule-status>${statuses.map(s => `<option value="${esc(s)}" ${m.status === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></td>
+                <td><select data-schedule-status>${statuses.map(s => `<option value="${esc(s)}" ${(m.status === s || (s === 'Finished' && m.status === 'Done')) ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></td>
               </tr>
             `).join('')}
           </tbody>
@@ -2548,8 +3047,10 @@
     const root = $('#stepper');
     if (!root) return;
     const workflow = PANELS.filter(([id]) => ['setup', 'teams', 'draw', 'schedule', 'scores', 'knockout'].includes(id));
-    const doneCount = workflow.filter(([id]) => panelDone(id)).length;
-    const current = workflow.find(([id]) => id === activePanel) || workflow.find(([id]) => !panelDone(id)) || workflow[workflow.length - 1];
+    const groupProgress = groupStageProgress();
+    const doneCount = workflow.filter(([id]) => panelDone(id, groupProgress)).length;
+    const current = workflow.find(([id]) => id === activePanel)
+      || workflow.find(([id]) => !panelDone(id, groupProgress)) || workflow[workflow.length - 1];
     const progress = Math.round((doneCount / workflow.length) * 100);
     root.innerHTML = `
       <div class="workflow-summary">
@@ -2559,19 +3060,19 @@
       <div class="workflow-track" aria-label="ความคืบหน้า ${progress}%"><span style="width:${progress}%"></span></div>
       <div class="workflow-steps">
         ${workflow.map(([id, title], index) => {
-          const done = panelDone(id);
+          const done = panelDone(id, groupProgress);
           return `<button type="button" class="step ${done ? 'done' : ''} ${activePanel === id ? 'active' : ''}" data-dashboard-target="${esc(id)}"><b>${index + 1}</b><span>${esc(title)}</span></button>`;
         }).join('')}
       </div>
     `;
   }
 
-  function panelDone(id) {
+  function panelDone(id, progress) {
     if (id === 'setup') return !!state.event.name;
     if (id === 'teams') return state.teams.length > 0;
     if (id === 'draw') return hasGroups(state.groups);
-    if (id === 'schedule') return state.matches.length > 0;
-    if (id === 'scores') return groupStageProgress().complete;
+    if (id === 'schedule') return progress.scheduleReady;
+    if (id === 'scores') return progress.complete;
     if (id === 'knockout') return state.knockout.length > 0;
     return false;
   }
@@ -2602,7 +3103,7 @@
       ? 'teams'
       : !hasGroups(state.groups)
         ? 'draw'
-        : !state.matches.length
+        : !progress.scheduleReady
           ? 'schedule'
           : !progress.complete
             ? 'scores'
@@ -2613,7 +3114,7 @@
     const nextCopy = {
       teams: 'เพิ่มรายชื่อทีมให้ครบก่อนเริ่มจับสาย',
       draw: 'สุ่มสายและยืนยันผลเพื่อใช้สร้างตารางแข่ง',
-      schedule: 'สร้างตารางรอบแบ่งกลุ่มและตรวจเวลาพัก',
+      schedule: `ตรวจคู่แข่งในตาราง · ${groupStageMessage(progress)}`,
       scores: `บันทึกผลที่เหลืออีก ${progress.pending} คู่`,
       knockout: 'ตรวจอันดับและสร้างสาย Knockout จริง',
       sources: 'ข้อมูลพร้อมสำหรับ OBS และการส่งออก'
@@ -2643,10 +3144,10 @@
         <div class="dashboard-flow-head"><div><span class="eyebrow">Tournament Flow</span><h3>ลำดับงานทั้งหมด</h3></div><button class="btn small" type="button" data-dashboard-target="export">ส่งออกข้อมูล</button></div>
         <div class="dashboard-flow-list">
           ${workflow.map(([id, title, sub], index) => `
-            <button type="button" class="dashboard-flow-item ${panelDone(id) ? 'done' : ''} ${id === nextPanelId ? 'current' : ''}" data-dashboard-target="${esc(id)}">
+            <button type="button" class="dashboard-flow-item ${panelDone(id, progress) ? 'done' : ''} ${id === nextPanelId ? 'current' : ''}" data-dashboard-target="${esc(id)}">
               <span>${String(index + 1).padStart(2, '0')}</span>
               <div><b>${esc(title)}</b><small>${esc(sub)}</small></div>
-              <strong>${panelDone(id) ? 'เสร็จ' : id === nextPanelId ? 'ทำต่อ' : 'รอ'}</strong>
+              <strong>${panelDone(id, progress) ? 'เสร็จ' : id === nextPanelId ? 'ทำต่อ' : 'รอ'}</strong>
             </button>
           `).join('')}
         </div>
@@ -2663,7 +3164,7 @@
       guard.innerHTML = `
         <div class="notice ${state.settings.safeLive ? 'good' : 'warn'}">Safe Live Mode: ${state.settings.safeLive ? 'ON' : 'OFF'}</div>
         <div class="notice">Draw Source: ใช้ลิงก์เดียว ?view=draw-animation</div>
-        <div class="notice">Live Sources: ${SOURCES.length} รายการ ไม่มี Wheel/Slot/Card แยกใบ</div>
+        <div class="notice">Live Sources: ${SOURCES.length} รายการ · Draw Animation และ Groups Table</div>
       `;
     }
   }
@@ -2672,11 +3173,16 @@
     const box = $('#teamValidation');
     if (!box) return;
     const v = teamValidation();
+    const capacityLine = isCustomGroupSizing()
+      ? `กำหนดที่นั่ง ${v.slots} ทีม · ${v.capacityMatchesRoster ? 'ตรงกับรายชื่อ' : `ต้องมีรายชื่อ ${v.slots} ทีม`}`
+      : `BYE ${v.byes}`;
     box.innerHTML = `
       <div class="notice ${v.ok ? 'good' : 'warn'}">
-        ทีมทั้งหมด: <b>${v.teams.length}</b> · สาย: <b>${v.groupCount}</b> · BYE: <b>${v.byes}</b>
+        ทีมทั้งหมด: <b>${v.teams.length}</b> · สาย: <b>${v.groupCount}</b> · ${esc(capacityLine)}
       </div>
       ${v.dup.length ? `<div class="notice warn">ชื่อซ้ำ: ${esc(v.dup.join(', '))}</div>` : '<div class="notice good">ไม่พบชื่อซ้ำ</div>'}
+      ${v.reserved.length ? '<div class="notice warn">ชื่อทีม BYE เป็นชื่อสงวน กรุณาเปลี่ยนก่อนสุ่ม</div>' : ''}
+      ${isCustomGroupSizing() ? `<div class="hint">${Object.entries(v.capacities).map(([group, size]) => `สาย ${group} ${size} ทีม`).join(' · ')}</div>` : ''}
     `;
   }
 
@@ -2881,8 +3387,8 @@
       <div class="pl-groups-grid" style="${textSizeVarsStyle(drawTextSizes())};--group-cols:${cols};grid-template-columns:repeat(${cols},minmax(0,1fr));">
         ${keys.map(g => `
           <div class="pl-group-card">
-            <div class="pl-group-title" style="font-size:var(--group-title-fs,14px)!important"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
-            ${Array.from({ length: maxRows }, (_, i) => {
+            <div class="pl-group-title" style="font-size:var(--group-title-fs,14px)!important"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(isRealTeamName).length} ทีม</span></div>
+            ${Array.from({ length: rowsForGroup(groups, g, maxRows) }, (_, i) => {
               const team = (groups[g] || [])[i] || '';
               return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team" style="font-size:var(--group-team-fs,14px)!important">${esc(team || 'รอผลสุ่ม')}</span></div>`;
             }).join('')}
@@ -2930,7 +3436,7 @@
     }
     const groups = [...new Set(state.matches.map((match) => String(match.group || '')).filter(Boolean))].sort();
     const courts = [...new Set(state.matches.map((match) => String(match.court || '')).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
-    const completed = state.matches.filter(isResolvedGroupMatch).length;
+    const completed = groupStageProgress().done;
     box.innerHTML = `
       <div class="list-toolbar">
         <div class="toolbar-summary"><span>ตารางรอบแบ่งกลุ่ม</span><b><span id="scheduleVisibleCount">${state.matches.length}</span> / ${state.matches.length} คู่</b><small>จบแล้ว ${completed} คู่</small></div>
@@ -2992,7 +3498,7 @@
             <input data-score-b type="number" min="0" value="${esc(m.scoreB)}" placeholder="0" aria-label="คะแนน ${esc(m.teamB)}">
             <span class="score-team team-b">${esc(m.teamB)}</span>
             <select data-status aria-label="สถานะคู่ ${esc(m.teamA)} พบ ${esc(m.teamB)}">
-              ${['Pending', 'Live', 'Finished', 'Bye', 'Forfeit A', 'Forfeit B'].map(s => `<option ${m.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+              ${['Pending', 'Live', 'Finished', 'Bye', 'Forfeit A', 'Forfeit B'].map(s => `<option ${(m.status === s || (s === 'Finished' && m.status === 'Done')) ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
           </div>
         `).join('')}
@@ -3124,22 +3630,36 @@
   function renderKnockout() {
     const box = $('#knockoutBox');
     if (!box) return;
-    if (!state.knockout.length) {
-      box.innerHTML = '<div class="notice">ยังไม่มี Knockout Bracket</div>';
-      return;
-    }
-    box.innerHTML = `<div class="grid two">${state.knockout.map(m => `
-      <div class="card compact"><h3>${esc(m.round)}</h3><p>${esc(m.teamA)} vs ${esc(m.teamB)}</p></div>
-    `).join('')}</div>`;
+    const actual = state.knockout.length
+      ? `<div class="grid two">${state.knockout.map(match => `
+          <div class="card compact"><h3>${esc(match.round)} · ${esc(match.id)}</h3>
+          <p>${esc(match.teamA)} vs ${esc(match.teamB)}</p>
+          ${match.winner ? `<p class="hint">${match.status === 'Bye' ? 'ผ่านอัตโนมัติ' : 'ผู้ชนะ'} · ${esc(match.winner)}</p>` : ''}
+          </div>`).join('')}</div>`
+      : '<div class="notice">ยังไม่มีสาย Knockout ที่บันทึกไว้</div>';
+    const progress = groupStageProgress();
+    const plan = buildKnockoutPreviewPlan({ progress });
+    const changed = state.knockout.length && knockoutDrawSignature(plan) !== knockoutDrawSignature(state.knockout);
+    const notice = changed
+      ? '<div class="notice warn">ผังที่บันทึกไว้ต่างจาก Preview ปัจจุบัน ตรวจอันดับหรือผลรอบกลุ่มก่อนกดอัปเดต Knockout</div>'
+      : '';
+    box.innerHTML = notice + actual + renderKnockoutPreviewHtml(progress, plan);
   }
 
   function renderSourceCards() {
     const root = $('#sourceCards');
     if (!root) return;
 
+    const remote = `
+      <div class="source-section remote-source-section">
+        <h3>Mobile Remote · สั่งหมุนวงล้อ</h3>
+        ${remoteControlCardHtml()}
+      </div>
+    `;
+
     const draw = `
       <div class="source-section peps-source-section-clean">
-        <h3>Draw Animation Source</h3>
+        <h3>Draw Animation Source · OBS</h3>
         <div class="source-grid-core single">
           ${sourceCardHtml('draw-animation')}
         </div>
@@ -3148,7 +3668,7 @@
 
     const live = `
       <div class="source-section peps-source-section-clean">
-        <h3>Live Data Sources</h3>
+        <h3>Live Data Sources · OBS</h3>
         <div class="source-grid-core">
           ${SOURCES.filter(([id]) => id !== 'draw-animation').map(([id]) => sourceCardHtml(id)).join('')}
         </div>
@@ -3156,7 +3676,45 @@
     `;
 
     root.className = 'grid three peps-source-holder-clean';
-    root.innerHTML = draw + live;
+    root.innerHTML = remote + draw + live;
+  }
+
+  function remoteControlCardHtml() {
+    const info = window.PeppsRemoteBridge?.getInfo?.() || null;
+    let qrSrc = '';
+    try {
+      if (info?.qrUrl) qrSrc = new URL(info.qrUrl, window.location.href).toString();
+    } catch {}
+    const remoteUrl = info?.remoteUrl || '';
+    const remoteStatus = info?.remoteUrl
+      ? `พร้อมใช้ · LAN ${info.lanIp}:${info.port}`
+      : 'กำลังเชื่อมต่อ...';
+    const remoteState = info?.remoteUrl ? 'ready' : 'checking';
+    return `
+      <div class="remote-control-card" id="remoteControlCard">
+        <div class="remote-control-head">
+          <div>
+            <h3>Remote มือถือ</h3>
+            <p>มือถือทำได้เฉพาะ <b>หมุนวงล้อ</b> ไม่สามารถแก้รายชื่อหรือคะแนนได้</p>
+          </div>
+          <span class="remote-status-pill" data-remote-status data-state="${remoteState}">${esc(remoteStatus)}</span>
+        </div>
+        <div class="remote-control-body">
+          <div class="remote-qr-frame">
+            <img data-remote-qr alt="QR สำหรับเปิด Mobile Remote" ${qrSrc ? `src="${esc(qrSrc)}"` : ''} ${qrSrc ? '' : 'hidden'} />
+            <div class="remote-qr-empty" data-remote-qr-empty ${qrSrc ? 'hidden' : ''}>รอ Local Server</div>
+          </div>
+          <div class="remote-control-details">
+            <div class="remote-url" data-remote-url>${esc(remoteUrl || 'กำลังรอ Local Server...')}</div>
+            <p>สแกน QR ด้วยมือถือที่อยู่ Wi‑Fi เดียวกับคอมเครื่องหลัก</p>
+            <div class="row">
+              <button class="btn primary" type="button" data-remote-copy ${remoteUrl ? '' : 'disabled'}>คัดลอกลิงก์มือถือ</button>
+              <button class="btn" type="button" data-remote-rotate ${remoteUrl ? '' : 'disabled'}>สร้าง QR ใหม่</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   function sourceCardHtml(id) {
@@ -3166,9 +3724,9 @@
         <h3>${esc(meta.title)}</h3>
         <p>${esc(meta.desc)}</p>
         <div class="row">
-          <button class="btn primary small" type="button" data-copy-source="${esc(id)}">Copy URL</button>
-          <button class="btn small" type="button" data-preview-source="${esc(id)}">Preview URL</button>
-          <button class="btn small" type="button" data-open-source="${esc(id)}">Details</button>
+          <button class="btn primary small" type="button" data-copy-source="${esc(id)}">คัดลอกลิงก์</button>
+          <button class="btn small" type="button" data-preview-source="${esc(id)}">เปิดตัวอย่าง</button>
+          <button class="btn small" type="button" data-open-source="${esc(id)}">รายละเอียด</button>
         </div>
         <div class="source-url">${esc(sourceUrl(id))}</div>
       </div>
@@ -3226,10 +3784,12 @@
       : state.settings?.sourceBg === 'transparent'
         ? 'transparent'
         : '#061426';
+    const sourceOpacity = Math.max(.35, Math.min(1, Number(state.settings?.sourceOpacity ?? .90) || .90));
 
     document.documentElement.classList.add('source-mode');
     document.body.classList.add('source-mode-body');
     document.documentElement.style.setProperty('--source-page-bg', sourceBackground);
+    document.documentElement.style.setProperty('--source-opacity', sourceOpacity.toFixed(2));
     document.documentElement.style.setProperty('background', sourceBackground, 'important');
     document.documentElement.style.setProperty('background-image', 'none', 'important');
     document.body.style.setProperty('background', sourceBackground, 'important');
@@ -3243,6 +3803,11 @@
     root.className = `source-root source-view-${view}`;
     root.style.background = 'transparent';
     root.style.backgroundImage = 'none';
+
+    if (!OBS_SOURCE_VIEWS.includes(view)) {
+      root.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center;color:#fff8ed;font-family:Prompt,system-ui,sans-serif"><div><h1 style="margin:0 0 10px">OBS Source นี้ถูกปิดใช้งานแล้ว</h1><p style="margin:0;color:#e2bf8e">ใช้ Draw Animation Source หรือ Groups Table จากหน้า Live Sources</p></div></div>`;
+      return;
+    }
 
     let lastHash = '';
 
@@ -3340,8 +3905,8 @@
         <div class="pl-groups-board" style="${sizeVars}">
           <div class="pl-groups-head"><div><h1>${esc(state.event.name || 'PepsLive Tournament')}</h1><p>Groups Table · แสดงตาม Reveal Feed / Confirm Result</p></div></div>
           <div class="pl-groups-grid" style="grid-template-columns:repeat(${cols}, minmax(180px, 1fr));">
-            ${keys.map(g => `<div class="pl-group-card"><div class="pl-group-title" style="font-size:var(--group-title-fs,14px)!important"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(Boolean).length} ทีม</span></div>
-              ${Array.from({ length: maxRows }, (_, i) => {
+            ${keys.map(g => `<div class="pl-group-card"><div class="pl-group-title" style="font-size:var(--group-title-fs,14px)!important"><span>สาย ${esc(g)}</span><span>${(groups[g] || []).filter(isRealTeamName).length} ทีม</span></div>
+              ${Array.from({ length: rowsForGroup(groups, g, maxRows) }, (_, i) => {
                 const team = (groups[g] || [])[i] || '';
                 return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team" style="font-size:var(--group-team-fs,14px)!important">${esc(team || 'รอผลสุ่ม')}</span></div>`;
               }).join('')}
@@ -3620,7 +4185,7 @@
       ['รอบ', 'Match ID', 'Seed A', 'ทีม A ตามอันดับปัจจุบัน', 'ทีม A Draft', 'Seed B', 'ทีม B ตามอันดับปัจจุบัน', 'ทีม B Draft', 'หมายเหตุ']
     ];
     if (!plan.length) {
-      rows.push(['', '', 'ยังไม่มีข้อมูล seed', '', '', '', '', '', 'ต้อง Confirm Draw ให้มีอย่างน้อย 2 สายก่อน']);
+      rows.push(['', '', 'ยังไม่มีข้อมูล seed', '', '', '', '', '', knockoutSetupIssue() || 'ตรวจชื่อทีมซ้ำในผังสายก่อนจัดคู่']);
       return rows;
     }
     plan.forEach((match) => {
@@ -3787,26 +4352,135 @@
   }
 
   function exportText(kind) {
-    if (kind === 'draw') return groupsToText(getDisplayGroups(true));
-    if (kind === 'schedule') return state.matches.map(m => `${m.time} สนาม ${m.court} | สาย ${m.group} | ${m.teamA} vs ${m.teamB}`).join('\n');
-    if (kind === 'scores') return state.matches.map(m => `${m.teamA} ${m.scoreA || '-'} - ${m.scoreB || '-'} ${m.teamB} (${m.status})`).join('\n');
-    if (kind === 'standings') {
-      calculateStandings();
-      return Object.keys(state.standings).sort().map(g => `สาย ${g}\n${sortedStandings(state.standings[g]).map((r, i) => `${i + 1}. ${r.team} ${r.PTS} pts`).join('\n')}`).join('\n\n');
-    }
-    if (kind === 'knockout') return state.knockout.map(m => `${m.round}: ${m.teamA} vs ${m.teamB}`).join('\n');
+    if (kind === 'draw') return horizontalTableToText(drawCopyTable(getDisplayGroups(true)), 'ยังไม่มีผลแบ่งสาย');
+    if (kind === 'schedule') return horizontalTableToText(scheduleCopyTable(), 'ยังไม่มีตารางแข่ง');
+    if (kind === 'scores') return horizontalTableToText(scoreCopyTable(), 'ยังไม่มีคู่สำหรับบันทึกผล');
+    if (kind === 'standings') return horizontalTableToText(standingsCopyTable(), 'ยังไม่มีตารางคะแนน');
+    if (kind === 'knockout') return horizontalTableToText(knockoutCopyTable(), 'ยังไม่มีสาย Knockout');
     if (kind === 'caption') return `${state.event.name}\n\nติดตามผลการแข่งขันและตารางแข่งแบบสด ๆ โดย PepsLive Tournament Studio`;
     if (kind === 'script') return `สวัสดีครับ ตอนนี้เป็นรายการ ${state.event.name} พร้อมเข้าสู่การแข่งขัน`;
-    if (kind === 'all') return ['draw', 'schedule', 'scores', 'standings', 'knockout'].map(k => `--- ${k.toUpperCase()} ---\n${exportText(k)}`).join('\n\n');
+    if (kind === 'all') return allCopyText();
     return '';
   }
 
-  function groupsToText(groups) {
-    return Object.keys(groups || {}).sort().map(g => `สาย ${g}\n${(groups[g] || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}`).join('\n\n');
+  function drawCopyTable(groups = getDisplayGroups(true)) {
+    const rows = [];
+    Object.keys(groups || {}).sort().forEach((group) => {
+      (groups[group] || []).forEach((team, index) => {
+        rows.push([group, index + 1, team || '', team === 'BYE' ? 'BYE' : 'จับสายแล้ว']);
+      });
+    });
+    return { headers: ['สาย', 'ลำดับ', 'ทีม', 'สถานะ'], rows };
+  }
+
+  function scheduleCopyTable() {
+    return {
+      headers: ['เวลา', 'สนาม', 'สาย', 'ทีม A', 'ทีม B'],
+      rows: (state.matches || []).map((match) => [
+        match.time || match.startTime || '',
+        match.court || match.field || '',
+        match.group || '',
+        match.teamA || '',
+        match.teamB || ''
+      ])
+    };
+  }
+
+  function scoreCopyTable() {
+    return {
+      headers: ['เวลา', 'สนาม', 'สาย', 'ทีม A', 'คะแนน A', 'ทีม B', 'คะแนน B', 'สถานะ'],
+      rows: (state.matches || []).map((match) => [
+        match.time || match.startTime || '',
+        match.court || match.field || '',
+        match.group || '',
+        match.teamA || '',
+        match.scoreA ?? '',
+        match.teamB || '',
+        match.scoreB ?? '',
+        match.status || 'Pending'
+      ])
+    };
+  }
+
+  function standingsCopyTable() {
+    calculateStandings();
+    const rows = [];
+    Object.keys(state.standings || {}).sort().forEach((group) => {
+      sortedStandings(state.standings[group]).forEach((row, index) => {
+        rows.push([
+          group,
+          index + 1,
+          row.team || '',
+          row.P ?? 0,
+          row.W ?? 0,
+          row.D ?? 0,
+          row.L ?? 0,
+          row.GF ?? 0,
+          row.GA ?? 0,
+          row.GD ?? 0,
+          row.PTS ?? 0
+        ]);
+      });
+    });
+    return { headers: ['สาย', 'อันดับ', 'ทีม', 'P', 'W', 'D', 'L', 'GF', 'GA', 'GD', 'PTS'], rows };
+  }
+
+  function knockoutCopyTable() {
+    return {
+      headers: ['รอบ', 'Match ID', 'ทีม A', 'คะแนน A', 'ทีม B', 'คะแนน B', 'สถานะ', 'ผู้ชนะ'],
+      rows: (state.knockout || []).map((match) => [
+        match.round || '',
+        match.id || '',
+        match.teamA || '',
+        match.scoreA ?? '',
+        match.teamB || '',
+        match.scoreB ?? '',
+        match.status || 'Pending',
+        match.winner || ''
+      ])
+    };
+  }
+
+  function tsvText(rows) {
+    return (rows || []).map((row) => (row || []).map(clipboardCell).join('\t')).join('\n');
+  }
+
+  function clipboardCell(value) {
+    return String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
+  }
+
+  function horizontalTableToText(table, emptyLabel = 'ยังไม่มีข้อมูล') {
+    const headers = table?.headers || [];
+    const rows = table?.rows?.length
+      ? table.rows
+      : [[emptyLabel, ...Array(Math.max(0, headers.length - 1)).fill('')]];
+    return tsvText([headers, ...rows]);
+  }
+
+  function allCopyText() {
+    const sections = [
+      ['ผลแบ่งสาย', drawCopyTable(getDisplayGroups(true)), 'ยังไม่มีผลแบ่งสาย'],
+      ['ตารางแข่ง', scheduleCopyTable(), 'ยังไม่มีตารางแข่ง'],
+      ['ผลคะแนน', scoreCopyTable(), 'ยังไม่มีคู่สำหรับบันทึกผล'],
+      ['ตารางอันดับ', standingsCopyTable(), 'ยังไม่มีตารางคะแนน'],
+      ['Knockout', knockoutCopyTable(), 'ยังไม่มีสาย Knockout']
+    ];
+    const rows = [];
+    sections.forEach(([title, table, emptyLabel], index) => {
+      if (index > 0) rows.push(['', '']);
+      rows.push([title, '']);
+      rows.push(table.headers);
+      const tableRows = table.rows?.length
+        ? table.rows
+        : [[emptyLabel, ...Array(Math.max(0, table.headers.length - 1)).fill('')]];
+      rows.push(...tableRows);
+    });
+    return tsvText(rows);
   }
 
   function copyKind(kind) {
-    copyText(exportText(kind), 'คัดลอกแล้ว');
+    const tabularKinds = ['draw', 'schedule', 'scores', 'standings', 'knockout', 'all'];
+    copyText(exportText(kind), tabularKinds.includes(kind) ? 'คัดลอกตารางแนวนอนแล้ว' : 'คัดลอกแล้ว');
     const box = $('#copyStatus');
     if (box) box.textContent = `คัดลอก ${kind} แล้ว`;
   }
@@ -4632,9 +5306,11 @@
         background-color:transparent!important;
       }
       .pl-groups-board{
-        width:min(1500px,96vw);
+        width:max-content;
+        max-width:calc(100vw - 48px);
+        height:max-content;
         max-height:calc(100vh - 48px);
-        overflow:hidden!important;
+        overflow:auto!important;
         border:1px solid rgba(91,231,255,.24)!important;
         border-radius:28px!important;
         background:rgba(7,17,31,.86)!important;
@@ -4656,7 +5332,9 @@
         display:grid!important;
         gap:12px!important;
         align-items:start!important;
-        overflow:hidden!important;
+        justify-content:start!important;
+        max-width:100%!important;
+        overflow:visible!important;
       }
       .pl-groups-source .pl-group-card{
         border:1px solid rgba(91,231,255,.18)!important;
@@ -4707,7 +5385,50 @@
     // Keep function for future extension; avoids ReferenceError in older inline patches.
   }
 
-  window.PeppsLiveTournamentStudio = { getState: () => state, saveState, renderAll, sourceUrl };
+  function remoteSpin() {
+    if (state.drawLive?.waiting) {
+      toast('กำลังแสดงผลอยู่ รอผลออกก่อนสั่งครั้งถัดไป', 'warn');
+      return false;
+    }
+
+    const sequence = Array.isArray(state.pendingSequence) ? state.pendingSequence : [];
+    if (sequence.length && !state.pendingComplete) {
+      if (Number(state.pendingRevealIndex || 0) >= sequence.length) {
+        completeDrawSequence();
+        toast('ชุดสุ่มนี้แสดงครบแล้ว', 'warn');
+        return false;
+      }
+      audit('remote-next-reveal', {
+        index: Number(state.pendingRevealIndex || 0),
+        total: sequence.length
+      });
+      nextReveal();
+      return true;
+    }
+
+    if (state.pendingComplete && sequence.length) {
+      toast('ชุดสุ่มนี้แสดงครบแล้ว หากต้องการเริ่มใหม่ให้กด Start Draw จากหน้าเว็บ', 'warn');
+      return false;
+    }
+
+    return startDraw({ source: 'remote' });
+  }
+
+  window.PeppsLiveTournamentStudio = {
+    getState: () => state,
+    saveState,
+    renderAll,
+    sourceUrl,
+    remoteSpin,
+    groupStageProgress,
+    groupStageMessage,
+    knockoutSetupIssue,
+    standingsEntries,
+    tieKey,
+    buildKnockoutPreviewPlan,
+    generateKnockout,
+    advancePlannedKnockout
+  };
   window.PepsLiveTournamentStudio = window.PeppsLiveTournamentStudio;
 
   init();
