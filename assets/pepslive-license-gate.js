@@ -11,10 +11,18 @@
   if (!toolId) return;
   if (body.dataset.pepsliveAllowSource === 'true' && new URLSearchParams(location.search).get('view')) return;
 
-  const FIREBASE = window.PepsLiveLicenseConfig?.firebase;
+  const FIREBASE = Object.freeze({
+    apiKey: 'AIzaSyDXaar2OZtIChUMsUi9o8kufbAY2twqwd4',
+    authDomain: 'my-project-1531149704307.firebaseapp.com',
+    databaseURL: 'https://my-project-1531149704307-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'my-project-1531149704307',
+    storageBucket: 'my-project-1531149704307.firebasestorage.app',
+    messagingSenderId: '793565815753',
+    appId: '1:793565815753:web:49c27bed03b6dedb98fe18'
+  });
   const SDK = '12.16.0';
   const ROOT = 'licenseV1';
-  const ADMIN_EMAILS = new Set(window.PepsLiveLicenseConfig?.adminEmails || []);
+  const ADMIN_EMAILS = new Set(['bankkjchannel@gmail.com']);
   const TOOL_NAMES = {
     'sponsor-dock': 'PepsLive Sponsor Dock',
     'stinger-studio': 'PepsLive Stinger Studio',
@@ -31,7 +39,6 @@
   let currentUser = null;
   let lastResult = null;
 
-  const control = document.getElementById('app');
   const style = document.createElement('style');
   style.textContent = `
     html.pepslive-license-locked body > :not(#pepslive-license-gate){
@@ -44,7 +51,6 @@
   `;
   document.head.appendChild(style);
   document.documentElement.classList.add('pepslive-license-locked');
-  control?.setAttribute('inert', '');
 
   const gate = document.createElement('section');
   gate.id = 'pepslive-license-gate';
@@ -92,7 +98,6 @@
 
   function setLocked(title, detail, error = false) {
     document.documentElement.classList.add('pepslive-license-locked');
-    control?.setAttribute('inert', '');
     gate.hidden = false;
     setStatus(title, detail, error);
     updateIdentity();
@@ -103,7 +108,6 @@
   function setUnlocked(result) {
     lastResult = result;
     document.documentElement.classList.remove('pepslive-license-locked');
-    control?.removeAttribute('inert');
     gate.hidden = true;
     window.__PEPSLIVE_LICENSE__ = Object.freeze({ ...result, toolId, checkedAt: new Date().toISOString() });
     updateIdentity();
@@ -166,9 +170,7 @@
     const hasGrant = Object.prototype.hasOwnProperty.call(tools, toolId);
     const grant = tools[toolId];
     if (grant === false) return { allowed: false, reason: 'grant_revoked', title: 'ไม่ได้รับสิทธิ์โปรแกรมนี้', detail: contactAdmin('Admin ปิดสิทธิ์รายโปรแกรมสำหรับบัญชีนี้') };
-    if (grant === true || (!hasGrant && (tool.free === true || isAdmin))) {
-      return { allowed: true, reason: 'active_tool', title: 'สิทธิ์พร้อมใช้งาน', detail: 'สิทธิ์รายโปรแกรมเป็น Active' };
-    }
+    if (grant === true || (!hasGrant && (tool.free === true || isAdmin))) return { allowed: true, reason: 'active_tool', title: 'สิทธิ์พร้อมใช้งาน', detail: 'สิทธิ์รายโปรแกรมเป็น Active' };
     if (!hasGrant || !grant || typeof grant !== 'object') return { allowed: false, reason: 'grant_pending', title: 'สิทธิ์โปรแกรมยังเป็น Pending', detail: contactAdmin('Admin ยังไม่ได้เปิดสิทธิ์โปรแกรมนี้') };
     const grantStatus = String(grant.status || 'pending').toLowerCase();
     if (grantStatus === 'pending') return { allowed: false, reason: 'grant_pending', title: 'สิทธิ์โปรแกรมยังเป็น Pending', detail: contactAdmin('Admin ยังไม่ได้เปิดสิทธิ์โปรแกรมนี้') };
@@ -192,48 +194,6 @@
     const all = await firebase.get(firebase.ref(database, `${ROOT}/accounts`));
     const email = String(user.email || '').trim().toLowerCase();
     return Object.values(all.val() || {}).find((item) => String(item?.email || '').trim().toLowerCase() === email) || null;
-  }
-
-  function buildPendingAccount(user, firstSeenAt = Date.now()) {
-    const firstLoginAt = new Date(firstSeenAt).toISOString();
-    return {
-      uid: user.uid,
-      email: user.email || '',
-      displayName: user.displayName || '',
-      status: 'pending',
-      plan: 'pending',
-      firstLoginAt,
-      lastLoginAt: firstLoginAt,
-      firstLoginSource: toolId,
-      note: 'ลูกค้าใหม่เข้าสู่ระบบแล้ว รอ Admin อนุมัติสิทธิ์การใช้งาน',
-      createdAt: firstLoginAt,
-      updatedAt: firstLoginAt
-    };
-  }
-
-  async function ensureAccount(user) {
-    const existing = await readAccount(user);
-    if (existing || adminEmail(user)) return existing;
-    const accountRef = firebase.ref(database, `${ROOT}/accounts/${user.uid}`);
-    let lastError = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const existing = await firebase.get(accountRef);
-        if (existing.exists()) return existing.val();
-        await firebase.set(accountRef, buildPendingAccount(user));
-        const saved = await firebase.get(accountRef);
-        if (saved.exists()) return saved.val();
-        throw new Error('Firebase ไม่คืนข้อมูลบัญชีหลังสร้างรายการลูกค้าใหม่');
-      } catch (error) {
-        lastError = error;
-        try {
-          const after = await firebase.get(accountRef);
-          if (after.exists()) return after.val();
-        } catch (_) {}
-        if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-    }
-    throw lastError || new Error('สร้างรายการลูกค้าใหม่ไม่สำเร็จ');
   }
 
   async function loadFirebase() {
@@ -261,7 +221,7 @@
     try {
       const [contentSnapshot, account] = await Promise.all([
         firebase.get(firebase.ref(database, `${ROOT}/content`)),
-        ensureAccount(currentUser)
+        readAccount(currentUser)
       ]);
       const result = accessStatus(contentSnapshot.val() || {}, account, currentUser);
       lastResult = result;
@@ -297,10 +257,6 @@
 
   (async () => {
     try {
-      if (!FIREBASE?.apiKey || !FIREBASE?.authDomain || !FIREBASE?.databaseURL) {
-        setLocked('ระบบสิทธิ์ยังไม่พร้อม', 'ตั้งค่า assets/pepslive-license-config.js ก่อนเปิดหน้า Control', true);
-        return;
-      }
       const modules = await loadFirebase();
       modules.onAuthStateChanged(auth, (user) => {
         currentUser = usableUser(user);

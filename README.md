@@ -28,25 +28,6 @@
 
 ถ้าเครื่องไม่มี Python 3 ให้ติดตั้งก่อนใช้ `run.bat` โดยระบบจะใช้ Python แบบไม่ต้องติดตั้งแพ็กเกจเพิ่ม
 
-## ตั้งค่าไลเซนส์สำหรับชุดที่จะปล่อย
-
-สร้างไฟล์ `assets/pepslive-license-config.js` ในชุดติดตั้งหรือไฟล์ที่ใช้ deploy โดยใช้ Firebase Web config ของ PepsLiveTool ที่ได้รับอนุญาต:
-
-```js
-window.PepsLiveLicenseConfig = {
-  firebase: {
-    apiKey: '<Firebase Web API key>',
-    authDomain: '<Firebase Auth domain>',
-    databaseURL: '<Firebase Realtime Database URL>',
-    projectId: '<Firebase project ID>',
-    appId: '<Firebase Web app ID>'
-  },
-  adminEmails: []
-};
-```
-
-Git จะข้ามไฟล์นี้ หน้า Control จะแจ้งให้ตั้งค่าหากไฟล์ขาด และจะอนุญาตให้เปิดรายการเมื่อ Firebase ยืนยันสิทธิ์ของบัญชีแล้ว ตั้งค่าโดเมนที่ใช้งานใน Firebase Auth ให้ตรงกับ URL ที่จะเปิดหน้า Control
-
 บนหน้า Setup เลือกแบ่งอัตโนมัติหรือระบุจำนวนทีมรายสายได้ เช่น `4/3/3/3` โดยโหมดกำหนดเองต้องมีรายชื่อครบ 13 ทีมก่อนสุ่ม ตัวอย่างนี้จะสร้างตาราง 15 คู่ และระบบจะเปิดให้สร้าง Knockout เมื่อบันทึกผลครบตามผังสาย
 
 ## สั่งหมุนวงล้อจากมือถือ
