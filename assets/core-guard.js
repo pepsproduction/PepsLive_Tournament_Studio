@@ -7,7 +7,7 @@
   window.__PEPSLIVE_CORE_GUARD_INSTALLED__ = true;
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
-  const CORE_ASSET_VERSION = 'ux-refresh-20260716-1';
+  const CORE_ASSET_VERSION = 'knockout-20261124-1';
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
@@ -61,30 +61,20 @@
   function realTeams(state) { return Array.isArray(state.teams) ? state.teams.filter((t) => clean(t) && !isBye(t)) : []; }
   function groupTeams(state) { const groups = state.groups && typeof state.groups === 'object' ? state.groups : {}; return Object.values(groups).flat().filter((t) => clean(t) && !isBye(t)); }
   function realMatches(state) { const matches = Array.isArray(state.matches) ? state.matches : []; return matches.filter((m) => !isBye(m.teamA) && !isBye(m.teamB)); }
-  function isCompleteStatus(status) {
-    return ['done', 'finished', 'bye', 'forfeit a', 'forfeit b'].includes(clean(status).toLowerCase());
-  }
-  function scoreNumber(value) {
-    if (value === '' || value == null) return null;
-    const number = Number(value);
-    return Number.isFinite(number) && number >= 0 ? number : null;
-  }
-  function isResolvedMatch(match) {
-    const status = clean(match?.status).toLowerCase();
-    if (['bye', 'forfeit a', 'forfeit b'].includes(status)) return true;
-    if (!['done', 'finished'].includes(status)) return false;
-    return scoreNumber(match?.scoreA) != null && scoreNumber(match?.scoreB) != null;
-  }
-  function doneMatches(state) { return realMatches(state).filter(isResolvedMatch); }
   function getChecks() {
-    const state = readState(); const matches = realMatches(state); const done = doneMatches(state);
-    return { setup: !!(state.event && clean(state.event.name) && Number(state.event.groupCount || 0) > 0), teams: realTeams(state).length > 0, drawConfirmed: groupTeams(state).length > 0, schedule: matches.length > 0, scoresComplete: matches.length > 0 && done.length >= matches.length, standings: !!(state.standings && typeof state.standings === 'object' && Object.keys(state.standings).length), matchCount: matches.length, doneCount: done.length };
+    const state = readState();
+    const drawReady = !!(state.pendingGroups && state.pendingComplete && !state.drawLive?.waiting && state.lastResult?.type !== 'draw-confirm');
+    return {
+      teams: realTeams(state).length > 0,
+      drawConfirmed: groupTeams(state).length > 0,
+      drawReady,
+      schedule: realMatches(state).length > 0
+    };
   }
   function setButton(id, locked, message) { const btn = document.getElementById(id); if (!btn) return; btn.disabled = !!locked; btn.classList.toggle('phase2-disabled', !!locked); btn.title = locked ? message : ''; }
   function applyLocks(c) {
-    setButton('startDraw', !c.teams, 'ต้องบันทึกรายชื่อทีมก่อน'); setButton('nextReveal', !c.teams, 'ต้องบันทึกรายชื่อทีมก่อน'); setButton('confirmDraw', !c.teams, 'ต้องบันทึกรายชื่อทีมก่อน');
+    setButton('startDraw', !c.teams, 'ต้องบันทึกรายชื่อทีมก่อน'); setButton('nextReveal', !c.teams, 'ต้องบันทึกรายชื่อทีมก่อน'); setButton('confirmDraw', !c.drawReady, 'เปิดผลทุกทีมให้ครบก่อนยืนยันผลแบ่งสาย');
     setButton('generateSchedule', !c.drawConfirmed, 'ต้องยืนยันผลแบ่งสายก่อน'); setButton('rebalanceSchedule', !c.drawConfirmed, 'ต้องยืนยันผลแบ่งสายก่อน'); setButton('saveScores', !c.schedule, 'ต้องสร้างตารางแข่งขันก่อน'); setButton('markAllPending', !c.schedule, 'ต้องสร้างตารางแข่งขันก่อน');
-    setButton('generateKnockout', !c.scoresComplete, `ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบก่อน (${c.doneCount}/${c.matchCount || 0})`);
   }
   function hintFor(panelName, message) {
     const panel = $(`[data-panel="${panelName}"]`); if (!panel) return;
@@ -94,7 +84,7 @@
     box.textContent = message;
   }
   function renderHints(c) {
-    hintFor('draw', c.teams ? '' : 'บันทึกรายชื่อทีมก่อน จึงจะเริ่มจับสลากได้'); hintFor('schedule', c.drawConfirmed ? '' : 'ยืนยันผลแบ่งสายก่อน จึงจะสร้างตารางแข่งขันได้'); hintFor('scores', c.schedule ? '' : 'สร้างตารางแข่งขันก่อน จึงจะบันทึกคะแนนได้'); hintFor('knockout', c.scoresComplete ? '' : `บันทึกผลรอบแบ่งกลุ่มให้ครบก่อน จึงจะสร้าง Knockout จริงได้ (${c.doneCount}/${c.matchCount || 0})`);
+    hintFor('draw', c.teams ? '' : 'บันทึกรายชื่อทีมก่อน จึงจะเริ่มจับสลากได้'); hintFor('schedule', c.drawConfirmed ? '' : 'ยืนยันผลแบ่งสายก่อน จึงจะสร้างตารางแข่งขันได้'); hintFor('scores', c.schedule ? '' : 'สร้างตารางแข่งขันก่อน จึงจะบันทึกคะแนนได้');
   }
 
   function syncDrawControlPreview() {

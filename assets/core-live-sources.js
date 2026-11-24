@@ -6,13 +6,20 @@
 
   const STORAGE_KEY = 'pepsliveTournamentControlV2';
   const DRAW_TEXT_PREVIEW_KEY = 'pepsliveDrawTextPreviewV12';
-  const SOURCE_VIEWS = ['draw-animation', 'groups', 'schedule', 'standings', 'knockout', 'lower-third', 'next-match', 'latest-result'];
+  const SOURCE_VIEWS = ['draw-animation', 'groups'];
   const DRAW_SOURCE_ALIASES = ['wheel', 'slot', 'card', 'lottery', 'glitch', 'galaxy', 'crystal', 'plasma', 'vortex', 'winner'];
   const DEFAULT_DRAW_TEXT_SIZES = { chip: 13, groupLabel: 18, groupLetter: 18, team: 52, meta: 22, status: 18, sourceTeam: 52, sourceMeta: 22, groupTitle: 14, groupTeam: 14 };
   const LEGACY_DRAW_TEXT_DEFAULTS = { chip: 12, groupLabel: 16, groupLetter: 30, team: 56, meta: 14, status: 12, sourceTeam: 72, sourceMeta: 22, groupTitle: 14, groupTeam: 14 };
   const $ = (s, root = document) => root.querySelector(s);
   let lastSignature = '';
   let lastDrawSignature = '';
+  let serverState = null;
+  let serverStateAvailable = false;
+  let serverRevision = 0;
+  let serverSyncTimer = null;
+  let stateStream = null;
+  let stateStreamConnected = false;
+  let stateStreamRetryTimer = null;
 
   const currentView = () => {
     const view = new URLSearchParams(location.search).get('view') || '';
@@ -23,7 +30,8 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   const isBye = (v) => clean(v).toUpperCase() === 'BYE';
   const asNum = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
-  const readState = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch { return {}; } };
+  const readLocalState = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch { return {}; } };
+  const readState = () => serverStateAvailable && serverState ? serverState : readLocalState();
   const readTextPreview = () => { try { return JSON.parse(localStorage.getItem(DRAW_TEXT_PREVIEW_KEY) || 'null'); } catch { return null; } };
   const teamOf = (m, side) => clean(m?.[side] || m?.[side === 'teamA' ? 'home' : 'away'] || m?.teams?.[side === 'teamA' ? 0 : 1] || '');
   const scoreOf = (m, key) => { const v = m?.[key]; return v === '' || v == null ? '' : asNum(v); };
@@ -62,9 +70,11 @@
 
   function applySourceBody(state) {
     const bg = state.settings?.sourceBg || 'dark';
+    const opacity = Math.max(.35, Math.min(1, Number(state.settings?.sourceOpacity ?? .9) || .9));
     document.documentElement.classList.add('src-mode');
     document.body.className = `phase8-body ${bg}`;
     document.documentElement.style.background = bg === 'green' ? '#00b140' : (bg === 'transparent' ? 'transparent' : '#061426');
+    document.documentElement.style.setProperty('--source-opacity', opacity.toFixed(2));
     document.documentElement.style.setProperty('--draw-fx-scale', String(Math.max(.45, Math.min(1.15, Number(state.settings?.drawAnimationScale || .72)))));
     applyDrawTextVars(state);
   }
@@ -110,13 +120,40 @@
     return Array.from({ length: Math.max(1, Math.min(26, Number(count) || 4)) }, (_, i) => String.fromCharCode(65 + i));
   }
 
+  function customGroupCapacity(state, group) {
+    if (state.event?.groupSizingMode !== 'custom') return null;
+    const value = Number(state.event?.groupCapacities?.[group]);
+    return Number.isInteger(value) ? Math.max(1, Math.min(64, value)) : 4;
+  }
+
+  function groupDisplayRows(state, groups, group, fallbackRows) {
+    const capacity = customGroupCapacity(state, group);
+    if (capacity == null) return fallbackRows;
+    return Math.max(capacity, (groups?.[group] || []).length);
+  }
+
   function hasGroups(groups) {
     return Object.values(groups || {}).some((arr) => Array.isArray(arr) && arr.some((t) => clean(t) && !isBye(t)));
   }
 
+  function manualGroupKeys(state, groups) {
+    const base = letters(state.event?.groupCount || 4);
+    return [...new Set([...base, ...Object.keys(groups || {}).filter(Boolean)])].sort();
+  }
+
+  function normalizeManualGroupsForDisplay(state, groups) {
+    const keys = manualGroupKeys(state, groups);
+    const existingRows = keys.reduce((max, group) => Math.max(max, Array.isArray(groups?.[group]) ? groups[group].length : 0), 0);
+    const rows = Math.max(2, Number(state.manualGroups?.rows) || 0, existingRows);
+    return Object.fromEntries(keys.map((group) => {
+      const length = customGroupCapacity(state, group) ?? rows;
+      return [group, Array.from({ length: Math.max(length, groups?.[group]?.length || 0) }, (_, index) => clean(groups?.[group]?.[index] || ''))];
+    }));
+  }
+
   function groupsFromRevealFeed(state) {
     const groupKeys = letters(state.event?.groupCount || 4);
-    const groups = Object.fromEntries(groupKeys.map((g) => [g, []]));
+    const groups = Object.fromEntries(groupKeys.map((g) => [g, Array.from({ length: customGroupCapacity(state, g) || 0 }, () => '')]));
     const feed = Array.isArray(state.drawLive?.feed) ? [...state.drawLive.feed].reverse() : [];
     feed.forEach((item) => {
       if (!item || !item.group || item.group === 'ALL') return;
@@ -127,15 +164,16 @@
   }
 
   function groupsForDisplay(state) {
-    if (state.manualGroups?.active && state.groups && Object.keys(state.groups).length) return state.groups;
+    const draft = window.PepsLiveTournamentStudio?.revealedDraftGroups(state);
+    if (draft) return draft;
+    if (state.manualGroups?.active && state.groups && Object.keys(state.groups).length) return normalizeManualGroupsForDisplay(state, state.groups);
     if (hasGroups(state.groups)) return state.groups;
-    if (state.settings?.drawMethod === 'instant-all' && state.pendingComplete && hasGroups(state.pendingGroups)) return state.pendingGroups;
     return groupsFromRevealFeed(state);
   }
 
   function effectiveGroupColumns(state, availableWidth = window.innerWidth) {
     const requested = Math.max(1, Math.min(10, Number(state.settings?.groupColumns || 4) || 4));
-    const byWidth = Math.max(1, Math.floor(Number(availableWidth || 1280) / 310));
+    const byWidth = Math.max(1, Math.floor(Number(availableWidth || 1280) / 220));
     return Math.max(1, Math.min(requested, byWidth));
   }
 
@@ -227,10 +265,12 @@
     const progress = 1 - Math.min(1, left / duration);
     const interval = 32 + Math.round(progress * progress * 260);
     const tick = Math.floor(Date.now() / interval);
+    const group = groups[(tick * 3) % groups.length];
+    const slotCount = customGroupCapacity(state, group) || Math.max(1, Math.ceil(teams.length / groups.length));
     return {
       team: teams[tick % teams.length],
-      group: groups[(tick * 3) % groups.length],
-      slot: ((tick * 5) % Math.max(1, Math.ceil(teams.length / groups.length))) + 1
+      group,
+      slot: ((tick * 5) % slotCount) + 1
     };
   }
 
@@ -271,10 +311,16 @@
   function renderGroups(state) {
     const groups = groupsForDisplay(state);
     const keys = Object.keys(groups).length ? Object.keys(groups).sort() : letters(state.event?.groupCount || 4);
-    const maxRows = Math.max(1, ...keys.map((g) => (groups[g] || []).length), Math.ceil(Math.max(1, (state.teams || []).length) / Math.max(1, keys.length)));
-    const cols = effectiveGroupColumns(state, Math.min(1500, window.innerWidth * 0.96));
+    const teamRowFallback = state.manualGroups?.active ? 0 : Math.ceil(Math.max(1, (state.teams || []).length) / Math.max(1, keys.length));
+    const maxRows = Math.max(1, ...keys.map((g) => (groups[g] || []).length), teamRowFallback);
+    const availableWidth = Math.min(1500, Math.max(240, window.innerWidth - 48));
+    const cols = effectiveGroupColumns(state, availableWidth);
+    const gap = 12;
+    const cardWidth = Math.max(180, Math.floor((availableWidth - 50 - (gap * Math.max(0, cols - 1))) / cols));
+    const gridWidth = (cardWidth * cols) + (gap * Math.max(0, cols - 1));
+    const boardWidth = gridWidth + 50;
     const eventName = state.event?.name || 'PepsLive Tournament';
-    return `<div class="pl-groups-source"><div class="pl-groups-board"><div class="pl-groups-head"><div><h1>${esc(eventName)}</h1><p>Groups Table · Reveal Feed / Confirm Result</p></div></div><div class="pl-groups-grid phase8-groups-grid" style="--groups-cols:${cols};grid-template-columns:repeat(${cols},minmax(180px,1fr));">${keys.map((group) => `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(group)}</span><span>${(groups[group] || []).filter(Boolean).length} ทีม</span></div>${Array.from({ length: maxRows }, (_, i) => { const team = (groups[group] || [])[i] || ''; return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team">${esc(team || 'รอผลสุ่ม')}</span></div>`; }).join('')}</div>`).join('')}</div></div></div>`;
+    return `<div class="pl-groups-source"><div class="pl-groups-board" style="width:${boardWidth}px"><div class="pl-groups-head"><div><h1>${esc(eventName)}</h1><p>Groups Table · Reveal Feed / Confirm Result</p></div></div><div class="pl-groups-grid phase8-groups-grid" style="--groups-cols:${cols};grid-template-columns:repeat(${cols},minmax(0,${cardWidth}px));width:${gridWidth}px">${keys.map((group) => `<div class="pl-group-card"><div class="pl-group-title"><span>สาย ${esc(group)}</span><span>${(groups[group] || []).filter((team) => clean(team) && !isBye(team)).length} ทีม</span></div>${Array.from({ length: groupDisplayRows(state, groups, group, maxRows) }, (_, i) => { const team = (groups[group] || [])[i] || ''; return `<div class="pl-group-row ${team ? '' : 'empty'}"><span class="no">${i + 1}</span><span class="team">${esc(team || 'รอผลสุ่ม')}</span></div>`; }).join('')}</div>`).join('')}</div></div></div>`;
   }
 
   function renderSchedule(state) { const list = realMatches(state); if (!list.length) return empty('Schedule', 'ยังไม่มีตารางแข่ง ให้ Generate Schedule ก่อน'); return shell('Schedule', state.event?.name || 'PepsLive Tournament', `<div class="phase8-panel"><table class="phase8-table"><thead><tr><th>Time</th><th>Court</th><th>Group</th><th>Team A</th><th>Team B</th><th>Status</th></tr></thead><tbody>${list.map((m) => `<tr><td>${esc(m.time || m.startTime || '')}</td><td>${esc(m.court || m.field || '')}</td><td>${esc(m.group || '')}</td><td class="team">${esc(teamOf(m, 'teamA'))}</td><td class="team">${esc(teamOf(m, 'teamB'))}</td><td>${esc(m.status || 'Pending')}</td></tr>`).join('')}</tbody></table></div>`); }
@@ -288,6 +334,60 @@
   function renderNextMatch(state) { const m = nextPending(state); if (!m) return empty('Next Match', 'ยังไม่มีคู่ถัดไป'); return shell('Next Match', state.event?.name || 'PepsLive Tournament', `<div class="phase8-result"><div><div class="phase8-sub">${esc(m.round || m.group || '')} · ${esc(m.time || m.startTime || '')}</div><div class="teams">${esc(teamOf(m, 'teamA'))} vs ${esc(teamOf(m, 'teamB'))}</div><div class="phase8-sub">${esc(m.court || m.field || '')}</div></div></div>`); }
   function renderLowerThird(state) { const m = nextPending(state) || latestResult(state); if (!m) return empty('Lower Third', state.event?.name || 'PepsLive Tournament'); return `<div class="phase8-wrap" style="justify-content:flex-end;min-height:100vh"><div class="phase8-panel"><h2>${esc(state.event?.name || 'PepsLive Tournament')}</h2><div class="phase8-list"><div class="phase8-row"><span class="time">${esc(m.time || m.startTime || '')}</span><span class="main">${esc(teamOf(m, 'teamA'))} vs ${esc(teamOf(m, 'teamB'))}</span><span class="meta">${esc(m.round || m.group || '')}</span></div></div></div></div>`; }
   function renderByView(view, state) { if (view === 'groups') return renderGroups(state); if (view === 'schedule') return renderSchedule(state); if (view === 'standings') return renderStandings(state); if (view === 'knockout') return renderKnockout(state); if (view === 'latest-result') return renderLatestResult(state); if (view === 'next-match') return renderNextMatch(state); if (view === 'lower-third') return renderLowerThird(state); return empty('Source', 'Unknown source view'); }
+
+  function applyServerStatePayload(payload) {
+    if (!payload?.ready || !payload.state || typeof payload.state !== 'object') return;
+    const nextRevision = Number(payload.revision) || 0;
+    const changed = !serverStateAvailable || nextRevision !== serverRevision;
+    serverState = payload.state;
+    serverStateAvailable = true;
+    serverRevision = nextRevision;
+    if (changed) {
+      lastSignature = '';
+      lastDrawSignature = '';
+      paintSource();
+    }
+  }
+
+  async function syncServerState() {
+    if (stateStreamConnected) return;
+    try {
+      const response = await fetch('/api/state', { cache: 'no-store' });
+      if (!response.ok) throw new Error('state_unavailable');
+      applyServerStatePayload(await response.json());
+    } catch {
+      // Keep the last server snapshot during a short reconnect; before the
+      // first snapshot, readState() falls back to the legacy localStorage path.
+    }
+    const delay = currentView() === 'draw-animation' ? 180 : 600;
+    serverSyncTimer = window.setTimeout(syncServerState, delay);
+  }
+
+  function connectStateStream() {
+    if (typeof window.EventSource !== 'function') return;
+    const stream = new EventSource('/api/state/stream');
+    stateStream = stream;
+    stateStreamConnected = false;
+
+    stream.onopen = () => {
+      if (stateStream !== stream) return;
+      stateStreamConnected = true;
+      window.clearTimeout(serverSyncTimer);
+      serverSyncTimer = null;
+    };
+    stream.addEventListener('state', (event) => {
+      try { applyServerStatePayload(JSON.parse(event.data || '{}')); } catch {}
+    });
+    stream.onerror = () => {
+      if (stateStream !== stream) return;
+      stateStreamConnected = false;
+      stream.close();
+      stateStream = null;
+      if (!serverSyncTimer) syncServerState();
+      window.clearTimeout(stateStreamRetryTimer);
+      stateStreamRetryTimer = window.setTimeout(connectStateStream, 1500);
+    };
+  }
 
   function paintSource() {
     const view = currentView(); if (!SOURCE_VIEWS.includes(view)) return;
@@ -308,6 +408,8 @@
 
   function installSourceView() {
     paintSource();
+    syncServerState();
+    connectStateStream();
     const delay = currentView() === 'draw-animation' ? 250 : 1000;
     const tick = () => { paintSource(); setTimeout(tick, delay); };
     setTimeout(tick, delay);

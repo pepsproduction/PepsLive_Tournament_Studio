@@ -67,7 +67,9 @@
               <div class="field"><label>ชื่อรายการ</label><input id="eventName" placeholder="เช่น PepsLive 3x3 Championship" /></div>
               <div class="field"><label>ประเภทกีฬา</label><select id="sportType"><option>Basketball 3x3</option><option>Football</option><option>Volleyball</option><option>Esport</option><option>Custom</option></select></div>
               <div class="field"><label>Preset</label><select id="preset"><option value="custom">Custom</option><option value="basket3x3">บาสเกตบอล 3x3</option><option value="football">ฟุตบอล</option><option value="esport">อีสปอร์ต</option></select></div>
-              <div class="field"><label>จำนวนสาย / กลุ่ม</label><input id="groupCount" type="number" min="1" value="4" /></div>
+              <div class="field"><label>จำนวนสาย / กลุ่ม</label><input id="groupCount" type="number" min="1" max="26" value="4" /></div>
+              <div class="field"><label>การกำหนดจำนวนทีม</label><select id="groupSizingMode"><option value="auto">แบ่งอัตโนมัติใกล้เคียงกัน</option><option value="custom">กำหนดจำนวนทีมแยกแต่ละสาย</option></select></div>
+              <div class="field" id="groupCapacityField" hidden><label>จำนวนทีมต่อสาย</label><div id="groupCapacityFields" class="grid two"></div><div id="groupCapacitySummary" class="hint"></div><label class="switch-row"><input id="padCustomGroupsWithByes" type="checkbox" /> เติมช่อง BYE ให้สายที่มีทีมน้อยกว่าเมื่อสุ่ม</label></div>
               <div class="field"><label>จำนวนสนาม</label><input id="courtCount" type="number" min="1" value="1" /></div>
               <div class="field"><label>เวลาเริ่มแข่ง</label><input id="startTime" type="time" value="09:00" /></div>
               <div class="field"><label>ช่วงเวลาต่อ Slot (นาที)</label><input id="matchInterval" type="number" min="1" value="15" /></div>
@@ -151,6 +153,7 @@
               <h3>Knockout Builder</h3>
               <label class="switch-row"><input type="checkbox" id="enableThird" checked /> มีรอบชิงอันดับ 3</label>
               <label class="switch-row"><input type="checkbox" id="enableFinal" checked /> มีรอบชิงชนะเลิศ</label>
+              <label class="switch-row"><input type="checkbox" id="knockoutUseResolvedOrder" /> ใช้ลำดับทีมคะแนนเท่ากันจาก Tie Resolver</label>
               <div class="row"><button class="btn primary" id="generateKnockout">สร้าง / อัปเดต Knockout</button><button class="btn" id="copyKnockoutBtn">คัดลอก Knockout</button></div>
             </div>
           </div>
@@ -167,6 +170,7 @@
           <div class="grid two export-grid">
             <div class="card">
               <h3>คัดลอกข้อความ</h3>
+              <p class="hint">ข้อมูลตารางจะใช้หัวตาราง 1 แถวด้านบน และแยกข้อมูลแต่ละรายการเป็น 1 แถวแนวนอน เช่น เวลา / สนาม / สาย / ทีม A / ทีม B เพื่อวางใน Excel หรือ Google Sheets ได้ทันที</p>
               <div class="grid two">
                 <button class="btn" data-copy="draw">ผลแบ่งสาย</button><button class="btn" data-copy="schedule">ตารางแข่ง</button>
                 <button class="btn" data-copy="scores">ผลคะแนน</button><button class="btn" data-copy="standings">ตารางอันดับ</button>
@@ -200,7 +204,8 @@
             </div>
             <div class="card">
               <h3>OBS Source Display</h3>
-              <div class="field"><label>พื้นหลัง Source</label><select id="sourceBg"><option value="dark">Dark</option><option value="transparent">Transparent</option><option value="green">Green Screen</option></select></div>
+              <div class="field"><label>พื้นหลัง Preview / Source</label><select id="sourceBg"><option value="transparent">Transparent (แนะนำ)</option><option value="dark">Dark Preview</option><option value="green">Green Screen Preview</option></select></div>
+              <div class="field"><label>ความเข้ม OBS Live Sources</label><div class="inline-range"><input id="sourceOpacity" type="range" min="0.35" max="1" step="0.05" value="0.9" /><div class="range-pill"><span id="sourceOpacityValue">90%</span></div></div></div>
               <div class="field"><label>ขนาดตัวอักษร OBS</label><input id="fontScale" type="range" min="0.7" max="1.6" step="0.05" value="1" /></div>
               <div class="field"><label>ขนาด Animation FX</label><div class="inline-range"><input id="drawAnimationScale" type="range" min="0.4" max="1.5" step="0.05" value="0.85" /><div class="range-pill"><span id="drawAnimationScaleValue">0.85</span>x</div></div></div>
               <button class="btn primary" id="saveDisplaySettings">บันทึก Display</button>
@@ -226,8 +231,10 @@
   </div>
 
   <script src="assets/pepslive-license-gate.js?v=license-v3-20260825"></script>
-  <script src="assets/app.js?v=ux-refresh-20260716-1"></script>
-  <script defer src="assets/core-guard.js?v=ux-refresh-20260716-1"></script>
-  <script defer src="assets/core-live-sources.js?v=ux-refresh-20260716-1"></script>
+  <script src="assets/app.js?v=draw-bye-20261124-1"></script>
+  <script defer src="assets/core-guard.js?v=draw-bye-20261124-1"></script>
+  <script defer src="assets/core-live-sources.js?v=draw-bye-20261124-1"></script>
+  <script defer src="assets/ux-v2.js?v=ux-v2-20260822-3"></script>
+  <script defer src="assets/remote-bridge.js?v=remote-20260822-3"></script>
 </body>
 </html>

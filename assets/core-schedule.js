@@ -124,7 +124,6 @@
   }
 
   function install() {
-    document.addEventListener('click', warnBeforeRebuild, true);
     document.addEventListener('click', () => setTimeout(refresh, 160));
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', refresh);
